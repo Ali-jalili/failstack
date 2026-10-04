@@ -4,7 +4,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 
-export async function signup(formData: FormData) {
+export async function handleSignUp(formData: FormData) {
   const name = formData.get("name");
   const email = formData.get("email");
   const password = formData.get("password");
