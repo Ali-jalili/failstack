@@ -2,24 +2,56 @@
 
 "use client";
 
+import { handleLogin } from "@/app/actions/auth";
 import Link from "next/link";
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import { validateLogin, type LoginErrors } from "@/lib/validation/auth";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<LoginErrors>({});
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    const formData = new FormData(e.currentTarget);
+
+    const data = {
+      email: formData.get("email")?.toString().trim() ?? "",
+      password: formData.get("password")?.toString() ?? "",
+    };
+    formData.set("email", data.email);
+
+    const validationErrors = validateLogin(data);
+
+    setErrors(validationErrors);
+
+    if (Object.keys(validationErrors).length > 0) {
+      return;
+    }
+
     setIsLoading(true);
 
-    console.log("Logging in:", { email, password });
+    try {
+      const result = await handleLogin(formData);
 
-    setTimeout(() => {
+      if (result.error) {
+        setErrors({
+          form: result.error,
+        });
+        return;
+      }
+
+    } catch {
+      setErrors({
+        form: "Something went wrong while logging in. Please try again.",
+      });
+    } finally {
       setIsLoading(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -84,14 +116,25 @@ export default function LoginForm() {
                 </label>
                 <input
                   id="email"
+                  name="email"
                   type="email"
                   required
                   autoComplete="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setErrors((current) => ({ ...current, email: undefined, form: undefined }));
+                  }}
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "login-email-error" : undefined}
                   placeholder="alex@company.com"
                   className="mt-1.5 block w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 transition focus:border-blue-500 focus:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+                {errors.email && (
+                  <p id="login-email-error" role="alert" className="mt-1.5 text-xs text-rose-400">
+                    {errors.email}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -112,11 +155,17 @@ export default function LoginForm() {
                 <div className="relative mt-1.5">
                   <input
                     id="password"
+                    name="password"
                     type={showPassword ? "text" : "password"}
                     required
                     autoComplete="current-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrors((current) => ({ ...current, password: undefined, form: undefined }));
+                    }}
+                    aria-invalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? "login-password-error" : undefined}
                     placeholder="••••••••"
                     className="block w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3.5 py-2 pr-10 text-sm text-slate-100 placeholder-slate-500 transition focus:border-blue-500 focus:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
@@ -162,7 +211,18 @@ export default function LoginForm() {
                     )}
                   </button>
                 </div>
+                {errors.password && (
+                  <p id="login-password-error" role="alert" className="mt-1.5 text-xs text-rose-400">
+                    {errors.password}
+                  </p>
+                )}
               </div>
+
+              {errors.form && (
+                <p role="alert" className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+                  {errors.form}
+                </p>
+              )}
 
               <button
                 type="submit"

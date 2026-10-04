@@ -57,7 +57,7 @@ export default function SignupForm() {
       }
 
       toast.success("Your account has been created successfully.");
-      router.push("/dashboard");
+      router.push("/");
     } catch {
       setErrors({
         form: "Something went wrong while creating your account. Please try again.",

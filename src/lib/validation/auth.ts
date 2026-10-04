@@ -11,6 +11,15 @@ export type SignupFormData = {
   confirmPassword: string;
 };
 
+export type LoginErrors = Partial<
+  Record<"email" | "password" | "form", string>
+>;
+
+export type LoginFormData = {
+  email: string;
+  password: string;
+};
+
 export function validateSignup(data: SignupFormData): SignupErrors {
   const errors: SignupErrors = {};
 
@@ -30,6 +39,20 @@ export function validateSignup(data: SignupFormData): SignupErrors {
     errors.confirmPassword = "Please confirm your password.";
   } else if (data.password !== data.confirmPassword) {
     errors.confirmPassword = "Passwords do not match.";
+  }
+
+  return errors;
+}
+
+export function validateLogin(data: LoginFormData): LoginErrors {
+  const errors: LoginErrors = {};
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    errors.email = "Please enter a valid email address.";
+  }
+
+  if (!data.password) {
+    errors.password = "Please enter your password.";
   }
 
   return errors;
