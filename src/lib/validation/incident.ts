@@ -15,6 +15,18 @@ export const incidentPatternSchema = z.enum([
   "RESOURCE_EXHAUSTION",
 ]);
 
+export type IncidentPattern = z.infer<typeof incidentPatternSchema>;
+
+export const INCIDENT_PATTERN_LABELS: Record<IncidentPattern, string> = {
+  SINGLE_POINT_OF_FAILURE: "Single Point of Failure",
+  CASCADING_FAILURE: "Cascading Failure",
+  THUNDERING_HERD: "Thundering Herd",
+  POISON_PILL: "Poison Pill",
+  RACE_CONDITION: "Race Condition",
+  SPLIT_BRAIN: "Split Brain",
+  RESOURCE_EXHAUSTION: "Resource Exhaustion",
+};
+
 export const timelineStageSchema = z.enum([
   "TRIGGER",
   "FAILURE",

@@ -4,6 +4,10 @@
 
 import { useFormContext } from "react-hook-form";
 import type { IncidentBasicInfoValues } from "@/lib/validation/incident-form";
+import {
+  INCIDENT_PATTERN_LABELS,
+  incidentPatternSchema,
+} from "@/lib/validation/incident";
 
 export default function BasicInfoStep() {
   const {
@@ -175,7 +179,7 @@ export default function BasicInfoStep() {
           >
             Failure Pattern
           </label>
-          <select
+          {/* <select
             id="pattern"
             {...register("pattern")}
             className={`mt-1.5 block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
@@ -197,12 +201,34 @@ export default function BasicInfoStep() {
               Cascading Failure
             </option>
             <option
-              value="RESOURCE_EXHAUSTION"
+              value="THUNDERING_HERD"
               className="bg-slate-900 text-slate-100"
             >
               Resource Exhaustion
             </option>
+
+            <option
+              value="SINGLE_POINT_OF_FAILURE"
+              className="bg-slate-900 text-slate-100"
+            ></option>
+          </select> */}
+
+          <select
+            id="pattern"
+            {...register("pattern")}
+            className={`mt-1.5 block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
+              errors.pattern
+                ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
+                : "border-slate-800 focus:border-blue-500 focus:ring-blue-500"
+            }`}
+          >
+            {incidentPatternSchema.options.map((p) => (
+              <option key={p} value={p}>
+                {INCIDENT_PATTERN_LABELS[p]}
+              </option>
+            ))}
           </select>
+
           {errors.pattern && (
             <p className="mt-1 text-xs text-rose-400">
               {errors.pattern.message}
