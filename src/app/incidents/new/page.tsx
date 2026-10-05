@@ -1,6 +1,6 @@
 /** @format */
 
-import IncidentForm from "../components/incident-form";
+import IncidentForm from "../components/IncidentForm";
 
 /** @format */
 export default function NewIncidents() {

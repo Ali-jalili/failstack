@@ -29,3 +29,17 @@ export const incidentBasicInfoSchema = z.object({
 });
 
 export type IncidentBasicInfoValues = z.infer<typeof incidentBasicInfoSchema>;
+
+///////////////////////////////////////////////////
+
+export const incidentSystemTechnologiesSchema = z.object({
+  system: z.string().min(2, "System name is required"),
+
+  technologies: z
+    .array(z.string())
+    .min(1, "At least one technology must be specified"),
+});
+
+export type IncidentSystemTechnologiesValues = z.infer<
+  typeof incidentSystemTechnologiesSchema
+>;

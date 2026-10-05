@@ -5,7 +5,7 @@
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldAlert } from "lucide-react";
-import BasicInfoStep from "./basic-info-step";
+import BasicInfoStep from "./BasicInfoStep";
 import {
   incidentBasicInfoSchema,
   type IncidentBasicInfoValues,
@@ -32,17 +32,21 @@ const STEPS = [
       "officialPostMortemUrl",
     ],
   },
+
   {
     id: "system-technologies",
     label: "System & Technologies",
     component: SystemTechnologiesStep,
   },
+
   { id: "timeline", label: "Timeline", component: TimelineStep },
+
   {
     id: "root-cause",
     label: "Root Cause",
     component: RootCauseArchitectureStep,
   },
+
   { id: "prevention", label: "Prevention", component: PreventionReviewStep },
 ] as const;
 
