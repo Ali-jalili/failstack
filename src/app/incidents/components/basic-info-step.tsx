@@ -12,13 +12,8 @@ import {
 export default function BasicInfoStep() {
   const {
     register,
-    handleSubmit,
     formState: { errors },
   } = useFormContext<IncidentBasicInfoValues>();
-
-  const onSubmit = (data: IncidentBasicInfoValues) => {
-    console.log(data);
-  };
 
   return (
     <section className="w-full max-w-2xl mx-auto space-y-6">
@@ -32,7 +27,7 @@ export default function BasicInfoStep() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+      <div className="space-y-4">
         {/* Title */}
         <div>
           <label
@@ -129,7 +124,7 @@ export default function BasicInfoStep() {
             </label>
             <input
               id="occurredAt"
-              type="date"
+              type="datetime-local"
               {...register("occurredAt")}
               className={`mt-1.5 block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 transition focus:bg-slate-900 focus:outline-none focus:ring-1 [color-scheme:dark] ${
                 errors.occurredAt
@@ -179,39 +174,6 @@ export default function BasicInfoStep() {
           >
             Failure Pattern
           </label>
-          {/* <select
-            id="pattern"
-            {...register("pattern")}
-            className={`mt-1.5 block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
-              errors.pattern
-                ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                : "border-slate-800 focus:border-blue-500 focus:ring-blue-500"
-            }`}
-          >
-            <option
-              value="SINGLE_POINT_OF_FAILURE"
-              className="bg-slate-900 text-slate-100"
-            >
-              Single Point of Failure
-            </option>
-            <option
-              value="CASCADING_FAILURE"
-              className="bg-slate-900 text-slate-100"
-            >
-              Cascading Failure
-            </option>
-            <option
-              value="THUNDERING_HERD"
-              className="bg-slate-900 text-slate-100"
-            >
-              Resource Exhaustion
-            </option>
-
-            <option
-              value="SINGLE_POINT_OF_FAILURE"
-              className="bg-slate-900 text-slate-100"
-            ></option>
-          </select> */}
 
           <select
             id="pattern"
@@ -287,7 +249,7 @@ export default function BasicInfoStep() {
             </p>
           )}
         </div>
-      </form>
+      </div>
     </section>
   );
 }

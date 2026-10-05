@@ -5,14 +5,54 @@
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldAlert } from "lucide-react";
-
 import BasicInfoStep from "./basic-info-step";
 import {
   incidentBasicInfoSchema,
   type IncidentBasicInfoValues,
 } from "@/lib/validation/incident-form";
+import { useState } from "react";
+import SystemTechnologiesStep from "./SystemTechnologiesStep";
+import TimelineStep from "./TimelineStep";
+import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
+import PreventionReviewStep from "./PreventionReviewStep";
+
+const STEPS = [
+  {
+    id: "basic-info",
+    label: "Basic Info",
+    component: BasicInfoStep,
+    fields: [
+      "title",
+      "companyName",
+      "occurredAt",
+      "durationMinutes",
+      "severity",
+      "pattern",
+      "summary",
+      "officialPostMortemUrl",
+    ],
+  },
+  {
+    id: "system-technologies",
+    label: "System & Technologies",
+    component: SystemTechnologiesStep,
+  },
+  { id: "timeline", label: "Timeline", component: TimelineStep },
+  {
+    id: "root-cause",
+    label: "Root Cause",
+    component: RootCauseArchitectureStep,
+  },
+  { id: "prevention", label: "Prevention", component: PreventionReviewStep },
+] as const;
 
 export default function IncidentForm() {
+  const [step, setStep] = useState(0);
+
+  const CurrentStep = STEPS[step].component;
+  const isFirst = step === 0;
+  const isLast = step === STEPS.length - 1;
+
   const form = useForm<IncidentBasicInfoValues>({
     resolver: zodResolver(incidentBasicInfoSchema),
     defaultValues: {
@@ -27,12 +67,20 @@ export default function IncidentForm() {
     },
   });
 
-  const handleNextStep = async () => {
-    const isValid = await form.trigger();
+  const { handleSubmit, trigger } = form;
+
+  const next = async () => {
+    if (isLast) return;
+    const isValid = await trigger(STEPS[step].fields);
     if (isValid) {
-      console.log("Step 1 Data:", form.getValues());
+      setStep(step + 1);
     }
   };
+  const back = () => !isFirst && setStep(step - 1);
+
+  function onSubmit(data: IncidentBasicInfoValues) {
+    console.log(data);
+  }
 
   return (
     <main className="relative min-h-screen w-full bg-slate-950 px-4 py-12 text-slate-100 sm:px-6 lg:px-8">
@@ -58,28 +106,45 @@ export default function IncidentForm() {
         {/* Main Form Container */}
         <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           <FormProvider {...form}>
-            <BasicInfoStep />
+            <form onSubmit={handleSubmit(onSubmit)}>
+              <CurrentStep />
+            </form>
           </FormProvider>
 
           {/* Stepper Navigation Actions */}
           <div className="mt-8 flex items-center justify-between border-t border-slate-800/80 pt-6">
             <button
+              onClick={back}
+              disabled={isFirst}
               type="button"
-              disabled
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-4 py-2.5 text-xs font-semibold text-slate-500 opacity-50 cursor-not-allowed transition"
+              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-semibold transition ${
+                isFirst
+                  ? "border-slate-800 bg-slate-900/50 text-slate-500 opacity-50 cursor-not-allowed"
+                  : "border-slate-700 bg-slate-900/50 text-slate-200 hover:border-slate-600 hover:text-white"
+              }`}
             >
               <ArrowLeft className="h-4 w-4" />
               Previous
             </button>
 
-            <button
-              type="button"
-              onClick={handleNextStep}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 active:scale-[0.98]"
-            >
-              Next Step
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            {isLast ? (
+              <button
+                onClick={handleSubmit(onSubmit)}
+                type="button"
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-500 active:scale-[0.98]"
+              >
+                Submit Incident
+              </button>
+            ) : (
+              <button
+                onClick={next}
+                type="button"
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 active:scale-[0.98]"
+              >
+                Next Step
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
