@@ -4,7 +4,7 @@
 
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, CheckCircle2, ShieldAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, ShieldAlert } from "lucide-react";
 import BasicInfoStep from "./BasicInfoStep";
 
 import { useState } from "react";
@@ -12,6 +12,10 @@ import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
 import PreventionReviewStep from "./PreventionReviewStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";
 import TimelineStep from "./TimelineStep";
+import {
+  incidentFormSchema,
+  IncidentFormValues,
+} from "@/lib/validation/incident-form";
 
 const STEPS = [
   {
@@ -34,18 +38,29 @@ const STEPS = [
     id: "system-technologies",
     label: "System & Technologies",
     component: SystemTechnologiesStep,
-    fields: ["systemName", "technologies"],
+    fields: ["system", "technologies"],
   },
 
-  { id: "timeline", label: "Timeline", component: TimelineStep },
+  {
+    id: "timeline",
+    label: "Timeline",
+    component: TimelineStep,
+    fields: ["timeline"],
+  },
 
   {
     id: "root-cause",
     label: "Root Cause",
     component: RootCauseArchitectureStep,
+    fields: ["rootCauseTree", "architectureDiff"],
   },
 
-  { id: "prevention", label: "Prevention", component: PreventionReviewStep },
+  {
+    id: "prevention",
+    label: "Prevention",
+    component: PreventionReviewStep,
+    fields: ["preventionActions"],
+  },
 ] as const;
 
 export default function IncidentForm() {
@@ -66,6 +81,17 @@ export default function IncidentForm() {
       pattern: "SINGLE_POINT_OF_FAILURE",
       summary: "",
       officialPostMortemUrl: "",
+      system: "",
+      technologies: [],
+      timeline: [],
+      rootCauseTree: [],
+      architectureDiff: {
+        beforeFix: "",
+        afterFix: "",
+        isFact: true,
+        notes: "",
+      },
+      preventionActions: [],
     },
   });
 
@@ -73,14 +99,18 @@ export default function IncidentForm() {
 
   const next = async () => {
     if (isLast) return;
-    const isValid = await trigger(STEPS[step].fields);
+
+    const stepFields = STEPS[step]
+      .fields as readonly (keyof IncidentFormValues)[];
+    const isValid = await trigger(stepFields);
+
     if (isValid) {
       setStep(step + 1);
     }
   };
   const back = () => !isFirst && setStep(step - 1);
 
-  function onSubmit(data: IncidentBasicInfoValues) {
+  function onSubmit(data: IncidentFormValues) {
     console.log(data);
   }
 

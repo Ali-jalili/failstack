@@ -37,7 +37,6 @@ export const incidentBasicInfoSchema = z.object({
     .or(z.literal("")),
 });
 
-
 //?? Schema Step 2
 
 export const incidentSystemTechnologiesSchema = z.object({
@@ -47,7 +46,6 @@ export const incidentSystemTechnologiesSchema = z.object({
     .array(z.string())
     .min(1, "At least one technology must be specified"),
 });
-
 
 //?? Schema Step 3
 export const incidentTimelineSchema = z.object({
@@ -76,9 +74,9 @@ export const incidentPreventionSchema = z.object({
 export const incidentFormSchema = z.object({
   ...incidentBasicInfoSchema.shape,
   ...incidentSystemTechnologiesSchema.shape,
-  ...incidentTimelineSchema,
-  ...incidentRootCauseArchitectureSchema,
-  ...incidentPreventionSchema,
+  ...incidentTimelineSchema.shape,
+  ...incidentRootCauseArchitectureSchema.shape,
+  ...incidentPreventionSchema.shape,
 });
 
 export type IncidentFormValues = z.infer<typeof incidentFormSchema>;
