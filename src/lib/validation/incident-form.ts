@@ -2,7 +2,16 @@
 
 import { z } from "zod";
 
-import { incidentPatternSchema, incidentSeveritySchema } from "./incident";
+import {
+  architectureDiffSchema,
+  incidentPatternSchema,
+  incidentSeveritySchema,
+  preventionActionSchema,
+  rootCauseNodeSchema,
+  timelineEventSchema,
+} from "./incident";
+
+//?? Schema Step 1
 
 export const incidentBasicInfoSchema = z.object({
   title: z.string().min(5, "Incident title must be at least 5 characters"),
@@ -28,9 +37,8 @@ export const incidentBasicInfoSchema = z.object({
     .or(z.literal("")),
 });
 
-export type IncidentBasicInfoValues = z.infer<typeof incidentBasicInfoSchema>;
 
-///////////////////////////////////////////////////
+//?? Schema Step 2
 
 export const incidentSystemTechnologiesSchema = z.object({
   system: z.string().min(2, "System name is required"),
@@ -40,6 +48,37 @@ export const incidentSystemTechnologiesSchema = z.object({
     .min(1, "At least one technology must be specified"),
 });
 
-export type IncidentSystemTechnologiesValues = z.infer<
-  typeof incidentSystemTechnologiesSchema
->;
+
+//?? Schema Step 3
+export const incidentTimelineSchema = z.object({
+  timeline: z.array(timelineEventSchema).min(2),
+});
+
+//?? Schema Step 4
+
+export const incidentRootCauseArchitectureSchema = z.object({
+  rootCauseTree: z
+    .array(rootCauseNodeSchema)
+    .min(1, "At least one Root Cause Analysis (RCA) node is required"),
+
+  architectureDiff: architectureDiffSchema,
+});
+
+//?? Schema Step 5
+export const incidentPreventionSchema = z.object({
+  preventionActions: z
+    .array(preventionActionSchema)
+    .min(1, "At least one prevention action is required"),
+});
+
+//?? FormSchema
+
+export const incidentFormSchema = z.object({
+  ...incidentBasicInfoSchema.shape,
+  ...incidentSystemTechnologiesSchema.shape,
+  ...incidentTimelineSchema,
+  ...incidentRootCauseArchitectureSchema,
+  ...incidentPreventionSchema,
+});
+
+export type IncidentFormValues = z.infer<typeof incidentFormSchema>;

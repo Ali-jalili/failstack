@@ -6,15 +6,12 @@ import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, CheckCircle2, ShieldAlert } from "lucide-react";
 import BasicInfoStep from "./BasicInfoStep";
-import {
-  incidentBasicInfoSchema,
-  type IncidentBasicInfoValues,
-} from "@/lib/validation/incident-form";
+
 import { useState } from "react";
-import SystemTechnologiesStep from "./SystemTechnologiesStep";
-import TimelineStep from "./TimelineStep";
 import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
 import PreventionReviewStep from "./PreventionReviewStep";
+import SystemTechnologiesStep from "./SystemTechnologiesStep";
+import TimelineStep from "./TimelineStep";
 
 const STEPS = [
   {
@@ -37,7 +34,7 @@ const STEPS = [
     id: "system-technologies",
     label: "System & Technologies",
     component: SystemTechnologiesStep,
-     fields: ["systemName", "technologies"],
+    fields: ["systemName", "technologies"],
   },
 
   { id: "timeline", label: "Timeline", component: TimelineStep },
@@ -58,8 +55,8 @@ export default function IncidentForm() {
   const isFirst = step === 0;
   const isLast = step === STEPS.length - 1;
 
-  const form = useForm<IncidentBasicInfoValues>({
-    resolver: zodResolver(incidentBasicInfoSchema),
+  const form = useForm<IncidentFormValues>({
+    resolver: zodResolver(incidentFormSchema),
     defaultValues: {
       title: "",
       companyName: "",
