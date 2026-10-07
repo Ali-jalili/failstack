@@ -48,9 +48,32 @@ export const incidentSystemTechnologiesSchema = z.object({
 });
 
 //?? Schema Step 3
-export const incidentTimelineSchema = z.object({
-  timeline: z.array(timelineEventSchema).min(2),
-});
+export const incidentTimelineSchema = z
+  .object({
+    timeline: z
+      .array(timelineEventSchema)
+      .min(2, "At least 2 timeline events are required"),
+  })
+  .refine(
+    (data) => {
+      const firstEvent = data.timeline[0];
+      return firstEvent && firstEvent.timestampOffsetMinutes === 0;
+    },
+    {
+      message: "The first timeline event must have a timestamp offset of 0",
+      path: ["timeline", 0, "timestampOffsetMinutes"],
+    },
+  )
+  .refine(
+    (data) => {
+      const firstEvent = data.timeline[0];
+      return firstEvent && firstEvent.stage === "TRIGGER";
+    },
+    {
+      message: "The first timeline event must have stage TRIGGER",
+      path: ["timeline", 0, "stage"],
+    },
+  );
 
 //?? Schema Step 4
 

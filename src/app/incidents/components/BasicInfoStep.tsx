@@ -3,17 +3,17 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import type { IncidentBasicInfoValues } from "@/lib/validation/incident-form";
 import {
   INCIDENT_PATTERN_LABELS,
   incidentPatternSchema,
 } from "@/lib/validation/incident";
+import { IncidentFormValues } from "@/lib/validation/incident-form";
 
 export default function BasicInfoStep() {
   const {
     register,
     formState: { errors },
-  } = useFormContext<IncidentBasicInfoValues>();
+  } = useFormContext<IncidentFormValues>();
 
   return (
     <section className="w-full max-w-2xl mx-auto space-y-6">

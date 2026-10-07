@@ -11,11 +11,12 @@ import { useState } from "react";
 import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
 import PreventionReviewStep from "./PreventionReviewStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";
-import TimelineStep from "./TimelineStep";
+
 import {
   incidentFormSchema,
   IncidentFormValues,
 } from "@/lib/validation/incident-form";
+import TimelineStep from "./TimelineStep";
 
 const STEPS = [
   {

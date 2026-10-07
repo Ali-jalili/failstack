@@ -2,24 +2,24 @@
 
 "use client";
 
-import { IncidentSystemTechnologiesValues } from "@/lib/validation/incident-form";
+import { IncidentFormValues } from "@/lib/validation/incident-form";
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
 
 export default function SystemTechnologiesStep() {
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState<string>("");
 
   const {
     register,
     watch,
     setValue,
     formState: { errors },
-  } = useFormContext<IncidentSystemTechnologiesValues>();
+  } = useFormContext<IncidentFormValues>();
 
-  const list = watch("technologies") ?? [];
+  const list: string[] = watch("technologies") ?? [];
 
-  const addItem = () => {
-    const trimmed = input.trim();
+  const addItem = (): void => {
+    const trimmed: string = input.trim();
     if (!trimmed) return;
     if (list.includes(trimmed)) return;
 
@@ -27,10 +27,10 @@ export default function SystemTechnologiesStep() {
     setInput("");
   };
 
-  const removeItem = (item: string) => {
+  const removeItem = (item: string): void => {
     setValue(
       "technologies",
-      list.filter((i) => i !== item),
+      list.filter((i: string) => i !== item),
       { shouldValidate: true },
     );
   };
