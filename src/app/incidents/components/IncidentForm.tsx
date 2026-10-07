@@ -37,6 +37,7 @@ const STEPS = [
     id: "system-technologies",
     label: "System & Technologies",
     component: SystemTechnologiesStep,
+     fields: ["systemName", "technologies"],
   },
 
   { id: "timeline", label: "Timeline", component: TimelineStep },
