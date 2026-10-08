@@ -80,7 +80,11 @@ export const incidentTimelineSchema = z
 export const incidentRootCauseArchitectureSchema = z.object({
   rootCauseTree: z
     .array(rootCauseNodeSchema)
-    .min(1, "At least one Root Cause Analysis (RCA) node is required"),
+    .min(1, "At least one Root Cause Analysis (RCA) node is required")
+    .refine(
+      (nodes) => nodes.filter((node) => node.parentId === null).length === 1,
+      "The RCA tree must have exactly one root node",
+    ),
 
   architectureDiff: architectureDiffSchema,
 });

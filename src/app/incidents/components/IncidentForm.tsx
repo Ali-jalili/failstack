@@ -8,7 +8,6 @@ import { ArrowLeft, ArrowRight, ShieldAlert } from "lucide-react";
 import BasicInfoStep from "./BasicInfoStep";
 
 import { useState } from "react";
-import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
 import PreventionReviewStep from "./PreventionReviewStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";
 
@@ -17,6 +16,7 @@ import {
   IncidentFormValues,
 } from "@/lib/validation/incident-form";
 import TimelineStep from "./TimelineStep";
+import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
 
 const STEPS = [
   {
@@ -65,7 +65,7 @@ const STEPS = [
 ] as const;
 
 export default function IncidentForm() {
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(3);
 
   const CurrentStep = STEPS[step].component;
   const isFirst = step === 0;
