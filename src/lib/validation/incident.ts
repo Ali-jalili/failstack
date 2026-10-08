@@ -71,6 +71,17 @@ export const rootCauseNodeSchema = z.object({
   systemComponent: z.string().min(1, "System component name is required"),
 });
 
+export const rootCauseTreeSchema = z
+  .array(rootCauseNodeSchema)
+  .min(1, "At least one Root Cause Analysis (RCA) node is required")
+  .refine(
+    (nodes) => nodes.filter((node) => node.parentId === null).length === 1,
+    {
+      message:
+        "The RCA tree must have exactly one root node (parentId === null)",
+    },
+  );
+
 export const architectureDiffSchema = z
   .object({
     beforeFix: z.string().min(5, "State description before fix is required"),
@@ -131,9 +142,7 @@ export const incidentSchema = z
     timeline: z
       .array(timelineEventSchema)
       .min(2, "At least 2 events are required to form a valid timeline"),
-    rootCauseTree: z
-      .array(rootCauseNodeSchema)
-      .min(1, "At least one Root Cause Analysis (RCA) node is required"),
+    rootCauseTree: rootCauseTreeSchema,
     architectureDiff: architectureDiffSchema,
     preventionActions: z
       .array(preventionActionSchema)
@@ -158,20 +167,6 @@ export const incidentSchema = z
     {
       message: "The stage of the first timeline event must be TRIGGER",
       path: ["timeline", 0, "stage"],
-    },
-  )
-  // RCA Tree Domain Rules Validation
-  .refine(
-    (data) => {
-      const rootNodes = data.rootCauseTree.filter(
-        (node) => node.parentId === null,
-      );
-      return rootNodes.length === 1;
-    },
-    {
-      message:
-        "The RCA tree must have exactly one root node (parentId === null)",
-      path: ["rootCauseTree"],
     },
   );
 
