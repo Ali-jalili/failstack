@@ -36,7 +36,18 @@ export default function SystemTechnologiesStep() {
   };
 
   return (
-    <div className="space-y-6">
+    <section className="w-full max-w-2xl mx-auto space-y-6">
+      <div className="border-b border-slate-800 pb-4">
+        <h2 className="text-xl font-bold tracking-tight text-white">
+          System & Technologies
+        </h2>
+        <p className="mt-1 text-xs text-slate-400">
+          Identify the affected system and the technologies it depends on. This
+          context helps connect the incident timeline to the underlying
+          architecture.
+        </p>
+      </div>
+
       {/* System Name */}
       <div>
         <label
@@ -121,6 +132,6 @@ export default function SystemTechnologiesStep() {
           </p>
         )}
       </div>
-    </div>
+    </section>
   );
 }
