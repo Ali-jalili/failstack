@@ -65,7 +65,7 @@ const STEPS = [
 ] as const;
 
 export default function IncidentForm() {
-  const [step, setStep] = useState(3);
+  const [step, setStep] = useState(4);
 
   const CurrentStep = STEPS[step].component;
   const isFirst = step === 0;
