@@ -137,7 +137,9 @@ export default function IncidentForm() {
         return;
       }
 
-      setSubmitSuccess(`Incident saved as a draft. Slug: ${result.slug}`);
+      setSubmitSuccess(
+        `Incident submitted for review. Slug: ${result.slug}`,
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -201,7 +203,7 @@ export default function IncidentForm() {
                 disabled={isSubmitting}
                 className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? "Saving Incident..." : "Submit Incident"}
+                {isSubmitting ? "Submitting for Review..." : "Submit for Review"}
               </button>
             ) : (
               <button

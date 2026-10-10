@@ -64,7 +64,7 @@ export async function createIncident(input: unknown) {
     architecture_diff: incident.architectureDiff,
     prevention_actions: incident.preventionActions,
     author_id: user.id,
-    status: "DRAFT",
+    status: "PENDING_REVIEW",
   };
 
   const { error: insertError } = await supabase.from("incidents").insert(row);
