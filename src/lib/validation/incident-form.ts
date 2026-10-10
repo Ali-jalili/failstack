@@ -20,7 +20,10 @@ export const incidentBasicInfoSchema = z.object({
 
   occurredAt: z.string().min(1, "Occurrence date is required"),
 
-  durationMinutes: z.number().positive("Incident duration must be positive"),
+  durationMinutes: z
+    .number()
+    .int("Incident duration must be a whole number of minutes")
+    .positive("Incident duration must be positive"),
 
   severity: incidentSeveritySchema,
 

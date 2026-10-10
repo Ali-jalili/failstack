@@ -10,6 +10,7 @@ import BasicInfoStep from "./BasicInfoStep";
 import { useState } from "react";
 import PreventionReviewStep from "./PreventionReviewStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";
+import { createIncident } from "@/app/actions/incidents";
 
 import {
   incidentFormSchema,
@@ -66,6 +67,9 @@ const STEPS = [
 
 export default function IncidentForm() {
   const [step, setStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
   const CurrentStep = STEPS[step].component;
   const isFirst = step === 0;
@@ -111,8 +115,38 @@ export default function IncidentForm() {
   };
   const back = () => !isFirst && setStep(step - 1);
 
-  function onSubmit(data: IncidentFormValues) {
-    console.log(data);
+  async function onSubmit(data: IncidentFormValues) {
+    if (isSubmitting) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const occurredAt = toIsoFromLocalDateTime(data.occurredAt);
+      if (!occurredAt) {
+        setSubmitError(
+          "Enter a valid local date and time for when the incident occurred.",
+        );
+        return;
+      }
+
+      const result = await createIncident({ ...data, occurredAt });
+      if (result.error) {
+        setSubmitError(result.error);
+        return;
+      }
+
+      setSubmitSuccess(`Incident saved as a draft. Slug: ${result.slug}`);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred while saving the incident.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -164,9 +198,10 @@ export default function IncidentForm() {
               <button
                 onClick={handleSubmit(onSubmit)}
                 type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-500 active:scale-[0.98]"
+                disabled={isSubmitting}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Submit Incident
+                {isSubmitting ? "Saving Incident..." : "Submit Incident"}
               </button>
             ) : (
               <button
@@ -179,6 +214,16 @@ export default function IncidentForm() {
               </button>
             )}
           </div>
+          {submitError && (
+            <p role="alert" className="mt-4 text-sm text-rose-400">
+              {submitError}
+            </p>
+          )}
+          {submitSuccess && (
+            <p role="status" className="mt-4 text-sm text-emerald-400">
+              {submitSuccess}
+            </p>
+          )}
         </div>
 
         {/* Footer info */}
@@ -189,4 +234,47 @@ export default function IncidentForm() {
       </div>
     </main>
   );
+}
+
+function toIsoFromLocalDateTime(value: string) {
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(
+      value,
+    );
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute, second = "0", fraction = "0"] =
+    match;
+  const parts = {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+    second: Number(second),
+    millisecond: Number(fraction.padEnd(3, "0")),
+  };
+  const localDate = new Date(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+    parts.millisecond,
+  );
+
+  if (
+    localDate.getFullYear() !== parts.year ||
+    localDate.getMonth() !== parts.month - 1 ||
+    localDate.getDate() !== parts.day ||
+    localDate.getHours() !== parts.hour ||
+    localDate.getMinutes() !== parts.minute ||
+    localDate.getSeconds() !== parts.second ||
+    localDate.getMilliseconds() !== parts.millisecond
+  ) {
+    return null;
+  }
+
+  return localDate.toISOString();
 }
