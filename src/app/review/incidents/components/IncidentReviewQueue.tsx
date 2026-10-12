@@ -1,3 +1,8 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useRef, useState, type FormEvent } from "react";
+import { reviewIncident } from "@/lib/actions/review-incident";
 import type { ReviewIncident } from "@/lib/services/incident-review";
 
 function formatDate(value: string) {
@@ -34,22 +39,55 @@ export default function IncidentReviewQueue({
 }: {
   incidents: ReviewIncident[];
 }) {
-  if (incidents.length === 0) {
+  const router = useRouter();
+  const [processedIncidentIds, setProcessedIncidentIds] = useState<string[]>(
+    [],
+  );
+  const [queueNotice, setQueueNotice] = useState<string | null>(null);
+  const pendingIncidents = incidents.filter(
+    (incident) => !processedIncidentIds.includes(incident.id),
+  );
+
+  function handleReviewed(incidentId: string, message: string) {
+    setProcessedIncidentIds((current) => [...current, incidentId]);
+    setQueueNotice(message);
+    router.refresh();
+  }
+
+  if (pendingIncidents.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 px-6 py-14 text-center">
-        <h2 className="text-lg font-semibold text-slate-200">
-          Review queue is empty
-        </h2>
-        <p className="mt-2 text-sm text-slate-400">
-          Incidents submitted for review will appear here.
-        </p>
+      <div className="space-y-4">
+        {queueNotice && (
+          <p
+            role="status"
+            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
+          >
+            {queueNotice}
+          </p>
+        )}
+        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 px-6 py-14 text-center">
+          <h2 className="text-lg font-semibold text-slate-200">
+            Review queue is empty
+          </h2>
+          <p className="mt-2 text-sm text-slate-400">
+            Incidents submitted for review will appear here.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {incidents.map((incident) => (
+      {queueNotice && (
+        <p
+          role="status"
+          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300"
+        >
+          {queueNotice}
+        </p>
+      )}
+      {pendingIncidents.map((incident) => (
         <article
           key={incident.id}
           className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-lg shadow-black/10 sm:p-7"
@@ -254,8 +292,160 @@ export default function IncidentReviewQueue({
               </Section>
             )}
           </div>
+
+          <IncidentReviewActions
+            incidentId={incident.id}
+            onReviewed={(message) => handleReviewed(incident.id, message)}
+          />
         </article>
       ))}
     </div>
+  );
+}
+
+function IncidentReviewActions({
+  incidentId,
+  onReviewed,
+}: {
+  incidentId: string;
+  onReviewed: (message: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionLock = useRef(false);
+  const [feedback, setFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
+
+  async function submitDecision(
+    action: "APPROVED" | "CHANGES_REQUESTED",
+    event?: FormEvent<HTMLFormElement>,
+  ) {
+    event?.preventDefault();
+    const trimmedReason = reason.trim();
+
+    if (action === "CHANGES_REQUESTED" && !trimmedReason) {
+      setFeedback({
+        kind: "error",
+        message: "Enter a reason before requesting changes.",
+      });
+      return;
+    }
+
+    if (submissionLock.current) return;
+
+    submissionLock.current = true;
+    setIsSubmitting(true);
+    setFeedback(null);
+
+    try {
+      const result = await reviewIncident(
+        action === "APPROVED"
+          ? { incidentId, action }
+          : { incidentId, action, reason: trimmedReason },
+      );
+
+      if (result.error) {
+        setFeedback({ kind: "error", message: result.error });
+        return;
+      }
+
+      onReviewed(
+        action === "APPROVED"
+          ? "Incident approved and published."
+          : "Changes requested. The reason has been recorded.",
+      );
+    } catch {
+      setFeedback({
+        kind: "error",
+        message: "Unable to save the decision. Please refresh and try again.",
+      });
+    } finally {
+      submissionLock.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="mt-6 border-t border-slate-800 pt-5">
+      <h3 className="font-mono text-xs font-semibold uppercase tracking-wider text-blue-300">
+        Review decision
+      </h3>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => submitDecision("APPROVED")}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-wait disabled:opacity-60"
+        >
+          {isSubmitting ? "Saving..." : "Approve and publish"}
+        </button>
+        <button
+          type="button"
+          disabled={isSubmitting}
+          aria-expanded={isChangeRequestOpen}
+          aria-controls={`change-request-${incidentId}`}
+          onClick={() => {
+            setFeedback(null);
+            setIsChangeRequestOpen((open) => !open);
+          }}
+          className="rounded-lg border border-amber-500/40 px-4 py-2 text-sm font-medium text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-wait disabled:opacity-60"
+        >
+          {isChangeRequestOpen ? "Cancel request" : "Request changes"}
+        </button>
+      </div>
+
+      {isChangeRequestOpen && (
+        <form
+          id={`change-request-${incidentId}`}
+          onSubmit={(event) => submitDecision("CHANGES_REQUESTED", event)}
+          className="mt-4 max-w-2xl rounded-lg border border-slate-800 bg-slate-950/40 p-4"
+        >
+          <label
+            htmlFor={`review-reason-${incidentId}`}
+            className="block text-sm font-medium text-slate-200"
+          >
+            Reason for requested changes
+          </label>
+          <p
+            id={`review-reason-help-${incidentId}`}
+            className="mt-1 text-xs text-slate-500"
+          >
+            Explain what needs clarification or revision. A reason is required.
+          </p>
+          <textarea
+            id={`review-reason-${incidentId}`}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            rows={3}
+            disabled={isSubmitting}
+            aria-describedby={`review-reason-help-${incidentId}`}
+            autoFocus
+            className="mt-3 block w-full resize-y rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
+            placeholder="Write a clear, actionable reason."
+          />
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="mt-3 rounded-lg border border-amber-500/40 px-4 py-2 text-sm font-medium text-amber-200 transition hover:border-amber-400 hover:bg-amber-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:cursor-wait disabled:opacity-60"
+          >
+            {isSubmitting ? "Submitting..." : "Send change request"}
+          </button>
+        </form>
+      )}
+
+      {feedback && (
+        <p
+          role={feedback.kind === "error" ? "alert" : "status"}
+          className={`mt-4 text-sm ${
+            feedback.kind === "error" ? "text-rose-300" : "text-emerald-300"
+          }`}
+        >
+          {feedback.message}
+        </p>
+      )}
+    </section>
   );
 }

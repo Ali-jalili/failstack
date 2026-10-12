@@ -55,7 +55,7 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
     };
   }
 
-  if (!currentUser.reviewRole) {
+  if (currentUser.reviewRole !== "reviewer") {
     return { kind: "forbidden" };
   }
 
