@@ -5,6 +5,7 @@ import type {
   RootCauseNode,
   TimelineEvent,
 } from "@/types/incident";
+import { getCurrentUserState } from "@/lib/services/current-user";
 import { createClient } from "@/lib/supabase/server";
 
 export interface ReviewIncident {
@@ -34,40 +35,31 @@ export type IncidentReviewQueueResult =
   | { kind: "success"; incidents: ReviewIncident[] };
 
 export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUserState();
 
-  if (authError) {
+  if (currentUser.kind === "error") {
     return {
       kind: "error",
-      message: `Could not verify your sign-in: ${authError.message}`,
+      message: `Could not verify your sign-in: ${currentUser.message}`,
     };
   }
 
-  if (!user) {
+  if (currentUser.kind === "anonymous") {
     return { kind: "unauthenticated" };
   }
 
-  const { data: userRole, error: roleError } = await supabase
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .maybeSingle();
-
-  if (roleError) {
+  if (currentUser.roleError) {
     return {
       kind: "error",
-      message: `Could not verify reviewer access: ${roleError.message}`,
+      message: `Could not verify reviewer access: ${currentUser.roleError}`,
     };
   }
 
-  if (userRole?.role !== "reviewer") {
+  if (!currentUser.reviewRole) {
     return { kind: "forbidden" };
   }
 
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("incidents")
     .select(

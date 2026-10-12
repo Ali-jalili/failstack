@@ -7,7 +7,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { validateLogin, type LoginErrors } from "@/lib/validation/auth";
 
-export default function LoginForm() {
+export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -107,6 +107,7 @@ export default function LoginForm() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <input type="hidden" name="next" value={returnTo} />
               <div>
                 <label
                   htmlFor="email"
@@ -236,7 +237,7 @@ export default function LoginForm() {
             <div className="mt-6 text-center text-xs text-slate-400">
               Don&apos;t have an account?{" "}
               <Link
-                href="/signup"
+                href={`/signup?next=${encodeURIComponent(returnTo)}`}
                 className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-4"
               >
                 Sign Up

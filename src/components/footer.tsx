@@ -36,13 +36,13 @@ export default function Footer() {
               Platform
             </span>
             <Link
-              href="/explorer"
+              href="/incidents"
               className="text-sm text-slate-400 transition hover:text-slate-200"
             >
-              Explorer
+              Incident Archive
             </Link>
             <Link
-              href="/author"
+              href="/incidents/new"
               className="text-sm text-slate-400 transition hover:text-slate-200"
             >
               Document Failure

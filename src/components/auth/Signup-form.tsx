@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { validateSignup, type SignupErrors } from "@/lib/validation/auth";
 import { handleSignUp } from "@/app/actions/auth";
 
-export default function SignupForm() {
+export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   const router = useRouter();
   const [errors, setErrors] = useState<SignupErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,8 +56,12 @@ export default function SignupForm() {
         return;
       }
 
-      toast.success("Your account has been created successfully.");
-      router.push("/");
+      if (result.requiresEmailConfirmation) {
+        toast.success("Check your email to confirm your account, then sign in.");
+      } else {
+        toast.success("Your account has been created successfully.");
+      }
+      router.push(`/login?next=${encodeURIComponent(returnTo)}`);
     } catch {
       setErrors({
         form: "Something went wrong while creating your account. Please try again.",
@@ -127,6 +131,7 @@ export default function SignupForm() {
               className="space-y-4"
               noValidate
             >
+              <input type="hidden" name="next" value={returnTo} />
               {/* Full Name */}
               <div>
                 <label
@@ -324,7 +329,7 @@ export default function SignupForm() {
             <div className="mt-6 text-center text-xs text-slate-400">
               Already have an account?{" "}
               <Link
-                href="/login"
+                href={`/login?next=${encodeURIComponent(returnTo)}`}
                 className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-4"
               >
                 Sign In

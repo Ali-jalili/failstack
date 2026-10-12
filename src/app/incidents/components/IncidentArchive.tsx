@@ -45,17 +45,25 @@ export default function IncidentArchive() {
   return (
     <main className="min-h-[calc(100vh-80px)] bg-slate-950 px-6 py-14 text-slate-100">
       <div className="mx-auto max-w-5xl">
-        <header className="mb-10">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-blue-400">
-            Incident archive
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Published Incidents
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-            Explore documented production incidents, their impact, and the
-            systems involved.
-          </p>
+        <header className="mb-10 flex flex-wrap items-end justify-between gap-5">
+          <div>
+            <p className="font-mono text-xs uppercase tracking-[0.2em] text-blue-400">
+              Incident archive
+            </p>
+            <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+              Published Incidents
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
+              Explore documented production incidents, their impact, and the
+              systems involved.
+            </p>
+          </div>
+          <Link
+            href="/incidents/new"
+            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+          >
+            Submit an Incident
+          </Link>
         </header>
 
         {error ? (
@@ -139,14 +147,6 @@ export default function IncidentArchive() {
           </ul>
         )}
 
-        <div className="mt-10">
-          <Link
-            href="/incidents/new"
-            className="text-sm font-medium text-blue-400 transition hover:text-blue-300"
-          >
-            Document an incident →
-          </Link>
-        </div>
       </div>
     </main>
   );

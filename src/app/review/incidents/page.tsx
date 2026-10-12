@@ -8,7 +8,7 @@ export default async function ReviewIncidentsPage() {
   const result = await getIncidentReviewQueue();
 
   if (result.kind === "unauthenticated") {
-    redirect("/login");
+    redirect(`/login?next=${encodeURIComponent("/review/incidents")}`);
   }
 
   if (result.kind === "forbidden") {

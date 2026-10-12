@@ -40,7 +40,7 @@ export default function Home() {
 
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
-                href="/explorer"
+                href="/incidents"
                 className="group relative inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-blue-500 shadow-lg shadow-blue-600/25"
               >
                 Explore Incidents
@@ -50,7 +50,7 @@ export default function Home() {
               </Link>
 
               <Link
-                href="/author"
+                href="/incidents/new"
                 className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-6 py-3.5 text-sm font-semibold text-slate-300 backdrop-blur-md transition-all duration-200 hover:border-slate-700 hover:bg-slate-800/80 hover:text-white"
               >
                 Document a Failure
