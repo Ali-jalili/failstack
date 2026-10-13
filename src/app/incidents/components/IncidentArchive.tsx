@@ -179,9 +179,19 @@ export default function IncidentArchive({
                           Submitted {formatCreatedAt(report.created_at)}
                         </time>
                       </div>
-                      <span className="rounded-md border border-slate-700 bg-slate-950/60 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-slate-300">
-                        {formatStatus(report.status)}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="rounded-md border border-slate-700 bg-slate-950/60 px-2.5 py-1 font-mono text-[10px] font-semibold uppercase text-slate-300">
+                          {formatStatus(report.status)}
+                        </span>
+                        {report.status === "CHANGES_REQUESTED" && (
+                          <Link
+                            href={`/incidents/${report.id}/edit`}
+                            className="inline-flex items-center rounded-md border border-amber-500/20 bg-amber-500/6 px-3 py-1 text-xs font-medium text-amber-200 hover:bg-amber-500/10"
+                          >
+                            Edit & Resubmit
+                          </Link>
+                        )}
+                      </div>
                     </div>
                     {report.status === "CHANGES_REQUESTED" &&
                       report.latest_review_reason && (

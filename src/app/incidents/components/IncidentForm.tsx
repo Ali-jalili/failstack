@@ -10,7 +10,7 @@ import BasicInfoStep from "./BasicInfoStep";
 import { useState } from "react";
 import PreventionReviewStep from "./PreventionReviewStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";
-import { createIncident } from "@/app/actions/incidents";
+import { createIncident, updateIncidentResubmit } from "@/app/actions/incidents";
 
 import {
   incidentFormSchema,
@@ -65,7 +65,7 @@ const STEPS = [
   },
 ] as const;
 
-export default function IncidentForm() {
+export default function IncidentForm({ initialValues, incidentId, mode = "create" }: { initialValues?: Partial<IncidentFormValues>; incidentId?: string; mode?: "create" | "edit" }) {
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -75,29 +75,36 @@ export default function IncidentForm() {
   const isFirst = step === 0;
   const isLast = step === STEPS.length - 1;
 
+  const defaultVals: IncidentFormValues = {
+    title: "",
+    companyName: "",
+    occurredAt: "",
+    durationMinutes: 0,
+    severity: "MINOR",
+    pattern: "SINGLE_POINT_OF_FAILURE",
+    summary: "",
+    officialPostMortemUrl: "",
+    system: "",
+    technologies: [],
+    timeline: [],
+    rootCauseTree: [],
+    architectureDiff: {
+      beforeFix: "",
+      afterFix: "",
+      isFact: true,
+      notes: "",
+    },
+    preventionActions: [],
+  };
+
+  const mergedDefaults: IncidentFormValues = {
+    ...defaultVals,
+    ...(initialValues ?? {}),
+  };
+
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentFormSchema),
-    defaultValues: {
-      title: "",
-      companyName: "",
-      occurredAt: "",
-      durationMinutes: 0,
-      severity: "MINOR",
-      pattern: "SINGLE_POINT_OF_FAILURE",
-      summary: "",
-      officialPostMortemUrl: "",
-      system: "",
-      technologies: [],
-      timeline: [],
-      rootCauseTree: [],
-      architectureDiff: {
-        beforeFix: "",
-        afterFix: "",
-        isFact: true,
-        notes: "",
-      },
-      preventionActions: [],
-    },
+    defaultValues: mergedDefaults,
   });
 
   const { handleSubmit, trigger } = form;
@@ -131,15 +138,30 @@ export default function IncidentForm() {
         return;
       }
 
-      const result = await createIncident({ ...data, occurredAt });
-      if (result.error) {
-        setSubmitError(result.error);
-        return;
-      }
+      if (mode === "edit") {
+        if (!incidentId) {
+          setSubmitError("Missing incident id for edit.");
+          return;
+        }
 
-      setSubmitSuccess(
-        `Incident submitted for review. Slug: ${result.slug}`,
-      );
+        const result = await updateIncidentResubmit({ id: incidentId, ...data, occurredAt });
+        if (result.error) {
+          setSubmitError(result.error);
+          return;
+        }
+
+        setSubmitSuccess("Incident updated and resubmitted for review.");
+      } else {
+        const result = await createIncident({ ...data, occurredAt });
+        if (result.error) {
+          setSubmitError(result.error);
+          return;
+        }
+
+        setSubmitSuccess(
+          `Incident submitted for review. Slug: ${result.slug}`,
+        );
+      }
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -165,7 +187,7 @@ export default function IncidentForm() {
             <span>INCIDENT_POSTMORTEM_ENGINE</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Create Incident
+            {mode === "edit" ? "Edit Incident" : "Create Incident"}
           </h1>
           <p className="mt-2 text-sm text-slate-400">
             Document system outages, failure patterns, and postmortem analysis.
