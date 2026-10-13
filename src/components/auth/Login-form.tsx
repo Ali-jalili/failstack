@@ -2,10 +2,10 @@
 
 "use client";
 
-import { handleLogin } from "@/app/actions/auth";
+import { handleLogin } from "@/features/auth/server/actions";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { validateLogin, type LoginErrors } from "@/lib/validation/auth";
+import { validateLogin, type LoginErrors } from "@/features/auth/schema";
 
 export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
   const [email, setEmail] = useState("");

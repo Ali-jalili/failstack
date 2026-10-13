@@ -1,8 +1,8 @@
 /** @format */
 
 import { redirect } from "next/navigation";
-import IncidentForm from "../components/IncidentForm";
-import { getCurrentUserState } from "@/lib/services/current-user";
+import IncidentForm from "@/features/incidents/components/IncidentForm";
+import { getCurrentUserState } from "@/features/auth/server/current-user";
 
 export default async function NewIncidents() {
   const userState = await getCurrentUserState();

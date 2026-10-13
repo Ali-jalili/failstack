@@ -1,9 +1,9 @@
 /** @format */
 
 import Link from "next/link";
-import AccountMenu from "./auth/AccountMenu";
+import AccountMenu from "@/features/auth/components/AccountMenu";
 import NavbarLinks from "./NavbarLinks";
-import { getCurrentUserState } from "@/lib/services/current-user";
+import { getCurrentUserState } from "@/features/auth/server/current-user";
 
 export default async function Navbar() {
   const userState = await getCurrentUserState();

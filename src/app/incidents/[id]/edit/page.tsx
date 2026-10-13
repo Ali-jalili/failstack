@@ -1,4 +1,4 @@
-import IncidentForm from "../../components/IncidentForm";
+import IncidentForm from "@/features/incidents/components/IncidentForm";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 

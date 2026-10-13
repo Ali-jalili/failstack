@@ -1,7 +1,7 @@
 /** @format */
 
-import IncidentArchive from "./components/IncidentArchive";
-import { getCurrentUserState } from "@/lib/services/current-user";
+import IncidentArchive from "@/features/incidents/components/IncidentArchive";
+import { getCurrentUserState } from "@/features/auth/server/current-user";
 
 export default async function IncidentsPage() {
   const userState = await getCurrentUserState();

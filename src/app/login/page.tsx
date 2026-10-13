@@ -1,6 +1,6 @@
 /** @format */
 
-import LoginForm from "@/components/auth/Login-form";
+import LoginForm from "@/features/auth/components/Login-form";
 import { getSafeRedirectPath } from "@/lib/auth/redirect";
 
 export default async function LoginPage({

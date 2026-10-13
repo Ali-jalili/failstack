@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import { validateSignup, type SignupErrors } from "@/lib/validation/auth";
-import { handleSignUp } from "@/app/actions/auth";
+import { validateSignup, type SignupErrors } from "@/features/auth/schema";
+import { handleSignUp } from "@/features/auth/server/actions";
 
 export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   const router = useRouter();

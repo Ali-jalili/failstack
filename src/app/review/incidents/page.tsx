@@ -1,8 +1,8 @@
 /** @format */
 
 import { notFound, redirect } from "next/navigation";
-import IncidentReviewQueue from "./components/IncidentReviewQueue";
-import { getIncidentReviewQueue } from "@/lib/services/incident-review";
+import IncidentReviewQueue from "@/features/review/components/IncidentReviewQueue";
+import { getIncidentReviewQueue } from "@/features/review/server/queries";
 
 export default async function ReviewIncidentsPage() {
   const result = await getIncidentReviewQueue();
