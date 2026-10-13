@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import {
   fetchMyReports,
   fetchPublishedIncidents,
-} from "@/app/actions/incident-archive";
+} from "@/features/incidents/server/actions";
 import type {
   MyReport,
   PublishedIncident,

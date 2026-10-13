@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { handleLogout } from "@/app/actions/auth";
+import { handleLogout } from "@/features/auth/server/actions";
 
 export default function LogoutButton() {
   const [error, setError] = useState<string | null>(null);

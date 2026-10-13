@@ -2,7 +2,7 @@
 
 "use client";
 
-import { handleLogin } from "@/app/actions/auth";
+import { handleLogin } from "@/features/auth/server/actions";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { validateLogin, type LoginErrors } from "@/lib/validation/auth";

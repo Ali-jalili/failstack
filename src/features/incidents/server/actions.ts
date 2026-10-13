@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { incidentFormSchema } from "@/features/incidents/form-schema";
+import { getMyReports, getPublishedIncidents } from "@/features/incidents/server/queries";
 
 const isoDateTimeSchema = z.string().datetime();
 
@@ -18,6 +19,14 @@ function createSlug(title: string) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "incident"
   );
+}
+
+export async function fetchMyReports() {
+  return getMyReports();
+}
+
+export async function fetchPublishedIncidents() {
+  return getPublishedIncidents();
 }
 
 export async function createIncident(input: unknown) {
