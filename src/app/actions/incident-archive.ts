@@ -1,7 +1,14 @@
 "use server";
 
-import { getPublishedIncidents } from "@/lib/services/incident-archive";
+import {
+  getMyReports,
+  getPublishedIncidents,
+} from "@/lib/services/incident-archive";
 
 export async function fetchPublishedIncidents() {
   return getPublishedIncidents();
+}
+
+export async function fetchMyReports() {
+  return getMyReports();
 }
