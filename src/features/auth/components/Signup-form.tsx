@@ -2,246 +2,339 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, MailCheck } from "lucide-react";
 import { toast } from "sonner";
-import { validateSignup, type SignupErrors } from "@/lib/validation/auth";
+import { signupSchema, type SignupFormValues } from "@/features/auth/schema";
 import { handleSignUp } from "@/features/auth/server/actions";
+
+const labelClass =
+  "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
+
+const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";
+
+function inputClass(hasError: boolean, withToggle = false) {
+  return `block h-11 w-full border bg-[#0b121a] px-3.5 ${
+    withToggle ? "pr-11" : ""
+  } text-[13px] text-slate-100 placeholder-slate-600 transition-colors focus:outline-none focus:ring-1 ${
+    hasError
+      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
+      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c]/70 focus:ring-[#c6e47c]/40"
+  }`;
+}
+
+const toggleClass =
+  "absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-slate-500 transition-colors hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]";
+
+const fieldErrorClass = "mt-1.5 text-[11px] text-rose-400";
+
+const reviewSteps = [
+  {
+    label: "01 / AUTHOR",
+    title: "Document",
+    text: "Submit a structured account of the incident.",
+  },
+  {
+    label: "02 / REVIEW",
+    title: "Challenge",
+    text: "Reviewers can approve the report or request changes.",
+  },
+  {
+    label: "03 / ARCHIVE",
+    title: "Preserve",
+    text: "Approved reports join the published incident archive.",
+  },
+];
 
 export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   const router = useRouter();
-  const [errors, setErrors] = useState<SignupErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [emailConfirmationPending, setEmailConfirmationPending] = useState<
+    string | null
+  >(null);
 
-  function clearError(field: keyof SignupErrors) {
-    setErrors((current) => {
-      const next = { ...current };
-      delete next[field];
-      delete next.form;
-      return next;
-    });
-  }
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting: formIsSubmitting },
+  } = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-  async function handleSignupSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const submitting = isSubmitting || formIsSubmitting;
 
-    const formData = new FormData(event.currentTarget);
-
-    const data = {
-      name: formData.get("name")?.toString().trim() ?? "",
-      email: formData.get("email")?.toString().trim() ?? "",
-      password: formData.get("password")?.toString() ?? "",
-      confirmPassword: formData.get("confirmPassword")?.toString() ?? "",
-    };
-
-    const validationErrors = validateSignup(data);
-
-    setErrors(validationErrors);
-
-    if (Object.keys(validationErrors).length > 0) {
-      return;
-    }
+  async function onValidSubmit(data: SignupFormValues) {
+    if (submitting) return;
 
     setIsSubmitting(true);
+    setFormError(null);
 
     try {
+      const formData = new FormData();
+      formData.set("name", data.name);
+      formData.set("email", data.email);
+      formData.set("password", data.password);
+      formData.set("next", returnTo);
+
       const result = await handleSignUp(formData);
 
       if (result.error) {
-        setErrors({ form: result.error });
+        setFormError(result.error);
         return;
       }
 
       if (result.requiresEmailConfirmation) {
-        toast.success("Check your email to confirm your account, then sign in.");
-      } else {
-        toast.success("Your account has been created successfully.");
+        setEmailConfirmationPending(data.email);
+        return;
       }
+
+      toast.success("Your account has been created successfully.");
       router.push(`/login?next=${encodeURIComponent(returnTo)}`);
     } catch {
-      setErrors({
-        form: "Something went wrong while creating your account. Please try again.",
-      });
+      setFormError(
+        "Something went wrong while creating your account. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   }
 
-  return (
-    <div className="flex min-h-screen w-full bg-slate-950 text-slate-100">
-      {/* Background Grid & Glow Patterns */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      <div className="pointer-events-none absolute left-1/3 top-[-10%] h-[500px] w-[500px] rounded-full bg-blue-600/10 blur-[120px]" />
+  const nameField = register("name", {
+    onChange: () => setFormError(null),
+  });
+  const emailField = register("email", {
+    onChange: () => setFormError(null),
+  });
+  const passwordField = register("password", {
+    onChange: () => setFormError(null),
+  });
+  const confirmPasswordField = register("confirmPassword", {
+    onChange: () => setFormError(null),
+  });
 
-      <div className="relative flex w-full flex-col lg:flex-row">
-        {/* Left Side: Form Section */}
-        <div className="flex flex-1 flex-col justify-between px-6 py-10 lg:px-16 xl:px-24">
-          <div>
-            <Link href="/" className="inline-flex items-center gap-2.5 group">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-700/60 bg-slate-900 shadow-inner group-hover:border-blue-500/50">
-                <span className="font-mono text-xs font-bold text-blue-400">
-                  FS
-                </span>
+  const loginHref = `/login?next=${encodeURIComponent(returnTo)}`;
+
+  function handleSigninInstead() {
+    router.push(loginHref);
+  }
+
+  function handleRegisterAnother() {
+    reset();
+    setEmailConfirmationPending(null);
+    setFormError(null);
+  }
+
+  if (emailConfirmationPending) {
+    return (
+      <section className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
+        <div aria-hidden="true" className="home-grid" />
+        <div className="relative mx-auto flex min-h-[inherit] max-w-[1440px] items-center px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+          <div className="mx-auto w-full max-w-[26rem]">
+            <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
+              <span
+                aria-hidden="true"
+                className="h-[7px] w-[7px] shrink-0 rotate-45 border border-[#c6e47c] bg-[#c6e47c]/20"
+              />
+              Confirmation needed
+            </p>
+
+            <h1
+              className={`${serifClass} mt-5 text-[clamp(2.4rem,5vw,3.4rem)] font-normal leading-[0.99] tracking-[-0.055em] text-[#f1f1e9]`}
+            >
+              One last step.
+            </h1>
+
+            <div
+              role="status"
+              className="mt-5 border border-[#c6e47c]/30 bg-[#c6e47c]/5 p-4"
+            >
+              <div className="flex items-start gap-3">
+                <MailCheck
+                  aria-hidden="true"
+                  className="mt-0.5 h-4 w-4 shrink-0 text-[#c6e47c]"
+                />
+                <div>
+                  <p className="text-[13px] font-medium text-slate-100">
+                    Check your inbox
+                  </p>
+                  <p className="mt-1 text-[12px] leading-[1.7] text-slate-400">
+                    We&apos;ve sent a confirmation link to{" "}
+                    <span className="font-medium text-slate-200">
+                      {emailConfirmationPending}
+                    </span>
+                    . Confirm your account, then sign in to start contributing
+                    to the archive.
+                  </p>
+                  <p className="mt-3 text-[11px] text-slate-500">
+                    No link? Check your spam folder, or wait a minute and
+                    refresh this page.
+                  </p>
+                </div>
               </div>
-              <span className="text-base font-semibold tracking-tight text-slate-100 group-hover:text-white">
-                FailStack
-              </span>
-            </Link>
-          </div>
-
-          <div className="mx-auto my-auto w-full max-w-sm py-6">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-                Create an account
-              </h1>
-              <p className="mt-2 text-sm text-slate-400">
-                Join the engineering community and start documenting system
-                failures.
-              </p>
             </div>
 
-            {/* OAuth GitHub Button */}
             <button
               type="button"
-              className="group relative flex w-full items-center justify-center gap-3 rounded-lg border border-slate-800 bg-slate-900/80 px-4 py-2.5 text-sm font-medium text-slate-200 transition-all hover:border-slate-700 hover:bg-slate-800 hover:text-white"
+              onClick={handleSigninInstead}
+              className="mt-7 flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
             >
-              <svg className="h-5 w-5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-              </svg>
-              <span>Sign up with GitHub</span>
+              <span>Sign in</span>
+              <span aria-hidden="true" className="text-[17px] font-normal">
+                ↗
+              </span>
             </button>
 
-            <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-slate-950 px-2 font-mono text-slate-500">
-                  Or with email
-                </span>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={handleRegisterAnother}
+              className="mt-4 text-[12px] text-slate-400 underline decoration-slate-600 underline-offset-4 transition-colors hover:text-white hover:decoration-[#c6e47c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]"
+            >
+              Register another account
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
+      <div aria-hidden="true" className="home-grid" />
+
+      <div className="relative mx-auto grid min-h-[inherit] max-w-[1440px] lg:grid-cols-2">
+        {/* Form column */}
+        <div className="flex items-center px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
+          <div className="mx-auto w-full max-w-[26rem]">
+            <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
+              <span
+                aria-hidden="true"
+                className="h-[7px] w-[7px] shrink-0 rotate-45 border border-[#c6e47c] bg-[#c6e47c]/20"
+              />
+              Contribute to the archive
+            </p>
+
+            <h1
+              className={`${serifClass} mt-5 text-[clamp(2.4rem,5vw,3.4rem)] font-normal leading-[0.99] tracking-[-0.055em] text-[#f1f1e9]`}
+            >
+              Create an <em className="text-[#c6e47c]">account.</em>
+            </h1>
+            <p className="mt-4 max-w-sm text-[13px] leading-[1.75] text-slate-400">
+              Submit incident reports for peer review and keep the lessons they
+              teach.
+            </p>
 
             <form
-              onSubmit={handleSignupSubmit}
-              className="space-y-4"
+              onSubmit={handleSubmit(onValidSubmit)}
+              className="mt-8 space-y-4"
               noValidate
             >
               <input type="hidden" name="next" value={returnTo} />
+
               {/* Full Name */}
               <div>
-                <label
-                  htmlFor="signup-name"
-                  className="block text-xs font-mono font-medium uppercase text-slate-400"
-                >
-                  Full Name
+                <label htmlFor="signup-name" className={labelClass}>
+                  Full name
                 </label>
-                <input
-                  id="signup-name"
-                  type="text"
-                  name="name"
-                  autoComplete="name"
-                  required
-                  placeholder="Alex Morgan"
-                  aria-invalid={Boolean(errors.name)}
-                  aria-describedby={
-                    errors.name ? "signup-name-error" : undefined
-                  }
-                  onChange={() => clearError("name")}
-                  className={`mt-1.5 block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
-                    errors.name
-                      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                      : "border-slate-800 focus:border-blue-500 focus:ring-blue-500"
-                  }`}
-                />
+                <div className="mt-1.5">
+                  <input
+                    id="signup-name"
+                    type="text"
+                    autoComplete="name"
+                    placeholder="Alex Morgan"
+                    aria-invalid={Boolean(errors.name)}
+                    aria-describedby={
+                      errors.name ? "signup-name-error" : undefined
+                    }
+                    {...nameField}
+                    className={inputClass(Boolean(errors.name))}
+                  />
+                </div>
                 {errors.name && (
                   <p
                     id="signup-name-error"
                     role="alert"
-                    className="mt-1 text-xs text-rose-400"
+                    className={fieldErrorClass}
                   >
-                    {errors.name}
+                    {errors.name.message}
                   </p>
                 )}
               </div>
 
               {/* Email */}
               <div>
-                <label
-                  htmlFor="signup-email"
-                  className="block text-xs font-mono font-medium uppercase text-slate-400"
-                >
-                  Email Address
+                <label htmlFor="signup-email" className={labelClass}>
+                  Email address
                 </label>
-                <input
-                  id="signup-email"
-                  type="email"
-                  name="email"
-                  autoComplete="email"
-                  required
-                  placeholder="alex@company.com"
-                  aria-invalid={Boolean(errors.email)}
-                  aria-describedby={
-                    errors.email ? "signup-email-error" : undefined
-                  }
-                  onChange={() => clearError("email")}
-                  className={`mt-1.5 block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
-                    errors.email
-                      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                      : "border-slate-800 focus:border-blue-500 focus:ring-blue-500"
-                  }`}
-                />
+                <div className="mt-1.5">
+                  <input
+                    id="signup-email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="alex@company.com"
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={
+                      errors.email ? "signup-email-error" : undefined
+                    }
+                    {...emailField}
+                    className={inputClass(Boolean(errors.email))}
+                  />
+                </div>
                 {errors.email && (
                   <p
                     id="signup-email-error"
                     role="alert"
-                    className="mt-1 text-xs text-rose-400"
+                    className={fieldErrorClass}
                   >
-                    {errors.email}
+                    {errors.email.message}
                   </p>
                 )}
               </div>
 
               {/* Password */}
               <div>
-                <label
-                  htmlFor="signup-password"
-                  className="block text-xs font-mono font-medium uppercase text-slate-400"
-                >
+                <label htmlFor="signup-password" className={labelClass}>
                   Password
                 </label>
                 <div className="relative mt-1.5">
                   <input
                     id="signup-password"
                     type={showPassword ? "text" : "password"}
-                    name="password"
                     autoComplete="new-password"
-                    required
                     placeholder="••••••••"
                     aria-invalid={Boolean(errors.password)}
                     aria-describedby={
                       errors.password ? "signup-password-error" : undefined
                     }
-                    onChange={() => clearError("password")}
-                    className={`block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 pr-10 text-sm text-slate-100 placeholder-slate-500 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
-                      errors.password
-                        ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                        : "border-slate-800 focus:border-blue-500 focus:ring-blue-500"
-                    }`}
+                    {...passwordField}
+                    className={inputClass(Boolean(errors.password), true)}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((current) => !current)}
+                    className={toggleClass}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff aria-hidden="true" className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Eye aria-hidden="true" className="h-4 w-4" />
                     )}
                   </button>
                 </div>
@@ -249,28 +342,23 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
                   <p
                     id="signup-password-error"
                     role="alert"
-                    className="mt-1 text-xs text-rose-400"
+                    className={fieldErrorClass}
                   >
-                    {errors.password}
+                    {errors.password.message}
                   </p>
                 )}
               </div>
 
               {/* Confirm Password */}
               <div>
-                <label
-                  htmlFor="signup-confirm-password"
-                  className="block text-xs font-mono font-medium uppercase text-slate-400"
-                >
-                  Confirm Password
+                <label htmlFor="signup-confirm-password" className={labelClass}>
+                  Confirm password
                 </label>
                 <div className="relative mt-1.5">
                   <input
                     id="signup-confirm-password"
                     type={showConfirmPassword ? "text" : "password"}
-                    name="confirmPassword"
                     autoComplete="new-password"
-                    required
                     placeholder="••••••••"
                     aria-invalid={Boolean(errors.confirmPassword)}
                     aria-describedby={
@@ -278,22 +366,29 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
                         ? "signup-confirm-password-error"
                         : undefined
                     }
-                    onChange={() => clearError("confirmPassword")}
-                    className={`block w-full rounded-lg border bg-slate-900/50 px-3.5 py-2 pr-10 text-sm text-slate-100 placeholder-slate-500 transition focus:bg-slate-900 focus:outline-none focus:ring-1 ${
-                      errors.confirmPassword
-                        ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                        : "border-slate-800 focus:border-blue-500 focus:ring-blue-500"
-                    }`}
+                    {...confirmPasswordField}
+                    className={inputClass(
+                      Boolean(errors.confirmPassword),
+                      true,
+                    )}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    aria-label={
+                      showConfirmPassword
+                        ? "Hide confirmation password"
+                        : "Show confirmation password"
+                    }
+                    aria-pressed={showConfirmPassword}
+                    onClick={() =>
+                      setShowConfirmPassword((current) => !current)
+                    }
+                    className={toggleClass}
                   >
                     {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4" />
+                      <EyeOff aria-hidden="true" className="h-4 w-4" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <Eye aria-hidden="true" className="h-4 w-4" />
                     )}
                   </button>
                 </div>
@@ -301,82 +396,105 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
                   <p
                     id="signup-confirm-password-error"
                     role="alert"
-                    className="mt-1 text-xs text-rose-400"
+                    className={fieldErrorClass}
                   >
-                    {errors.confirmPassword}
+                    {errors.confirmPassword.message}
                   </p>
                 )}
               </div>
 
               {/* Form Level Error */}
-              {errors.form && (
-                <p role="alert" className="text-xs font-medium text-rose-400">
-                  {errors.form}
+              {formError && (
+                <p
+                  role="alert"
+                  className="border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-[12px] leading-5 text-rose-300"
+                >
+                  {formError}
                 </p>
               )}
 
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 disabled:opacity-50"
+                disabled={submitting}
+                className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
               >
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isSubmitting ? "Creating Account..." : "Create Account"}
+                <span>
+                  {submitting ? "Creating account..." : "Create account"}
+                </span>
+                {submitting ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin"
+                  />
+                ) : (
+                  <span aria-hidden="true" className="text-[17px] font-normal">
+                    ↗
+                  </span>
+                )}
               </button>
             </form>
 
-            <div className="mt-6 text-center text-xs text-slate-400">
+            <p className="mt-7 border-t border-slate-800/80 pt-5 text-[12px] text-slate-400">
               Already have an account?{" "}
               <Link
-                href={`/login?next=${encodeURIComponent(returnTo)}`}
-                className="font-semibold text-blue-400 hover:text-blue-300 underline underline-offset-4"
+                href={loginHref}
+                className="text-slate-200 underline decoration-slate-600 underline-offset-[5px] transition-colors hover:text-white hover:decoration-[#c6e47c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]"
               >
-                Sign In
+                Sign in
               </Link>
-            </div>
-          </div>
-
-          <div className="text-xs text-slate-600 font-mono">
-            FAILSTACK &copy; {new Date().getFullYear()}
-          </div>
-        </div>
-
-        {/* Right Side Showcase (Right Panel) */}
-        <div className="hidden flex-1 border-l border-slate-800/80 bg-slate-900/30 p-12 lg:flex lg:flex-col lg:justify-between">
-          <div className="max-w-md">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900 px-3 py-1 text-xs font-mono text-slate-400 mb-6">
-              <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>Engineering First Culture</span>
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-white">
-              Turn outages into insights.
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              Build a culture of blameless postmortems, identify root causes,
-              and protect your infrastructure from repeated failures.
             </p>
           </div>
-
-          <div className="relative rounded-xl border border-slate-800 bg-slate-950/80 p-5 shadow-2xl backdrop-blur-md">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-              <span className="font-mono text-xs text-blue-400">
-                SYSTEM_RESILIENCE_INIT
-              </span>
-              <span className="font-mono text-[10px] text-slate-500">
-                STATUS: READY
-              </span>
-            </div>
-            <div className="mt-4 space-y-2 font-mono text-xs text-slate-300">
-              <div className="text-slate-400">├── Blameless Postmortems</div>
-              <div className="text-slate-400">├── Distributed Tracing</div>
-              <div className="text-emerald-400">
-                └── Automated Incident Playbooks
-              </div>
-            </div>
-          </div>
         </div>
+
+        {/* Side panel: the real review workflow */}
+        <aside
+          aria-label="How contributions are reviewed"
+          className="hidden border-l border-slate-800/80 bg-gradient-to-br from-[#0c151c] via-[#0b1219] to-[#101a1c] px-10 py-16 lg:flex lg:flex-col lg:justify-center"
+        >
+          <div className="mx-auto w-full max-w-md">
+            <p className="flex items-center gap-[11px] font-mono text-[9px] uppercase leading-[1.6] tracking-[0.12em] text-[#9cb876]">
+              <span
+                aria-hidden="true"
+                className="h-[7px] w-[7px] shrink-0 rotate-45 border border-[#9cb876] bg-[#9cb876]/20"
+              />
+              A considered path to publication
+            </p>
+            <h2
+              className={`${serifClass} mt-4 text-[clamp(2.2rem,3.6vw,3.2rem)] font-normal leading-[0.99] tracking-[-0.055em] text-[#e9ece5]`}
+            >
+              Shared knowledge
+              <br />
+              needs <em className="text-[#e2a16d]">good review.</em>
+            </h2>
+            <p className="mt-4 max-w-sm text-[13px] leading-[1.75] text-slate-400">
+              Every contribution enters a reviewer queue before it becomes part
+              of the public archive.
+            </p>
+
+            <ol className="mt-9 border-t border-slate-500/20">
+              {reviewSteps.map((step) => (
+                <li
+                  key={step.label}
+                  className="border-b border-slate-500/15 py-[18px]"
+                >
+                  <span className="font-mono text-[8px] uppercase leading-[1.5] tracking-[0.08em] text-slate-500">
+                    {step.label}
+                  </span>
+                  <h3
+                    className={`${serifClass} mt-2 text-[21px] font-normal tracking-[-0.025em] text-[#e2e7e2]`}
+                  >
+                    {step.title}
+                  </h3>
+                  <p className="mt-1 max-w-[25rem] text-[11px] leading-[1.6] text-slate-400">
+                    {step.text}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </aside>
       </div>
-    </div>
+    </section>
   );
 }

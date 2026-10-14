@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import "./globals.css";
 import Footer from "@/components/footer";
 import Navbar from "@/components/navbar";
@@ -35,6 +36,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
           <Footer />
         </div>
+
+        <Toaster
+          position="top-right"
+          richColors
+          theme="dark"
+          expand={false}
+        />
       </body>
     </html>
   );
