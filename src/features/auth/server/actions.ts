@@ -12,10 +12,8 @@ import { getCurrentUserState } from "@/features/auth/server/current-user";
  * Anything else is collapsed to a generic message to avoid leaking internals.
  */
 const SAFE_SUPABASE_ERROR_CODES = new Set([
-  "auth/invalid-login-credentials",
   "auth/email-confirmation-required",
   "auth/email-not-confirmed",
-  "auth/user-already-exists",
   "auth/formats/email-invalid",
 ]);
 
@@ -25,6 +23,13 @@ function toUserFacingError(error: { code?: string; message?: string }): string {
 
   if (code === "auth/user-already-exists" || /already been taken/i.test(message)) {
     return "An account with this email already exists. Try signing in instead.";
+  }
+
+  if (
+    code === "auth/invalid-credentials" ||
+    /invalid login credentials/i.test(message)
+  ) {
+    return "Incorrect email or password. Check your details and try again.";
   }
 
   if (SAFE_SUPABASE_ERROR_CODES.has(code ?? "")) {
@@ -131,7 +136,7 @@ export async function handleLogin(formData: FormData) {
 
   if (error) {
     return {
-      error: error.message,
+      error: toUserFacingError(error),
     };
   }
 
