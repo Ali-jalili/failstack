@@ -2,144 +2,227 @@
 
 import Link from "next/link";
 
+const analysisSteps = [
+  {
+    number: "01",
+    title: "Reconstruct the sequence",
+    detail: "Timeline",
+    text: "Put the trigger, propagation, impact, and mitigation in order.",
+    mark: "analysis-timeline",
+  },
+  {
+    number: "02",
+    title: "Make causality legible",
+    detail: "Root cause",
+    text: "Connect contributing conditions to the failures they set in motion.",
+    mark: "analysis-cause",
+  },
+  {
+    number: "03",
+    title: "Record what changes",
+    detail: "Prevention",
+    text: "Turn the explanation into a concrete action against recurrence.",
+    mark: "analysis-prevention",
+  },
+];
+
 export default function Home() {
   return (
-    <section className="relative min-h-[calc(100vh-80px)] overflow-hidden bg-slate-950 text-slate-100">
-      {/* Background Grid Pattern & Glows */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      <div className="pointer-events-none absolute left-1/2 top-[-10%] h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-blue-600/10 blur-[120px]" />
-      <div className="pointer-events-none absolute right-[10%] top-[40%] h-[350px] w-[350px] rounded-full bg-emerald-500/5 blur-[100px]" />
+    <div className="home-page relative isolate overflow-hidden bg-[#080d16] text-slate-100">
+      <div aria-hidden="true" className="home-grid" />
+      <div aria-hidden="true" className="home-orbit home-orbit-one" />
+      <div aria-hidden="true" className="home-orbit home-orbit-two" />
 
-      <div className="relative mx-auto max-w-7xl px-6 py-16 lg:py-24">
-        <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-12">
-          {/* Left Column: Value Proposition */}
-          <div className="lg:col-span-7">
-            <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-slate-800 bg-slate-900/80 px-3.5 py-1.5 backdrop-blur-md">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              <span className="font-mono text-xs font-medium tracking-wider text-slate-300 uppercase">
-                Software Incident Analysis Platform
-              </span>
-            </div>
-
-            <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-6xl lg:text-7xl leading-[1.1]">
-              Failures are data.
-              <br />
-              <span className="bg-gradient-to-r from-slate-400 via-slate-500 to-slate-600 bg-clip-text text-transparent">
-                Study them.
-              </span>
-            </h1>
-
-            <p className="mt-6 max-w-xl text-base leading-relaxed text-slate-400 sm:text-lg">
-              Explore real-world production outages through structured
-              timelines, root-cause trees, architecture diffs, and prevention
-              strategies.
+      <div className="relative">
+        <section
+          aria-labelledby="home-heading"
+          className="home-hero mx-auto grid max-w-[1440px] gap-12 px-5 pb-20 pt-14 sm:px-8 sm:pb-24 sm:pt-20 lg:grid-cols-[0.88fr_1.12fr] lg:items-center lg:gap-16 lg:px-12 lg:pb-28 lg:pt-24"
+        >
+          <div className="home-intro">
+            <p className="home-kicker">
+              <span className="home-kicker-mark" aria-hidden="true" />
+              Engineering knowledge, recovered from failure
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="/incidents"
-                className="group relative inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white transition-all duration-200 hover:bg-blue-500 shadow-lg shadow-blue-600/25"
-              >
-                Explore Incidents
-                <span className="transition-transform group-hover:translate-x-0.5">
-                  →
-                </span>
-              </Link>
+            <h1 id="home-heading" className="home-headline">
+              The failure
+              <br />
+              ends.
+              <br />
+              <span>What we learn</span>
+              <br />
+              stays.
+            </h1>
 
-              <Link
-                href="/incidents/new"
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/60 px-6 py-3.5 text-sm font-semibold text-slate-300 backdrop-blur-md transition-all duration-200 hover:border-slate-700 hover:bg-slate-800/80 hover:text-white"
-              >
-                Document a Failure
+            <p className="home-lede">
+              FailStack is a peer-reviewed incident archive for the details
+              worth keeping: what happened, why it spread, and what changes
+              next.
+            </p>
+
+            <div className="home-actions">
+              <Link href="/incidents" className="home-primary-action">
+                Read the incident archive
+                <span aria-hidden="true">↗</span>
+              </Link>
+              <Link href="/incidents/new" className="home-secondary-action">
+                Contribute a postmortem
               </Link>
             </div>
+            <p className="home-action-note">
+              Contributions require sign-in and enter reviewer assessment.
+            </p>
 
-            {/* Platform Capabilities */}
-            <div className="mt-14 grid max-w-lg grid-cols-3 gap-6 border-t border-slate-800/80 pt-6">
-              <div>
-                <p className="font-mono text-lg font-bold text-slate-200">
-                  01. Timeline
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Offset-based progression
-                </p>
-              </div>
-
-              <div className="border-l border-slate-800/80 pl-6">
-                <p className="font-mono text-lg font-bold text-slate-200">
-                  02. RCA Tree
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Structured causality
-                </p>
-              </div>
-
-              <div className="border-l border-slate-800/80 pl-6">
-                <p className="font-mono text-lg font-bold text-slate-200">
-                  03. Arch Diff
-                </p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Fact vs Reconstruction
-                </p>
-              </div>
+            <div className="home-principles" aria-label="FailStack principles">
+              <span>Structured evidence</span>
+              <span>Human review</span>
+              <span>Reusable lessons</span>
             </div>
           </div>
 
-          {/* Right Column: Visual Case Study Preview */}
-          <div className="lg:col-span-5">
-            <div className="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-6 backdrop-blur-xl shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-red-500/80" />
-                  <span className="font-mono text-xs font-semibold uppercase tracking-wider text-red-400">
-                    CRITICAL SEVERITY
-                  </span>
-                </div>
-                <span className="font-mono text-xs text-slate-500">
-                  Cascading Failure
+          <figure
+            className="investigation-visual"
+            aria-labelledby="investigation-visual-heading"
+          >
+            <figcaption className="visual-caption">
+              <span>THE FAILSTACK METHOD</span>
+              <span>REPORT → KNOWLEDGE</span>
+            </figcaption>
+            <h2 id="investigation-visual-heading">
+              Make the failure
+              <br />
+              useful.
+            </h2>
+            <p className="visual-intro">
+              A considered investigation turns a single report into lessons
+              other engineers can use.
+            </p>
+
+            <ol className="investigation-steps">
+              <li className="investigation-step evidence-step">
+                <span className="investigation-step-index">01</span>
+                <span className="investigation-step-mark evidence-mark" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
                 </span>
-              </div>
-
-              <div className="mt-4 space-y-3">
-                <h3 className="text-lg font-semibold text-slate-100">
-                  Global API Gateway Connection Pool Exhaustion
-                </h3>
-                <p className="text-xs text-slate-400 leading-relaxed">
-                  A sudden spike in authentication requests triggered retry
-                  storms, depleting PostgreSQL connections and taking down
-                  downstreams.
-                </p>
-              </div>
-
-              {/* Interactive Mini Timeline Preview */}
-              <div className="mt-6 space-y-2.5 rounded-lg border border-slate-800/50 bg-slate-950/60 p-3.5 font-mono text-xs">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-emerald-400">T+00m [TRIGGER]</span>
-                  <span>Auth retry storm begins</span>
+                <div>
+                  <span className="investigation-step-label">EVIDENCE</span>
+                  <h3>What happened</h3>
+                  <p>Build a clear account of the incident.</p>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-amber-400">T+12m [IMPACT]</span>
-                  <span>Pool connections hit 100%</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span className="text-blue-400">T+45m [MITIGATION]</span>
-                  <span>Rate limiting enforced</span>
-                </div>
-              </div>
-
-              <div className="mt-5 flex items-center justify-between text-xs text-slate-500 pt-2 border-t border-slate-800/60">
-                <span>Technologies: Redis, PostgreSQL, Node.js</span>
-                <span className="text-blue-400 font-medium hover:underline cursor-pointer">
-                  Analyze Case Study →
+              </li>
+              <li className="investigation-step explanation-step">
+                <span className="investigation-step-index">02</span>
+                <span className="investigation-step-mark explanation-mark" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
                 </span>
-              </div>
+                <div>
+                  <span className="investigation-step-label">EXPLANATION</span>
+                  <h3>Why it happened</h3>
+                  <p>Connect the sequence to its contributing causes.</p>
+                </div>
+              </li>
+              <li className="investigation-step prevention-step">
+                <span className="investigation-step-index">03</span>
+                <span className="investigation-step-mark prevention-mark" aria-hidden="true">
+                  <i />
+                </span>
+                <div>
+                  <span className="investigation-step-label">PREVENTION</span>
+                  <h3>What changes next</h3>
+                  <p>Keep a corrective action attached to the lesson.</p>
+                </div>
+              </li>
+            </ol>
+            <p className="visual-footnote">
+              A product principle, not a live incident feed.
+            </p>
+          </figure>
+        </section>
+
+        <section
+          aria-labelledby="method-heading"
+          className="home-method-section"
+        >
+          <div className="home-method-inner">
+            <div className="home-method-heading">
+              <p className="home-section-kicker">An incident, made useful</p>
+              <h2 id="method-heading">
+                Not just what broke.
+                <br />
+                <em>What it taught.</em>
+              </h2>
             </div>
+            <ol className="home-analysis-steps">
+              {analysisSteps.map((step) => (
+                <li key={step.number} className="home-analysis-step">
+                  <div className={`analysis-mark ${step.mark}`} aria-hidden="true">
+                    {step.mark === "analysis-timeline" && (
+                      <>
+                        <i />
+                        <i />
+                        <i />
+                      </>
+                    )}
+                    {step.mark === "analysis-cause" && (
+                      <>
+                        <i />
+                        <i />
+                        <i />
+                      </>
+                    )}
+                    {step.mark === "analysis-prevention" && <i />}
+                  </div>
+                  <div className="analysis-copy">
+                    <span className="analysis-number">{step.number}</span>
+                    <span className="analysis-detail">{step.detail}</span>
+                    <h3>{step.title}</h3>
+                    <p>{step.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
-        </div>
+        </section>
+
+        <section
+          aria-labelledby="review-heading"
+          className="home-review-section mx-auto max-w-[1440px] px-5 py-16 sm:px-8 sm:py-20 lg:px-12"
+        >
+          <div className="review-intro">
+            <p className="home-section-kicker">A considered path to publication</p>
+            <h2 id="review-heading">
+              Shared knowledge
+              <br />
+              needs <em>good review.</em>
+            </h2>
+            <p>
+              Every contribution enters a reviewer queue before it becomes part
+              of the public archive.
+            </p>
+          </div>
+          <ol className="review-path">
+            <li>
+              <span>01 / AUTHOR</span>
+              <h3>Document</h3>
+              <p>Submit a structured account of the incident.</p>
+            </li>
+            <li>
+              <span>02 / REVIEW</span>
+              <h3>Challenge</h3>
+              <p>Reviewers can approve the report or request changes.</p>
+            </li>
+            <li>
+              <span>03 / ARCHIVE</span>
+              <h3>Preserve</h3>
+              <p>Approved reports join the published incident archive.</p>
+            </li>
+          </ol>
+        </section>
       </div>
-    </section>
+    </div>
   );
 }
