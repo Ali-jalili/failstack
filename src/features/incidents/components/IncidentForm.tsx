@@ -2,27 +2,35 @@
 
 "use client";
 
-import { useForm, FormProvider } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, ShieldAlert } from "lucide-react";
-import BasicInfoStep from "./BasicInfoStep";
-
 import { useState } from "react";
-import PreventionReviewStep from "./PreventionReviewStep";
-import SystemTechnologiesStep from "./SystemTechnologiesStep";
-import { createIncident, updateIncidentResubmit } from "@/features/incidents/server/actions";
-
+import { FormProvider, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  createIncident,
+  updateIncidentResubmit,
+} from "@/features/incidents/server/actions";
 import {
   incidentFormSchema,
-  IncidentFormValues,
+  type IncidentFormValues,
 } from "@/features/incidents/form-schema";
+import {
+  StepIndicator,
+  StepHeader,
+  StepNav,
+  StepStatusPanel,
+  type StepDefinition,
+} from "./steps";
+import BasicInfoStep from "./BasicInfoStep";
+import SystemTechnologiesStep from "./SystemTechnologiesStep";
 import TimelineStep from "./TimelineStep";
 import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
+import PreventionReviewStep from "./PreventionReviewStep";
 
-const STEPS = [
+const STEPS: readonly StepDefinition<IncidentFormValues>[] = [
   {
     id: "basic-info",
-    label: "Basic Info",
+    label: "Basic info",
+    description: "Essential metadata and initial impact",
     component: BasicInfoStep,
     fields: [
       "title",
@@ -35,323 +43,59 @@ const STEPS = [
       "officialPostMortemUrl",
     ],
   },
-
   {
     id: "system-technologies",
-    label: "System & Technologies",
+    label: "System & technologies",
+    description: "The system and stack involved",
     component: SystemTechnologiesStep,
     fields: ["system", "technologies"],
   },
-
   {
     id: "timeline",
     label: "Timeline",
+    description: "Sequence of events from trigger to mitigation",
     component: TimelineStep,
     fields: ["timeline"],
   },
-
   {
     id: "root-cause",
-    label: "Root Cause",
+    label: "Root cause & architecture",
+    description: "Why it happened and what changed",
     component: RootCauseArchitectureStep,
     fields: ["rootCauseTree", "architectureDiff"],
   },
-
   {
     id: "prevention",
-    label: "Prevention",
+    label: "Prevention & review",
+    description: "Concrete changes to stop it recurring",
     component: PreventionReviewStep,
     fields: ["preventionActions"],
   },
 ] as const;
 
-export default function IncidentForm({
-  initialValues,
-  incidentId,
-  mode = "create",
-  reviewerNote,
-}: {
-  initialValues?: Partial<IncidentFormValues>;
-  incidentId?: string;
-  mode?: "create" | "edit";
-  reviewerNote?: string | null;
-}) {
-  const [step, setStep] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+const DEFAULT_VALUES: IncidentFormValues = {
+  title: "",
+  companyName: "",
+  occurredAt: "",
+  durationMinutes: 0,
+  severity: "MINOR",
+  pattern: "SINGLE_POINT_OF_FAILURE",
+  summary: "",
+  officialPostMortemUrl: "",
+  system: "",
+  technologies: [],
+  timeline: [],
+  rootCauseTree: [],
+  architectureDiff: {
+    beforeFix: "",
+    afterFix: "",
+    isFact: true,
+    notes: "",
+  },
+  preventionActions: [],
+};
 
-  const CurrentStep = STEPS[step].component;
-  const isFirst = step === 0;
-  const isLast = step === STEPS.length - 1;
-  const isLocked = isSubmitting || hasSubmitted;
-
-  const defaultVals: IncidentFormValues = {
-    title: "",
-    companyName: "",
-    occurredAt: "",
-    durationMinutes: 0,
-    severity: "MINOR",
-    pattern: "SINGLE_POINT_OF_FAILURE",
-    summary: "",
-    officialPostMortemUrl: "",
-    system: "",
-    technologies: [],
-    timeline: [],
-    rootCauseTree: [],
-    architectureDiff: {
-      beforeFix: "",
-      afterFix: "",
-      isFact: true,
-      notes: "",
-    },
-    preventionActions: [],
-  };
-
-  const mergedDefaults: IncidentFormValues = {
-    ...defaultVals,
-    ...(initialValues ?? {}),
-  };
-
-  const form = useForm<IncidentFormValues>({
-    resolver: zodResolver(incidentFormSchema),
-    defaultValues: mergedDefaults,
-  });
-
-  const { handleSubmit, trigger } = form;
-
-  const next = async () => {
-    if (isLast) return;
-
-    const stepFields = STEPS[step]
-      .fields as readonly (keyof IncidentFormValues)[];
-    const isValid = await trigger(stepFields);
-
-    if (isValid) {
-      setStep(step + 1);
-    }
-  };
-  const back = () => !isFirst && setStep(step - 1);
-
-  async function onSubmit(data: IncidentFormValues) {
-    if (isLocked) return;
-
-    setIsSubmitting(true);
-    setSubmitError(null);
-    setSubmitSuccess(null);
-
-    try {
-      const occurredAt = toIsoFromLocalDateTime(data.occurredAt);
-      if (!occurredAt) {
-        setSubmitError(
-          "Enter a valid local date and time for when the incident occurred.",
-        );
-        return;
-      }
-
-      if (mode === "edit") {
-        if (!incidentId) {
-          setSubmitError("Missing incident id for edit.");
-          return;
-        }
-
-        const result = await updateIncidentResubmit({
-          id: incidentId,
-          ...data,
-          occurredAt,
-        });
-        if (result.error) {
-          setSubmitError(result.error);
-          return;
-        }
-
-        setSubmitSuccess("Incident updated and resubmitted for review.");
-      } else {
-        const result = await createIncident({ ...data, occurredAt });
-        if (result.error) {
-          setSubmitError(result.error);
-          return;
-        }
-
-        setSubmitSuccess(`Incident submitted for review. Slug: ${result.slug}`);
-      }
-
-      setHasSubmitted(true);
-    } catch (error) {
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred while saving the incident.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <main className="relative min-h-screen w-full bg-slate-950 px-4 py-12 text-slate-100 sm:px-6 lg:px-8">
-      {/* Background Grid & Glow Patterns */}
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#1e293b15_1px,transparent_1px),linear-gradient(to_bottom,#1e293b15_1px,transparent_1px)] bg-[size:4rem_4rem]" />
-      <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-[350px] w-[600px] rounded-full bg-blue-600/10 blur-[130px]" />
-
-      <div className="relative mx-auto max-w-3xl">
-        {/* Header Section */}
-        <div className="mb-8 text-center sm:text-left">
-          <div className="inline-flex items-center gap-2 rounded-full border border-slate-800 bg-slate-900/80 px-3 py-1 text-xs font-mono text-blue-400 mb-3">
-            <ShieldAlert className="h-3.5 w-3.5 text-blue-400" />
-            <span>INCIDENT_POSTMORTEM_ENGINE</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            {mode === "edit" ? "Edit Incident" : "Create Incident"}
-          </h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Document system outages, failure patterns, and postmortem analysis.
-          </p>
-        </div>
-
-        {/* Reviewer note (only visible in edit mode when a reason was provided) */}
-        {mode === "edit" && reviewerNote && (
-          <div
-            role="note"
-            className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 sm:p-5"
-          >
-            <p className="text-xs font-medium text-amber-200">
-              Reviewer feedback
-            </p>
-            <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-300">
-              {reviewerNote}
-            </p>
-          </div>
-        )}
-
-        {/* Step progress indicator */}
-        <nav
-          aria-label="Form progress"
-          className="mb-6 flex flex-wrap items-center gap-2"
-        >
-          {STEPS.map((s, i) => {
-            const isActive = i === step;
-            const isDone = i < step;
-            return (
-              <span
-                key={s.id}
-                aria-current={isActive ? "step" : undefined}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] transition ${
-                  isActive
-                    ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
-                    : isDone
-                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                      : "border-slate-800 bg-slate-900/50 text-slate-500"
-                }`}
-              >
-                <span
-                  aria-hidden="true"
-                  className={`inline-block h-1.5 w-1.5 rounded-full ${
-                    isActive
-                      ? "bg-blue-400"
-                      : isDone
-                        ? "bg-emerald-400"
-                        : "bg-slate-600"
-                  }`}
-                />
-                <span>
-                  {i + 1} {s.label}
-                </span>
-              </span>
-            );
-          })}
-        </nav>
-
-        {/* Main Form Container */}
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-          <FormProvider {...form}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <fieldset
-                disabled={isLocked}
-                className={isLocked ? "opacity-60" : undefined}
-              >
-                <CurrentStep />
-              </fieldset>
-            </form>
-          </FormProvider>
-
-          {/* Stepper Navigation Actions */}
-          <div className="mt-8 flex items-center justify-between border-t border-slate-800/80 pt-6">
-            <button
-              onClick={back}
-              disabled={isFirst || isLocked}
-              type="button"
-              className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-semibold transition ${
-                isFirst || isLocked
-                  ? "border-slate-800 bg-slate-900/50 text-slate-500 opacity-50 cursor-not-allowed"
-                  : "border-slate-700 bg-slate-900/50 text-slate-200 hover:border-slate-600 hover:text-white"
-              }`}
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Previous
-            </button>
-
-            {isLast ? (
-              <button
-                onClick={handleSubmit(onSubmit)}
-                type="button"
-                disabled={isLocked}
-                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isSubmitting
-                  ? "Submitting for Review..."
-                  : hasSubmitted
-                    ? "Submitted"
-                    : "Submit for Review"}
-              </button>
-            ) : (
-              <button
-                onClick={next}
-                type="button"
-                disabled={isLocked}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Next Step
-                <ArrowRight className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {submitError && (
-            <p role="alert" className="mt-4 text-sm text-rose-400">
-              {submitError}
-            </p>
-          )}
-
-          {hasSubmitted && submitSuccess && (
-            <div
-              role="status"
-              className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5"
-            >
-              <p className="text-sm text-emerald-300">{submitSuccess}</p>
-              <a
-                href="/incidents"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-              >
-                View your reports
-                <ArrowRight className="h-3.5 w-3.5" />
-              </a>
-            </div>
-          )}
-        </div>
-
-        {/* Footer info */}
-        <div className="mt-6 text-center text-xs font-mono text-slate-600">
-          FAILSTACK &copy; {new Date().getFullYear()} &bull; INCIDENT MANAGEMENT
-          SYSTEM
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function toIsoFromLocalDateTime(value: string) {
+function toIsoFromLocalDateTime(value: string): string | null {
   const match =
     /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(
       value,
@@ -392,4 +136,213 @@ function toIsoFromLocalDateTime(value: string) {
   }
 
   return localDate.toISOString();
+}
+
+export default function IncidentForm({
+  initialValues,
+  incidentId,
+  mode = "create",
+  reviewerNote,
+}: {
+  initialValues?: Partial<IncidentFormValues>;
+  incidentId?: string;
+  mode?: "create" | "edit";
+  reviewerNote?: string | null;
+}) {
+  const [step, setStep] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  const currentStepDefinition = STEPS[step];
+  const CurrentStepComponent = currentStepDefinition.component;
+  const isFirst = step === 0;
+  const isLast = step === STEPS.length - 1;
+  const isLocked = isSubmitting || hasSubmitted;
+  const progressPercent = Math.round(((step + 1) / STEPS.length) * 100);
+
+  const mergedDefaults: IncidentFormValues = {
+    ...DEFAULT_VALUES,
+    ...(initialValues ?? {}),
+  };
+
+  const form = useForm<IncidentFormValues>({
+    resolver: zodResolver(incidentFormSchema),
+    defaultValues: mergedDefaults,
+  });
+
+  const { handleSubmit, trigger } = form;
+
+  const next = async () => {
+    if (isLast || isLocked) return;
+    const stepFields = STEPS[step].fields;
+    const isValid = await trigger(stepFields);
+    if (isValid) {
+      setStep(step + 1);
+      setSubmitError(null);
+    }
+  };
+
+  const back = () => {
+    if (!isFirst && !isLocked) {
+      setStep(step - 1);
+      setSubmitError(null);
+    }
+  };
+
+  async function onSubmit(data: IncidentFormValues) {
+    if (isLocked) return;
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const occurredAt = toIsoFromLocalDateTime(data.occurredAt);
+      if (!occurredAt) {
+        setSubmitError(
+          "Enter a valid local date and time for when the incident occurred.",
+        );
+        return;
+      }
+
+      if (mode === "edit") {
+        if (!incidentId) {
+          setSubmitError("Missing incident id for edit.");
+          return;
+        }
+
+        const result = await updateIncidentResubmit({
+          id: incidentId,
+          ...data,
+          occurredAt,
+        });
+        if (result.error) {
+          setSubmitError(result.error);
+          return;
+        }
+        setSubmitSuccess("Incident updated and resubmitted for review.");
+      } else {
+        const result = await createIncident({ ...data, occurredAt });
+        if (result.error) {
+          setSubmitError(result.error);
+          return;
+        }
+        setSubmitSuccess(
+          `Incident submitted for review. Slug: ${result.slug}`,
+        );
+      }
+
+      setHasSubmitted(true);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred while saving the incident.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const kickerText = mode === "edit" ? "EDIT REPORT" : "NEW REPORT";
+  const headline =
+    mode === "edit" ? "Edit incident report" : "New incident report";
+  const subheadline =
+    "Document system outages, failure patterns, and the lessons they teach.";
+
+  return (
+    <div className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
+      {/* Ambient background: grid + lime glow, matching FailStack identity */}
+      <div aria-hidden="true" className="home-grid" style={{ opacity: 0.18 }} />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -top-32 left-1/2 h-[360px] w-[560px] -translate-x-1/2 rounded-full bg-[#c6e47c]/[0.06] blur-[120px]"
+      />
+
+      <div className="relative mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+        {/* Kicker */}
+        <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
+          <span
+            aria-hidden="true"
+            className="h-[7px] w-[7px] shrink-0 rotate-45 border border-[#c6e47c] bg-[#c6e47c]/20"
+          />
+          {kickerText}
+        </p>
+
+        {/* Heading */}
+        <h1 className="mt-4 text-[clamp(2rem,4.5vw,2.8rem)] font-normal leading-[1.02] tracking-[-0.04em] text-[#f1f1e9]">
+          {headline}
+        </h1>
+        <p className="mt-3 max-w-lg text-[13px] leading-[1.75] text-slate-400">
+          {subheadline}
+        </p>
+
+        {/* Reviewer note (edit mode only) */}
+        {mode === "edit" && reviewerNote ? (
+          <div
+            role="note"
+            className="mt-6 border border-[#e2a16d]/30 bg-[#e2a16d]/[0.08] px-4 py-3"
+          >
+            <p className="font-mono text-[9px] uppercase leading-[1.6] tracking-[0.12em] text-[#e2a16d]">
+              Reviewer feedback
+            </p>
+            <p className="mt-1.5 whitespace-pre-wrap text-[13px] leading-[1.7] text-slate-300">
+              {reviewerNote}
+            </p>
+          </div>
+        ) : null}
+
+        {/* Step indicator */}
+        <div className="mt-8">
+          <StepIndicator steps={STEPS} currentStep={step} />
+        </div>
+
+        {/* Active step */}
+        <div className="mt-6 border border-slate-800/80 bg-gradient-to-br from-[#0c151c] via-[#0b1219] to-[#101a1c] px-5 py-6 sm:px-7 sm:py-8">
+          <StepHeader
+            step={currentStepDefinition}
+            stepNumber={step + 1}
+            totalSteps={STEPS.length}
+            progressPercent={progressPercent}
+          />
+
+          <FormProvider {...form}>
+            <form onSubmit={handleSubmit(onSubmit)} noValidate>
+              <fieldset
+                disabled={isLocked}
+                className={isLocked ? "mt-6 opacity-60" : "mt-6"}
+              >
+                <CurrentStepComponent />
+              </fieldset>
+            </form>
+          </FormProvider>
+
+          {/* Navigation */}
+          <div className="mt-7">
+            <StepNav
+              canGoBack={!isFirst}
+              canProceed={!isLocked}
+              isSubmitting={isSubmitting}
+              isLocked={isLocked}
+              isLast={isLast}
+              onBack={back}
+              onNext={next}
+              onSubmit={() => {
+                void handleSubmit(onSubmit)();
+              }}
+            />
+          </div>
+
+          <StepStatusPanel
+            error={submitError}
+            success={hasSubmitted ? submitSuccess : null}
+            successActionHref={hasSubmitted ? "/incidents" : undefined}
+            successActionLabel={hasSubmitted ? "View your reports" : undefined}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }

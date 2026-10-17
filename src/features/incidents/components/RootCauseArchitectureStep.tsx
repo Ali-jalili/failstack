@@ -3,24 +3,37 @@
 "use client";
 
 import { rootCauseNodeTypeSchema } from "@/features/incidents/schema";
-import { IncidentFormValues } from "@/features/incidents/form-schema";
-import { Plus, Trash2 } from "lucide-react";
-import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import {
+  type IncidentFormValues,
+} from "@/features/incidents/form-schema";
+import {
+  Controller,
+  useFieldArray,
+  useFormContext,
+} from "react-hook-form";
+import { FormSectionHeading } from "./form-fields";
 
 type RootCauseNode = IncidentFormValues["rootCauseTree"][number];
 
 const nodeTypeLabels: Record<RootCauseNode["type"], string> = {
-  ROOT_CAUSE: "Root Cause",
-  CONTRIBUTING_FACTOR: "Contributing Factor",
-  DIRECT_FAILURE: "Direct Failure",
-  SYSTEM_IMPACT: "System Impact",
+  ROOT_CAUSE: "Root cause",
+  CONTRIBUTING_FACTOR: "Contributing factor",
+  DIRECT_FAILURE: "Direct failure",
+  SYSTEM_IMPACT: "System impact",
 };
 
-const inputClassName =
-  "mt-1.5 block w-full rounded-lg border border-slate-800 bg-slate-900/50 px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 transition focus:border-blue-500 focus:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500";
+const inputClass = (hasError: boolean) =>
+  `block h-11 w-full border bg-[#0b121a] px-3.5 text-[13px] text-slate-100 placeholder-slate-600 transition-colors focus:outline-none focus:ring-1 ${
+    hasError
+      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
+      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c]/70 focus:ring-[#c6e47c]/40"
+  }`;
 
-const labelClassName =
-  "block text-xs font-mono font-medium uppercase text-slate-400";
+const labelClass =
+  "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
+
+const fieldErrorClass =
+  "mt-1 font-mono text-[11px] leading-[1.5] tracking-[0.02em] text-rose-400";
 
 function getDescendantIds(nodeId: string, nodes: RootCauseNode[]) {
   const descendants = new Set([nodeId]);
@@ -109,51 +122,44 @@ export default function RootCauseArchitectureStep() {
     remove(index);
   };
 
+  const ghostClass =
+    "h-11 border border-slate-800 bg-[#0b121a] px-3.5 font-mono text-[11px] uppercase leading-[11px] tracking-[0.08em] text-slate-500";
+
   return (
-    <section className="w-full max-w-2xl mx-auto space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-800 pb-4">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight text-white">
-            Root Cause Analysis
-          </h2>
-          <p className="mt-1 text-xs text-slate-400">
-            Build a tree from the root cause through contributing factors,
-            failures, and system impact.
-          </p>
-        </div>
-        {nodes.length === 0 ? (
-          <button
-            type="button"
-            onClick={() => addNode(null)}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-blue-500"
-          >
-            <Plus className="h-4 w-4" />
-            Add Root Cause
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={addNodeToRoot}
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white transition hover:bg-blue-500"
-          >
-            <Plus className="h-4 w-4" />
-            Add Node
-          </button>
-        )}
+    <section className="space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <FormSectionHeading
+          title="Root cause analysis"
+          description="Build a tree from the root cause through contributing factors, failures, and system impact."
+        />
+        <button
+          type="button"
+          onClick={() =>
+            nodes.length === 0 ? addNode(null) : addNodeToRoot()
+          }
+          className="shrink-0 border border-slate-700 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-200 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
+        >
+          + {nodes.length === 0 ? "Add root cause" : "Add node"}
+        </button>
       </div>
 
-      {rootCauseTreeError && (
-        <p role="alert" className="text-xs text-rose-400">
+      {rootCauseTreeError ? (
+        <p role="alert" className={fieldErrorClass}>
           {rootCauseTreeError}
         </p>
-      )}
+      ) : null}
 
       {nodes.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-700 px-4 py-8 text-center text-sm text-slate-400">
-          Start the analysis by adding its root cause.
+        <div className="border border-dashed border-slate-700/80 px-5 py-10 text-center">
+          <p className="font-mono text-[11px] uppercase tracking-[0.08em] text-slate-500">
+            No nodes yet
+          </p>
+          <p className="mt-1 text-[12px] text-slate-400">
+            Start the analysis by adding its root cause.
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <ol className="space-y-4">
           {fields.map((field, index) => {
             const node = nodes[index];
             if (!node) return null;
@@ -168,281 +174,257 @@ export default function RootCauseArchitectureStep() {
             const depth = Math.min(getNodeDepth(node, nodes), 4);
 
             return (
-              <fieldset
-                key={field.id}
-                style={{ marginLeft: `${depth * 12}px` }}
-                className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4 sm:p-5"
-              >
-                <legend className="sr-only">Root Cause Node {index + 1}</legend>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-100">
-                    {node.title.trim() || `Node ${index + 1}`}
-                    <span className="ml-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-mono uppercase text-blue-300">
-                      {nodeTypeLabels[node.type]}
-                    </span>
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => addNode(node.id)}
-                      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-300 transition hover:bg-blue-500/10 hover:text-blue-200"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      Add Child
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeNode(index)}
-                      disabled={!canRemove}
-                      title={
-                        canRemove
-                          ? undefined
-                          : "Move or remove this node's children first"
-                      }
-                      aria-label={`Remove ${node.title.trim() || `node ${index + 1}`}`}
-                      className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Remove
-                    </button>
-                  </div>
-                </div>
+              <li key={field.id} style={{ marginLeft: `${depth * 16}px` }}>
+                <fieldset className="border border-slate-800/80 bg-[#0c151c] px-4 py-5 sm:px-5">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+                    <legend className="flex items-center gap-2 text-[13px] font-semibold text-slate-100">
+                      {node.title.trim() || `Node ${index + 1}`}
+                      <span className="border border-slate-700/80 bg-slate-900/40 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-slate-400">
+                        {nodeTypeLabels[node.type]}
+                      </span>
+                    </legend>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label
-                      htmlFor={`root-cause-${index}-type`}
-                      className={labelClassName}
-                    >
-                      Node Type
-                    </label>
-                    <select
-                      id={`root-cause-${index}-type`}
-                      {...register(`rootCauseTree.${index}.type` as const)}
-                      className={`${inputClassName} ${
-                        nodeErrors?.type
-                          ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                          : ""
-                      }`}
-                    >
-                      {rootCauseNodeTypeSchema.options.map((type) => (
-                        <option
-                          key={type}
-                          value={type}
-                          className="bg-slate-900 text-slate-100"
-                        >
-                          {nodeTypeLabels[type]}
-                        </option>
-                      ))}
-                    </select>
-                    {nodeErrors?.type && (
-                      <p className="mt-1 text-xs text-rose-400">
-                        {nodeErrors.type.message}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor={`root-cause-${index}-parent`}
-                      className={labelClassName}
-                    >
-                      Parent Node
-                    </label>
-                    {isRoot ? (
-                      <p
-                        id={`root-cause-${index}-parent`}
-                        className={`${inputClassName} text-slate-400`}
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => addNode(node.id)}
+                        className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#c6e47c] transition-colors hover:text-[#dcf7a0] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#c6e47c]"
                       >
-                        No parent (root)
-                      </p>
-                    ) : (
-                      <select
-                        id={`root-cause-${index}-parent`}
-                        value={node.parentId ?? ""}
-                        onChange={(event) =>
-                          setValue(
-                            `rootCauseTree.${index}.parentId`,
-                            event.target.value,
-                            { shouldDirty: true, shouldValidate: true },
-                          )
+                        + Add child
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeNode(index)}
+                        disabled={!canRemove}
+                        title={
+                          canRemove
+                            ? undefined
+                            : "Move or remove this node's children first"
                         }
-                        className={`${inputClassName} ${
-                          nodeErrors?.parentId
-                            ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                            : ""
-                        }`}
+                        aria-label={`Remove ${node.title.trim() || `node ${index + 1}`}`}
+                        className="font-mono text-[10px] uppercase tracking-[0.06em] text-slate-500 transition-colors hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-slate-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-rose-400"
                       >
-                        {nodes
-                          .filter(
-                            (candidate) => !descendantIds.has(candidate.id),
-                          )
-                          .map((candidate) => (
-                            <option
-                              key={candidate.id}
-                              value={candidate.id}
-                              className="bg-slate-900 text-slate-100"
-                            >
-                              {candidate.title.trim() ||
-                                `Node ${nodes.indexOf(candidate) + 1}`}
-                            </option>
-                          ))}
-                      </select>
-                    )}
-                    {nodeErrors?.parentId && (
-                      <p className="mt-1 text-xs text-rose-400">
-                        {nodeErrors.parentId.message}
-                      </p>
-                    )}
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label
-                    htmlFor={`root-cause-${index}-title`}
-                    className={labelClassName}
-                  >
-                    Title
-                  </label>
-                  <input
-                    id={`root-cause-${index}-title`}
-                    type="text"
-                    {...register(`rootCauseTree.${index}.title` as const)}
-                    placeholder="e.g. Database connection pool exhausted"
-                    className={`${inputClassName} ${
-                      nodeErrors?.title
-                        ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                        : ""
-                    }`}
-                  />
-                  {nodeErrors?.title && (
-                    <p className="mt-1 text-xs text-rose-400">
-                      {nodeErrors.title.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <label
+                        htmlFor={`root-cause-${index}-type`}
+                        className={labelClass}
+                      >
+                        Node type
+                      </label>
+                      <select
+                        id={`root-cause-${index}-type`}
+                        {...register(
+                          `rootCauseTree.${index}.type` as const,
+                        )}
+                        className={inputClass(Boolean(nodeErrors?.type))}
+                      >
+                        {rootCauseNodeTypeSchema.options.map((type) => (
+                          <option
+                            key={type}
+                            value={type}
+                            className="bg-[#0b121a] text-slate-100"
+                          >
+                            {nodeTypeLabels[type]}
+                          </option>
+                        ))}
+                      </select>
+                      {nodeErrors?.type ? (
+                        <p className={fieldErrorClass}>
+                          {nodeErrors.type.message}
+                        </p>
+                      ) : null}
+                    </div>
 
-                <div>
-                  <label
-                    htmlFor={`root-cause-${index}-description`}
-                    className={labelClassName}
-                  >
-                    Description
-                  </label>
-                  <textarea
-                    id={`root-cause-${index}-description`}
-                    rows={3}
-                    {...register(`rootCauseTree.${index}.description` as const)}
-                    placeholder="Explain how this factor contributed to the incident."
-                    className={`${inputClassName} resize-y ${
-                      nodeErrors?.description
-                        ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                        : ""
-                    }`}
-                  />
-                  {nodeErrors?.description && (
-                    <p className="mt-1 text-xs text-rose-400">
-                      {nodeErrors.description.message}
-                    </p>
-                  )}
-                </div>
+                    <div>
+                      <label
+                        htmlFor={`root-cause-${index}-parent`}
+                        className={labelClass}
+                      >
+                        Parent node
+                      </label>
+                      {isRoot ? (
+                        <p
+                          id={`root-cause-${index}-parent`}
+                          className={ghostClass}
+                        >
+                          No parent (root)
+                        </p>
+                      ) : (
+                        <select
+                          id={`root-cause-${index}-parent`}
+                          value={node.parentId ?? ""}
+                          onChange={(event) =>
+                            setValue(
+                              `rootCauseTree.${index}.parentId`,
+                              event.target.value,
+                              { shouldDirty: true, shouldValidate: true },
+                            )
+                          }
+                          className={inputClass(
+                            Boolean(nodeErrors?.parentId),
+                          )}
+                        >
+                          {nodes
+                            .filter(
+                              (candidate) =>
+                                !descendantIds.has(candidate.id),
+                            )
+                            .map((candidate) => (
+                              <option
+                                key={candidate.id}
+                                value={candidate.id}
+                                className="bg-[#0b121a] text-slate-100"
+                              >
+                                {candidate.title.trim() ||
+                                  `Node ${nodes.indexOf(candidate) + 1}`}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+                      {nodeErrors?.parentId ? (
+                        <p className={fieldErrorClass}>
+                          {nodeErrors.parentId.message}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
 
-                <div>
-                  <label
-                    htmlFor={`root-cause-${index}-component`}
-                    className={labelClassName}
-                  >
-                    System Component
-                  </label>
-                  <input
-                    id={`root-cause-${index}-component`}
-                    type="text"
-                    {...register(
-                      `rootCauseTree.${index}.systemComponent` as const,
-                    )}
-                    placeholder="e.g. Payment API"
-                    className={`${inputClassName} ${
-                      nodeErrors?.systemComponent
-                        ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                        : ""
-                    }`}
-                  />
-                  {nodeErrors?.systemComponent && (
-                    <p className="mt-1 text-xs text-rose-400">
-                      {nodeErrors.systemComponent.message}
-                    </p>
-                  )}
-                </div>
-              </fieldset>
+                  <div className="mt-4">
+                    <label
+                      htmlFor={`root-cause-${index}-title`}
+                      className={labelClass}
+                    >
+                      Title
+                    </label>
+                    <input
+                      id={`root-cause-${index}-title`}
+                      type="text"
+                      {...register(
+                        `rootCauseTree.${index}.title` as const,
+                      )}
+                      placeholder="e.g. Database connection pool exhausted"
+                      className={inputClass(Boolean(nodeErrors?.title))}
+                    />
+                    {nodeErrors?.title ? (
+                      <p className={fieldErrorClass}>
+                        {nodeErrors.title.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4">
+                    <label
+                      htmlFor={`root-cause-${index}-description`}
+                      className={labelClass}
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id={`root-cause-${index}-description`}
+                      rows={3}
+                      {...register(
+                        `rootCauseTree.${index}.description` as const,
+                      )}
+                      placeholder="Explain how this factor contributed to the incident."
+                      className={`${inputClass(
+                        Boolean(nodeErrors?.description),
+                      )} h-auto py-2.5 leading-5`}
+                    />
+                    {nodeErrors?.description ? (
+                      <p className={fieldErrorClass}>
+                        {nodeErrors.description.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4">
+                    <label
+                      htmlFor={`root-cause-${index}-component`}
+                      className={labelClass}
+                    >
+                      System component
+                    </label>
+                    <input
+                      id={`root-cause-${index}-component`}
+                      type="text"
+                      {...register(
+                        `rootCauseTree.${index}.systemComponent` as const,
+                      )}
+                      placeholder="e.g. Payment API"
+                      className={inputClass(
+                        Boolean(nodeErrors?.systemComponent),
+                      )}
+                    />
+                    {nodeErrors?.systemComponent ? (
+                      <p className={fieldErrorClass}>
+                        {nodeErrors.systemComponent.message}
+                      </p>
+                    ) : null}
+                  </div>
+                </fieldset>
+              </li>
             );
           })}
-        </div>
+        </ol>
       )}
 
-      <section className="space-y-5 border-t border-slate-800 pt-6">
-        <div>
-          <h3 className="text-lg font-bold tracking-tight text-white">
-            Architecture Before / After
-          </h3>
-          <p className="mt-1 text-xs text-slate-400">
-            Describe how the system architecture changed to address the
-            incident, and clarify whether the change is based on documented
-            facts or reconstructed information.
-          </p>
-        </div>
+      <section className="space-y-5 border-t border-slate-800/80 pt-6">
+        <FormSectionHeading
+          title="Architecture before / after"
+          description="Describe how the system architecture changed to address the incident, and clarify whether the change is documented fact or a reconstruction."
+        />
 
         <div>
           <label
             htmlFor="architecture-before-fix"
-            className={labelClassName}
+            className={labelClass}
           >
-            Architecture Before the Fix
+            Before the fix
           </label>
           <textarea
             id="architecture-before-fix"
             rows={4}
             {...register("architectureDiff.beforeFix")}
             placeholder="Describe the relevant architecture and how it behaved before the fix."
-            className={`${inputClassName} resize-y ${
-              errors.architectureDiff?.beforeFix
-                ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                : ""
-            }`}
+            className={`${inputClass(
+              Boolean(errors.architectureDiff?.beforeFix),
+            )} h-auto py-2.5 leading-5`}
           />
-          {errors.architectureDiff?.beforeFix && (
-            <p className="mt-1 text-xs text-rose-400">
+          {errors.architectureDiff?.beforeFix ? (
+            <p className={fieldErrorClass}>
               {errors.architectureDiff.beforeFix.message}
             </p>
-          )}
+          ) : null}
         </div>
 
         <div>
-          <label
-            htmlFor="architecture-after-fix"
-            className={labelClassName}
-          >
-            Architecture After the Fix
+          <label htmlFor="architecture-after-fix" className={labelClass}>
+            After the fix
           </label>
           <textarea
             id="architecture-after-fix"
             rows={4}
             {...register("architectureDiff.afterFix")}
             placeholder="Describe the changes made and how the system behaves now."
-            className={`${inputClassName} resize-y ${
-              errors.architectureDiff?.afterFix
-                ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                : ""
-            }`}
+            className={`${inputClass(
+              Boolean(errors.architectureDiff?.afterFix),
+            )} h-auto py-2.5 leading-5`}
           />
-          {errors.architectureDiff?.afterFix && (
-            <p className="mt-1 text-xs text-rose-400">
+          {errors.architectureDiff?.afterFix ? (
+            <p className={fieldErrorClass}>
               {errors.architectureDiff.afterFix.message}
             </p>
-          )}
+          ) : null}
         </div>
 
         <fieldset className="space-y-3">
-          <legend className={labelClassName}>
+          <legend className={labelClass}>
             Is this change documented as fact?
           </legend>
           <Controller
@@ -450,7 +432,7 @@ export default function RootCauseArchitectureStep() {
             name="architectureDiff.isFact"
             render={({ field }) => (
               <div className="flex flex-col gap-2 sm:flex-row">
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3.5 py-2.5 text-sm text-slate-200 transition has-[:checked]:border-blue-500/60 has-[:checked]:bg-blue-500/10">
+                <label className="flex cursor-pointer items-center gap-2 border border-slate-800 bg-[#0b121a] px-3.5 py-2.5 text-[13px] text-slate-200 transition has-[:checked]:border-[#c6e47c]/60 has-[:checked]:bg-[#c6e47c]/[0.08]">
                   <input
                     ref={field.ref}
                     type="radio"
@@ -459,11 +441,11 @@ export default function RootCauseArchitectureStep() {
                     checked={field.value}
                     onBlur={field.onBlur}
                     onChange={() => field.onChange(true)}
-                    className="accent-blue-500"
+                    className="accent-[#c6e47c]"
                   />
                   Yes, this is documented
                 </label>
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/50 px-3.5 py-2.5 text-sm text-slate-200 transition has-[:checked]:border-blue-500/60 has-[:checked]:bg-blue-500/10">
+                <label className="flex cursor-pointer items-center gap-2 border border-slate-800 bg-[#0b121a] px-3.5 py-2.5 text-[13px] text-slate-200 transition has-[:checked]:border-[#c6e47c]/60 has-[:checked]:bg-[#c6e47c]/[0.08]">
                   <input
                     type="radio"
                     name={field.name}
@@ -471,7 +453,7 @@ export default function RootCauseArchitectureStep() {
                     checked={!field.value}
                     onBlur={field.onBlur}
                     onChange={() => field.onChange(false)}
-                    className="accent-blue-500"
+                    className="accent-[#c6e47c]"
                   />
                   No, this is reconstructed
                 </label>
@@ -480,35 +462,31 @@ export default function RootCauseArchitectureStep() {
           />
         </fieldset>
 
-        {!watch("architectureDiff.isFact") && (
+        {!watch("architectureDiff.isFact") ? (
           <div>
-            <label
-              htmlFor="architecture-notes"
-              className={labelClassName}
-            >
-              Reconstruction Notes
+            <label htmlFor="architecture-notes" className={labelClass}>
+              Reconstruction notes
             </label>
             <textarea
               id="architecture-notes"
               rows={3}
               {...register("architectureDiff.notes")}
               placeholder="Explain what evidence or reasoning supports this reconstruction."
-              className={`${inputClassName} resize-y ${
-                errors.architectureDiff?.notes
-                  ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-                  : ""
-              }`}
+              className={`${inputClass(
+                Boolean(errors.architectureDiff?.notes),
+              )} h-auto py-2.5 leading-5`}
             />
-            {errors.architectureDiff?.notes && (
-              <p className="mt-1 text-xs text-rose-400">
+            {errors.architectureDiff?.notes ? (
+              <p className={fieldErrorClass}>
                 {errors.architectureDiff.notes.message}
               </p>
-            )}
-            <p className="mt-1 text-xs text-slate-500">
-              Notes are required when the architecture details are reconstructed.
+            ) : null}
+            <p className="mt-1 font-mono text-[10px] leading-[1.5] tracking-[0.04em] text-slate-500">
+              Notes are required when the architecture details are
+              reconstructed.
             </p>
           </div>
-        )}
+        ) : null}
       </section>
     </section>
   );
