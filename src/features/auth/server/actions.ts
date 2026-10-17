@@ -6,11 +6,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSafeRedirectPath } from "@/lib/auth/redirect";
 import { getCurrentUserState } from "@/features/auth/server/current-user";
+import { signupServerSchema } from "@/features/auth/schema";
 
-/**
- * Supabase error codes that carry safe, user-presentable messages.
- * Anything else is collapsed to a generic message to avoid leaking internals.
- */
 const SAFE_SUPABASE_ERROR_CODES = new Set([
   "auth/email-confirmation-required",
   "auth/email-not-confirmed",
@@ -21,7 +18,10 @@ function toUserFacingError(error: { code?: string; message?: string }): string {
   const code = error.code;
   const message = error.message ?? "";
 
-  if (code === "auth/user-already-exists" || /already been taken/i.test(message)) {
+  if (
+    code === "auth/user-already-exists" ||
+    /already been taken/i.test(message)
+  ) {
     return "An account with this email already exists. Try signing in instead.";
   }
 
@@ -80,14 +80,21 @@ export async function handleSignUp(formData: FormData) {
     };
   }
 
+  const parsed = signupServerSchema.safeParse({ name, email, password });
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Invalid form data.",
+    };
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
+    email: parsed.data.email,
+    password: parsed.data.password,
     options: {
       data: {
-        name,
+        name: parsed.data.name,
       },
     },
   });
@@ -110,11 +117,8 @@ export async function handleSignUp(formData: FormData) {
     return { error: destination.error };
   }
 
+  // redirect() never returns; it throws.
   redirect(destination.destination);
-
-  return {
-    error: null,
-  };
 }
 
 export async function handleLogin(formData: FormData) {
@@ -153,7 +157,7 @@ export async function handleLogout() {
   const { error } = await supabase.auth.signOut();
 
   if (error) {
-    return { error: error.message };
+    return { error: "Sign out failed. Please try again." };
   }
 
   redirect("/login");

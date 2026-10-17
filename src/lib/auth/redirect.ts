@@ -1,3 +1,5 @@
+/** @format */
+
 export function getSafeRedirectPath(
   destination: unknown,
   fallback = "/",

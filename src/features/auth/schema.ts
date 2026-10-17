@@ -21,6 +21,24 @@ export const signupSchema = z
     path: ["confirmPassword"],
   });
 
+/**
+ * Server-side subset of the signup fields. confirmPassword is not sent
+ * to the server action, so this schema validates only the fields the
+ * server actually receives.
+ */
+export const signupServerSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Please enter your name.")
+    .max(100, "Name must be at most 100 characters."),
+  email: z.string().trim().email("Please enter a valid email address."),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters.")
+    .max(72, "Password must be at most 72 characters."),
+});
+
 export type SignupFormValues = z.infer<typeof signupSchema>;
 
 export const loginSchema = z.object({

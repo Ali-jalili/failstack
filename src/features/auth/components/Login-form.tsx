@@ -6,43 +6,20 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { Loader2, Eye, EyeOff } from "lucide-react";
-import { toast } from "sonner";
-import {
-  loginSchema,
-  type LoginFormValues,
-} from "@/features/auth/schema";
+import { Loader2 } from "lucide-react";
+import { loginSchema, type LoginFormValues } from "@/features/auth/schema";
 import { handleLogin } from "@/features/auth/server/actions";
-
-const labelClass =
-  "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
+import { PasswordField, TextField } from "./password-field";
 
 const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";
 
-function inputClass(hasError: boolean, withToggle = false) {
-  return `block h-11 w-full border bg-[#0b121a] px-3.5 ${
-    withToggle ? "pr-11" : ""
-  } text-[13px] text-slate-100 placeholder-slate-600 transition-colors focus:outline-none focus:ring-1 ${
-    hasError
-      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c]/70 focus:ring-[#c6e47c]/40"
-  }`;
-}
-
-const toggleClass =
-  "absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center text-slate-500 transition-colors hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]";
-
-const fieldErrorClass = "mt-1.5 text-[11px] text-rose-400";
-
 export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting: formIsSubmitting },
+    formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -51,12 +28,7 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
     },
   });
 
-  const submitting = isSubmitting || formIsSubmitting;
-
   async function onValidSubmit(data: LoginFormValues) {
-    if (submitting) return;
-
-    setIsSubmitting(true);
     setFormError(null);
 
     try {
@@ -72,23 +44,16 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
         return;
       }
 
-      // handleLogin redirects server-side to the destination (via next/navigation
-      // `redirect`), so the router never returns here on success. This toast
-      // is a defensive fallback if the redirect is intercepted locally.
-      toast.success("Signed in successfully.");
+      // handleLogin redirects server-side on success; the router never
+      // reaches this point, so there is no toast to show here.
     } catch {
       setFormError(
         "Something went wrong while signing in. Please try again.",
       );
-    } finally {
-      setIsSubmitting(false);
     }
   }
 
   const emailField = register("email", {
-    onChange: () => setFormError(null),
-  });
-  const passwordField = register("password", {
     onChange: () => setFormError(null),
   });
 
@@ -127,79 +92,27 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
               <input type="hidden" name="next" value={returnTo} />
 
               {/* Email */}
-              <div>
-                <label htmlFor="login-email" className={labelClass}>
-                  Email address
-                </label>
-                <div className="mt-1.5">
-                  <input
-                    id="login-email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder="alex@company.com"
-                    aria-invalid={Boolean(errors.email)}
-                    aria-describedby={
-                      errors.email ? "login-email-error" : undefined
-                    }
-                    {...emailField}
-                    className={inputClass(Boolean(errors.email))}
-                  />
-                </div>
-                {errors.email && (
-                  <p
-                    id="login-email-error"
-                    role="alert"
-                    className={fieldErrorClass}
-                  >
-                    {errors.email.message}
-                  </p>
-                )}
-              </div>
+              <TextField
+                id="login-email"
+                label="Email address"
+                type="email"
+                autoComplete="email"
+                placeholder="alex@company.com"
+                error={errors.email?.message}
+                field={emailField}
+                onClearError={() => setFormError(null)}
+              />
 
               {/* Password */}
-              <div>
-                <label htmlFor="login-password" className={labelClass}>
-                  Password
-                </label>
-                <div className="relative mt-1.5">
-                  <input
-                    id="login-password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    placeholder="••••••••"
-                    aria-invalid={Boolean(errors.password)}
-                    aria-describedby={
-                      errors.password ? "login-password-error" : undefined
-                    }
-                    {...passwordField}
-                    className={inputClass(Boolean(errors.password), true)}
-                  />
-                  <button
-                    type="button"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
-                    aria-pressed={showPassword}
-                    onClick={() => setShowPassword((current) => !current)}
-                    className={toggleClass}
-                  >
-                    {showPassword ? (
-                      <EyeOff aria-hidden="true" className="h-4 w-4" />
-                    ) : (
-                      <Eye aria-hidden="true" className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p
-                    id="login-password-error"
-                    role="alert"
-                    className={fieldErrorClass}
-                  >
-                    {errors.password.message}
-                  </p>
-                )}
-              </div>
+              <PasswordField
+                id="login-password"
+                label="Password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                error={errors.password?.message}
+                field={register("password")}
+                onClearError={() => setFormError(null)}
+              />
 
               {/* Form Level Error */}
               {formError && (
@@ -214,17 +127,12 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={submitting}
+                disabled={isSubmitting}
                 className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
               >
-                <span>
-                  {submitting ? "Signing in..." : "Sign in"}
-                </span>
-                {submitting ? (
-                  <Loader2
-                    aria-hidden="true"
-                    className="h-4 w-4 animate-spin"
-                  />
+                <span>{isSubmitting ? "Signing in..." : "Sign in"}</span>
+                {isSubmitting ? (
+                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                 ) : (
                   <span aria-hidden="true" className="text-[17px] font-normal">
                     ↗

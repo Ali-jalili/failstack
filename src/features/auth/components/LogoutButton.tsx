@@ -3,6 +3,20 @@
 import { useState, useTransition } from "react";
 import { handleLogout } from "@/features/auth/server/actions";
 
+/**
+ * Next.js throws a NEXT_REDIRECT error when a server action calls
+ * redirect(). We detect it by checking the `digest` property that Next
+ * attaches to the thrown error object.
+ */
+function isNextRedirectError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "digest" in error &&
+    typeof (error as { digest?: string }).digest === "string" &&
+    (error as { digest: string }).digest!.startsWith("NEXT_REDIRECT")
+  );
+}
+
 export default function LogoutButton() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -13,8 +27,13 @@ export default function LogoutButton() {
       try {
         const result = await handleLogout();
         if (result.error) setError("Unable to sign out. Please try again.");
-      } catch {
-        setError("Unable to sign out. Please try again.");
+      } catch (caught) {
+        // The redirect() call in handleLogout throws a NEXT_REDIRECT error
+        // that Next.js intercepts to trigger client-side navigation.
+        // Only surface real sign-out failures — not the navigation itself.
+        if (!isNextRedirectError(caught)) {
+          setError("Unable to sign out. Please try again.");
+        }
       }
     });
   }
