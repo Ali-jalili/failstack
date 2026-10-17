@@ -27,7 +27,11 @@ export type RootCauseNodeType =
   | "DIRECT_FAILURE"
   | "SYSTEM_IMPACT";
 
-export type IncidentStatus = "DRAFT" | "PENDING_REVIEW" | "PUBLISHED";
+export type IncidentStatus =
+  | "DRAFT"
+  | "PENDING_REVIEW"
+  | "CHANGES_REQUESTED"
+  | "PUBLISHED";
 export interface TimelineEvent {
   id: string;
   timestampOffsetMinutes: number;

@@ -181,32 +181,6 @@ export async function updateIncidentResubmit(input: unknown) {
 
   // Attempt conditional update: only allow owner to update and only when status is CHANGES_REQUESTED
   const incidentUpdate = supabase.from("incidents");
-  console.log("RESUBMIT DIAGNOSTIC", {
-    id,
-    userId: user.id,
-    statusBeingSet: row.status,
-    authorIdIncludedInUpdate: "author_id" in row,
-  });
-  const who = await supabase.rpc("whoami");
-  console.log("WHOAMI:", who.data, who.error);
-
-  const { data: visibleRow, error: visibleError } = await supabase
-    .from("incidents")
-    .select("id, author_id, status")
-    .eq("id", id)
-    .eq("author_id", user.id)
-    .eq("status", "CHANGES_REQUESTED")
-    .maybeSingle();
-
-  console.log("RESUBMIT PRECHECK", {
-    found: Boolean(visibleRow),
-    error: visibleError
-      ? {
-          code: visibleError.code,
-          message: visibleError.message,
-        }
-      : null,
-  });
 
   const { count: updatedCount, error: updateError } = await incidentUpdate
     .update(row, { count: "exact" })
@@ -215,12 +189,6 @@ export async function updateIncidentResubmit(input: unknown) {
     .eq("status", "CHANGES_REQUESTED");
 
   if (updateError) {
-    console.error("Failed to resubmit incident", {
-      code: updateError.code,
-      message: updateError.message,
-      details: updateError.details,
-      hint: updateError.hint,
-    });
     return { error: updateError.message };
   }
 

@@ -65,15 +65,27 @@ const STEPS = [
   },
 ] as const;
 
-export default function IncidentForm({ initialValues, incidentId, mode = "create" }: { initialValues?: Partial<IncidentFormValues>; incidentId?: string; mode?: "create" | "edit" }) {
+export default function IncidentForm({
+  initialValues,
+  incidentId,
+  mode = "create",
+  reviewerNote,
+}: {
+  initialValues?: Partial<IncidentFormValues>;
+  incidentId?: string;
+  mode?: "create" | "edit";
+  reviewerNote?: string | null;
+}) {
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const CurrentStep = STEPS[step].component;
   const isFirst = step === 0;
   const isLast = step === STEPS.length - 1;
+  const isLocked = isSubmitting || hasSubmitted;
 
   const defaultVals: IncidentFormValues = {
     title: "",
@@ -123,7 +135,7 @@ export default function IncidentForm({ initialValues, incidentId, mode = "create
   const back = () => !isFirst && setStep(step - 1);
 
   async function onSubmit(data: IncidentFormValues) {
-    if (isSubmitting) return;
+    if (isLocked) return;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -144,7 +156,11 @@ export default function IncidentForm({ initialValues, incidentId, mode = "create
           return;
         }
 
-        const result = await updateIncidentResubmit({ id: incidentId, ...data, occurredAt });
+        const result = await updateIncidentResubmit({
+          id: incidentId,
+          ...data,
+          occurredAt,
+        });
         if (result.error) {
           setSubmitError(result.error);
           return;
@@ -158,10 +174,10 @@ export default function IncidentForm({ initialValues, incidentId, mode = "create
           return;
         }
 
-        setSubmitSuccess(
-          `Incident submitted for review. Slug: ${result.slug}`,
-        );
+        setSubmitSuccess(`Incident submitted for review. Slug: ${result.slug}`);
       }
+
+      setHasSubmitted(true);
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -194,11 +210,69 @@ export default function IncidentForm({ initialValues, incidentId, mode = "create
           </p>
         </div>
 
+        {/* Reviewer note (only visible in edit mode when a reason was provided) */}
+        {mode === "edit" && reviewerNote && (
+          <div
+            role="note"
+            className="mb-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 sm:p-5"
+          >
+            <p className="text-xs font-medium text-amber-200">
+              Reviewer feedback
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm leading-5 text-slate-300">
+              {reviewerNote}
+            </p>
+          </div>
+        )}
+
+        {/* Step progress indicator */}
+        <nav
+          aria-label="Form progress"
+          className="mb-6 flex flex-wrap items-center gap-2"
+        >
+          {STEPS.map((s, i) => {
+            const isActive = i === step;
+            const isDone = i < step;
+            return (
+              <span
+                key={s.id}
+                aria-current={isActive ? "step" : undefined}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[10px] uppercase tracking-[0.08em] transition ${
+                  isActive
+                    ? "border-blue-500/40 bg-blue-500/10 text-blue-300"
+                    : isDone
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                      : "border-slate-800 bg-slate-900/50 text-slate-500"
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`inline-block h-1.5 w-1.5 rounded-full ${
+                    isActive
+                      ? "bg-blue-400"
+                      : isDone
+                        ? "bg-emerald-400"
+                        : "bg-slate-600"
+                  }`}
+                />
+                <span>
+                  {i + 1} {s.label}
+                </span>
+              </span>
+            );
+          })}
+        </nav>
+
         {/* Main Form Container */}
         <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
           <FormProvider {...form}>
             <form onSubmit={handleSubmit(onSubmit)}>
-              <CurrentStep />
+              <fieldset
+                disabled={isLocked}
+                className={isLocked ? "opacity-60" : undefined}
+              >
+                <CurrentStep />
+              </fieldset>
             </form>
           </FormProvider>
 
@@ -206,10 +280,10 @@ export default function IncidentForm({ initialValues, incidentId, mode = "create
           <div className="mt-8 flex items-center justify-between border-t border-slate-800/80 pt-6">
             <button
               onClick={back}
-              disabled={isFirst}
+              disabled={isFirst || isLocked}
               type="button"
               className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-xs font-semibold transition ${
-                isFirst
+                isFirst || isLocked
                   ? "border-slate-800 bg-slate-900/50 text-slate-500 opacity-50 cursor-not-allowed"
                   : "border-slate-700 bg-slate-900/50 text-slate-200 hover:border-slate-600 hover:text-white"
               }`}
@@ -222,31 +296,48 @@ export default function IncidentForm({ initialValues, incidentId, mode = "create
               <button
                 onClick={handleSubmit(onSubmit)}
                 type="button"
-                disabled={isSubmitting}
+                disabled={isLocked}
                 className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-green-600/20 transition hover:bg-green-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isSubmitting ? "Submitting for Review..." : "Submit for Review"}
+                {isSubmitting
+                  ? "Submitting for Review..."
+                  : hasSubmitted
+                    ? "Submitted"
+                    : "Submit for Review"}
               </button>
             ) : (
               <button
                 onClick={next}
                 type="button"
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 active:scale-[0.98]"
+                disabled={isLocked}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Next Step
                 <ArrowRight className="h-4 w-4" />
               </button>
             )}
           </div>
+
           {submitError && (
             <p role="alert" className="mt-4 text-sm text-rose-400">
               {submitError}
             </p>
           )}
-          {submitSuccess && (
-            <p role="status" className="mt-4 text-sm text-emerald-400">
-              {submitSuccess}
-            </p>
+
+          {hasSubmitted && submitSuccess && (
+            <div
+              role="status"
+              className="mt-5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5"
+            >
+              <p className="text-sm text-emerald-300">{submitSuccess}</p>
+              <a
+                href="/incidents"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+              >
+                View your reports
+                <ArrowRight className="h-3.5 w-3.5" />
+              </a>
+            </div>
           )}
         </div>
 
