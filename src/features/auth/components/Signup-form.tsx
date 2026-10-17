@@ -122,11 +122,19 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   return (
     <section className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
       <div aria-hidden="true" className="home-grid" />
+      <div
+        aria-hidden="true"
+        className="auth-glow auth-glow-one"
+      />
+      <div
+        aria-hidden="true"
+        className="auth-glow auth-glow-two"
+      />
 
       <div className="relative mx-auto grid min-h-[inherit] max-w-[1440px] lg:grid-cols-2">
         {/* Form column */}
         <div className="flex items-center px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-          <div className="mx-auto w-full max-w-[26rem]">
+          <div className="auth-rise mx-auto w-full max-w-[26rem]">
             <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
               <span
                 aria-hidden="true"
@@ -153,47 +161,58 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
               <input type="hidden" name="next" value={returnTo} />
 
               {/* Full Name */}
-              <TextField
-                id="signup-name"
-                label="Full name"
-                autoComplete="name"
-                placeholder="Alex Morgan"
-                error={errors.name?.message}
-                field={nameField}
-                onClearError={() => setFormError(null)}
-              />
+              <div className="auth-field" style={{ animationDelay: "100ms" }}>
+                <TextField
+                  id="signup-name"
+                  label="Full name"
+                  autoComplete="name"
+                  placeholder="Alex Morgan"
+                  error={errors.name?.message}
+                  field={nameField}
+                  onClearError={() => setFormError(null)}
+                />
+              </div>
 
               {/* Email */}
-              <TextField
-                id="signup-email"
-                label="Email address"
-                type="email"
-                autoComplete="email"
-                placeholder="alex@company.com"
-                error={errors.email?.message}
-                field={emailField}
-                onClearError={() => setFormError(null)}
-              />
+              <div className="auth-field" style={{ animationDelay: "180ms" }}>
+                <TextField
+                  id="signup-email"
+                  label="Email address"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="alex@company.com"
+                  error={errors.email?.message}
+                  field={emailField}
+                  onClearError={() => setFormError(null)}
+                />
+              </div>
 
               {/* Password */}
-              <PasswordField
-                id="signup-password"
-                label="Password"
-                autoComplete="new-password"
-                placeholder="••••••••"
-                error={errors.password?.message}
-                field={passwordField}
-                onClearError={() => setFormError(null)}
-              />
+              <div className="auth-field" style={{ animationDelay: "260ms" }}>
+                <PasswordField
+                  id="signup-password"
+                  label="Password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  error={errors.password?.message}
+                  field={passwordField}
+                  onClearError={() => setFormError(null)}
+                />
+              </div>
 
               {/* Confirm Password */}
-              <ConfirmPasswordField
-                id="signup-confirm-password"
-                label="Confirm password"
-                error={errors.confirmPassword?.message}
-                field={confirmPasswordField}
-                onClearError={() => setFormError(null)}
-              />
+              <div
+                className="auth-field"
+                style={{ animationDelay: "340ms" }}
+              >
+                <ConfirmPasswordField
+                  id="signup-confirm-password"
+                  label="Confirm password"
+                  error={errors.confirmPassword?.message}
+                  field={confirmPasswordField}
+                  onClearError={() => setFormError(null)}
+                />
+              </div>
 
               {/* Form Level Error */}
               {formError && (
@@ -206,20 +225,29 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
               )}
 
               {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
+              <div
+                className="auth-field"
+                style={{ animationDelay: "420ms" }}
               >
-                <span>{isSubmitting ? "Creating account..." : "Create account"}</span>
-                {isSubmitting ? (
-                  <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-                ) : (
-                  <span aria-hidden="true" className="text-[17px] font-normal">
-                    ↗
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
+                >
+                  <span>
+                    {isSubmitting
+                      ? "Creating account..."
+                      : "Create account"}
                   </span>
-                )}
-              </button>
+                  {isSubmitting ? (
+                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <span aria-hidden="true" className="text-[17px] font-normal">
+                      ↗
+                    </span>
+                  )}
+                </button>
+              </div>
             </form>
 
             <p className="mt-7 border-t border-slate-800/80 pt-5 text-[12px] text-slate-400">

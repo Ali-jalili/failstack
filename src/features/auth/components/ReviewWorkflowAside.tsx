@@ -28,7 +28,7 @@ export default function ReviewWorkflowAside() {
   return (
     <aside
       aria-label="How contributions are reviewed"
-      className="hidden border-l border-slate-800/80 bg-gradient-to-br from-[#0c151c] via-[#0b1219] to-[#101a1c] px-10 py-16 lg:flex lg:flex-col lg:justify-center"
+      className="auth-field auth-rise hidden border-l border-slate-800/80 bg-gradient-to-br from-[#0c151c] via-[#0b1219] to-[#101a1c] px-10 py-16 lg:flex lg:flex-col lg:justify-center"
     >
       <div className="mx-auto w-full max-w-md">
         <p className="flex items-center gap-[11px] font-mono text-[9px] uppercase leading-[1.6] tracking-[0.12em] text-[#9cb876]">
