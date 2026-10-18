@@ -210,20 +210,33 @@ export function StepStatusPanel({
     return (
       <div
         role="status"
-        className="mt-4 border-l-2 border-[#c6e47c] bg-[#c6e47c]/10 py-3 pl-3 pr-2"
+        className="incident-card-enter mt-5 border border-[#c6e47c]/40 bg-[#c6e47c]/[0.12] px-5 py-4"
       >
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#d5e8a5]">
-          {success}
-        </p>
-        {successActionHref && successActionLabel ? (
-          <Link
-            href={successActionHref}
-            className="mt-2 inline-flex items-center gap-1.5 font-mono text-[11px] text-[#c6e47c] underline decoration-[#c6e47c]/40 underline-offset-4 transition-colors hover:text-[#dcf7a0] hover:decoration-[#dcf7a0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]"
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#c6e47c]/60 bg-[#c6e47c]/20 font-mono text-[10px] text-[#d5e8a5]"
           >
-            {successActionLabel}
-            <span aria-hidden="true">↗</span>
-          </Link>
-        ) : null}
+            ✓
+          </span>
+          <div>
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#d5e8a5]">
+              {success}
+            </p>
+            {successActionHref && successActionLabel ? (
+              <Link
+                href={successActionHref}
+                className="mt-1.5 inline-flex items-center gap-1.5 font-mono text-[11px] text-[#c6e47c] underline decoration-[#c6e47c]/40 underline-offset-4 transition-colors hover:text-[#dcf7a0] hover:decoration-[#dcf7a0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]"
+              >
+                {successActionLabel}
+                <span aria-hidden="true">↗</span>
+              </Link>
+            ) : null}
+            <p className="mt-2 text-[11px] leading-[1.5] text-slate-400">
+              Redirecting to your reports shortly…
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

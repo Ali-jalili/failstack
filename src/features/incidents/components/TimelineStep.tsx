@@ -10,17 +10,17 @@ import { useFieldArray, useFormContext } from "react-hook-form";
 import { FormSectionHeading } from "./form-fields";
 
 const inputClass = (hasError: boolean) =>
-  `block h-11 w-full border bg-[#0b121a] px-3.5 text-[13px] text-slate-100 placeholder-slate-600 transition-colors focus:outline-none focus:ring-1 ${
+  `block w-full rounded-md border bg-[#0d1520] px-4 py-3 text-[14px] leading-5 text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:outline-none focus:ring-2 motion-reduce:transition-none ${
     hasError
-      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c]/70 focus:ring-[#c6e47c]/40"
+      ? "border-rose-500/70 focus:border-rose-500 focus:ring-rose-500/30"
+      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c] focus:ring-[#c6e47c]/25 focus:bg-[#0e1622]"
   }`;
 
 const labelClass =
-  "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
+  "block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400";
 
 const fieldErrorClass =
-  "mt-1 font-mono text-[11px] leading-[1.5] tracking-[0.02em] text-rose-400";
+  "mt-1.5 font-mono text-[11px] leading-[1.5] tracking-[0.02em] text-rose-400";
 
 export default function TimelineStep() {
   const {
@@ -161,7 +161,7 @@ export default function TimelineStep() {
                           />
                           <p
                             id={`timeline-${index}-stage`}
-                            className={`h-11 border border-slate-800 bg-[#0b121a] px-3.5 font-mono text-[11px] uppercase leading-[11px] tracking-[0.08em] text-[#c6e47c]`}
+                            className="w-full rounded-md border border-slate-800 bg-[#0d1520] px-4 py-3 font-mono text-[12px] uppercase leading-[1.4] tracking-[0.08em] text-[#c6e47c]"
                           >
                             TRIGGER
                           </p>
@@ -291,7 +291,7 @@ export default function TimelineStep() {
                         );
                       }}
                       placeholder={"One command per line, e.g.\nkubectl get pods"}
-                      className="block h-auto w-full resize-y border border-slate-800 bg-[#0b121a] px-3.5 py-2 font-mono text-[12px] leading-[1.6] text-slate-100 placeholder-slate-600 transition-colors focus:border-[#c6e47c]/70 focus:outline-none focus:ring-1 focus:ring-[#c6e47c]/40"
+                      className="block h-auto w-full resize-y rounded-md border border-slate-800 bg-[#0d1520] px-4 py-3 font-mono text-[13px] leading-[1.6] text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:border-[#c6e47c] focus:outline-none focus:ring-2 focus:ring-[#c6e47c]/25 motion-reduce:transition-none"
                     />
                   </div>
                 </fieldset>

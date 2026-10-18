@@ -9,10 +9,10 @@ import { useFieldArray, useFormContext } from "react-hook-form";
 import { FormSectionHeading } from "./form-fields";
 
 const inputClass = (hasError: boolean) =>
-  `block h-11 w-full border bg-[#0b121a] px-3.5 text-[13px] text-slate-100 placeholder-slate-600 transition-colors focus:outline-none focus:ring-1 ${
+  `block w-full rounded-md border bg-[#0d1520] px-4 py-3 text-[14px] leading-5 text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:outline-none focus:ring-2 motion-reduce:transition-none ${
     hasError
-      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c]/70 focus:ring-[#c6e47c]/40"
+      ? "border-rose-500/70 focus:border-rose-500 focus:ring-rose-500/30"
+      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c] focus:ring-[#c6e47c]/25 focus:bg-[#0e1622]"
   }`;
 
 const labelClass =

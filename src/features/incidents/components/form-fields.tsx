@@ -6,13 +6,13 @@ import { useFormContext } from "react-hook-form";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 const labelClass =
-  "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
+  "block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-slate-400";
 
 const inputBase =
-  "block h-11 w-full border bg-[#0d1520] px-3.5 text-[13px] text-slate-100 placeholder-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:outline-none focus:ring-2 motion-reduce:transition-none";
+  "block w-full rounded-md border bg-[#0d1520] px-4 py-3 text-[14px] leading-5 text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:outline-none focus:ring-2 motion-reduce:transition-none";
 
 const inputOk =
-  "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c] focus:ring-[#c6e47c]/25";
+  "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c] focus:ring-[#c6e47c]/25 focus:bg-[#0e1622]";
 
 const inputErr =
   "border-rose-500/70 focus:border-rose-500 focus:ring-rose-500/30";
@@ -256,7 +256,7 @@ export function FormSelectField<T extends string>({
             field.onChange?.(event);
             clearError();
           }}
-          className={`${classes} cursor-pointer appearance-none pr-9`}
+          className={`${classes} cursor-pointer appearance-none pr-10`}
         >
           {options.map((option) => (
             <option
@@ -270,7 +270,7 @@ export function FormSelectField<T extends string>({
         </select>
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-[10px] text-slate-500"
+          className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[11px] text-slate-500"
         >
           ▾
         </span>

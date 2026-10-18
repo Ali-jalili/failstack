@@ -29,7 +29,10 @@ export async function fetchPublishedIncidents() {
   return getPublishedIncidents();
 }
 
-export async function createIncident(input: unknown) {
+export async function createIncident(
+  input: unknown,
+  idempotencyKey?: string | null,
+) {
   const parsed = incidentFormSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -60,8 +63,24 @@ export async function createIncident(input: unknown) {
   }
 
   const incident = parsed.data;
+
+  // Idempotency: if a row with this key already exists for this user,
+  // return it instead of inserting a duplicate.
+  if (idempotencyKey) {
+    const { data: existing } = await supabase
+      .from("incidents")
+      .select("slug")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("author_id", user.id)
+      .maybeSingle();
+
+    if (existing?.slug) {
+      return { error: null, slug: existing.slug, alreadyExists: true };
+    }
+  }
+
   const slug = createSlug(incident.title);
-  const row = {
+  const row: Record<string, unknown> = {
     slug,
     title: incident.title,
     company_name: incident.companyName,
@@ -81,10 +100,29 @@ export async function createIncident(input: unknown) {
     status: "PENDING_REVIEW",
   };
 
+  if (idempotencyKey) {
+    row.idempotency_key = idempotencyKey;
+  }
+
   const { error: insertError } = await supabase.from("incidents").insert(row);
 
   if (!insertError) {
     return { error: null, slug };
+  }
+
+  // A 23505 on the idempotency_key column means a concurrent request
+  // already inserted this incident — return success with the existing slug.
+  if (insertError.code === "23505" && idempotencyKey) {
+    const { data: concurrent } = await supabase
+      .from("incidents")
+      .select("slug")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("author_id", user.id)
+      .maybeSingle();
+
+    if (concurrent?.slug) {
+      return { error: null, slug: concurrent.slug, alreadyExists: true };
+    }
   }
 
   if (insertError.code !== "23505") {

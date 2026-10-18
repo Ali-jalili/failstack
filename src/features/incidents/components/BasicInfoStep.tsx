@@ -43,75 +43,79 @@ export default function BasicInfoStep() {
         description="Capture the essentials: who, when, how long, and how severe."
       />
 
-      <div className="space-y-5">
-        <FormTextField
-          id="title"
-          label="Incident title"
-          placeholder="e.g. Major outage in primary database cluster"
-          error={errors.title?.message}
-          field={register("title")}
-        />
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+        <div className="sm:col-span-2">
           <FormTextField
-            id="companyName"
-            label="Company / organization"
-            placeholder="e.g. FailStack Inc."
-            error={errors.companyName?.message}
-            field={register("companyName")}
-          />
-
-          <FormSelectField
-            id="severity"
-            label="Severity"
-            options={SEVERITY_OPTIONS}
-            error={errors.severity?.message}
-            field={register("severity")}
+            id="title"
+            label="Incident title"
+            placeholder="e.g. Major outage in primary database cluster"
+            error={errors.title?.message}
+            field={register("title")}
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <FormDateTimeField
-            id="occurredAt"
-            label="Occurred at"
-            error={errors.occurredAt?.message}
-            field={register("occurredAt")}
-          />
-
-          <FormNumberField
-            id="durationMinutes"
-            label="Duration (minutes)"
-            min={0}
-            error={errors.durationMinutes?.message}
-            field={register("durationMinutes", { valueAsNumber: true })}
-          />
-        </div>
+        <FormTextField
+          id="companyName"
+          label="Company / organization"
+          placeholder="e.g. FailStack Inc."
+          error={errors.companyName?.message}
+          field={register("companyName")}
+        />
 
         <FormSelectField
-          id="pattern"
-          label="Failure pattern"
-          options={PATTERN_OPTIONS}
-          error={errors.pattern?.message}
-          field={register("pattern")}
+          id="severity"
+          label="Severity"
+          options={SEVERITY_OPTIONS}
+          error={errors.severity?.message}
+          field={register("severity")}
         />
 
-        <FormTextAreaField
-          id="summary"
-          label="Summary"
-          rows={3}
-          placeholder="Brief high-level overview of the incident and its impact."
-          error={errors.summary?.message}
-          field={register("summary")}
+        <FormDateTimeField
+          id="occurredAt"
+          label="Occurred at"
+          error={errors.occurredAt?.message}
+          field={register("occurredAt")}
         />
 
-        <FormTextField
-          id="officialPostMortemUrl"
-          label="Official postmortem URL"
-          type="url"
-          placeholder="https://status.example.com/incidents/123"
-          error={errors.officialPostMortemUrl?.message}
-          field={register("officialPostMortemUrl")}
+        <FormNumberField
+          id="durationMinutes"
+          label="Duration (minutes)"
+          min={0}
+          error={errors.durationMinutes?.message}
+          field={register("durationMinutes", { valueAsNumber: true })}
         />
+
+        <div className="sm:col-span-2">
+          <FormSelectField
+            id="pattern"
+            label="Failure pattern"
+            options={PATTERN_OPTIONS}
+            error={errors.pattern?.message}
+            field={register("pattern")}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <FormTextAreaField
+            id="summary"
+            label="Summary"
+            rows={4}
+            placeholder="Brief high-level overview of the incident and its impact."
+            error={errors.summary?.message}
+            field={register("summary")}
+          />
+        </div>
+
+        <div className="sm:col-span-2">
+          <FormTextField
+            id="officialPostMortemUrl"
+            label="Official postmortem URL"
+            type="url"
+            placeholder="https://status.example.com/incidents/123"
+            error={errors.officialPostMortemUrl?.message}
+            field={register("officialPostMortemUrl")}
+          />
+        </div>
       </div>
     </section>
   );

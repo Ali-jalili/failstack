@@ -157,6 +157,14 @@ export default function IncidentForm({
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
+  // Generate a stable idempotency key for the form session (create mode only).
+  // Re-submits from the same mounted form reuse the same key, so the server
+  // can deduplicate concurrent or retried requests without relying on title
+  // similarity.
+  const idempotencyKeyRef = useState(() =>
+    mode === "create" ? crypto.randomUUID() : null,
+  )[0];
+
   const currentStepDefinition = STEPS[step];
   const CurrentStepComponent = currentStepDefinition.component;
   const isFirst = step === 0;
@@ -226,7 +234,7 @@ export default function IncidentForm({
         }
         setSubmitSuccess("Incident updated and resubmitted for review.");
       } else {
-        const result = await createIncident({ ...data, occurredAt });
+        const result = await createIncident({ ...data, occurredAt }, idempotencyKeyRef);
         if (result.error) {
           setSubmitError(result.error);
           return;
@@ -239,7 +247,7 @@ export default function IncidentForm({
       setHasSubmitted(true);
       // Redirect to archive after a short delay so the user sees the
       // success confirmation before navigating away.
-      setTimeout(() => router.push("/incidents"), 900);
+      setTimeout(() => router.push("/incidents"), 2500);
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -264,7 +272,7 @@ export default function IncidentForm({
       <div aria-hidden="true" className="incident-orb incident-orb-lime" />
       <div aria-hidden="true" className="incident-orb incident-orb-warm" />
 
-      <div className="relative mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+      <div className="relative mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         {/* Kicker */}
         <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
           <span
