@@ -16,6 +16,11 @@ export default async function Navbar() {
     ...(user
       ? [
           {
+            label: "My incidents",
+            href: "/my-incidents",
+            primary: false,
+          },
+          {
             label: "New report",
             href: "/incidents/new",
             primary: !canReviewIncidents,
@@ -30,7 +35,10 @@ export default async function Navbar() {
               ]
             : []),
         ]
-      : [{ label: "Log in", href: "/login" }]),
+      : [
+          { label: "Log in", href: "/login" },
+          { label: "Sign up", href: "/signup" },
+        ]),
   ];
 
   return (

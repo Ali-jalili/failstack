@@ -162,7 +162,7 @@ export function StepNav({
           {isSubmitting ? (
             <span
               aria-hidden="true"
-              className="inline-block h-3.5 w-3.5 rounded-full border-2 border-[#11190a]/30 border-t-[#11190a] motion-reduce:hidden"
+              className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#11190a]/30 border-t-[#11190a] motion-reduce:animate-none motion-reduce:hidden"
             />
           ) : (
             <span aria-hidden="true">↗</span>

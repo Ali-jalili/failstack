@@ -12,6 +12,7 @@ import {
   FilePlus2,
   LogIn,
   Menu,
+  UserRound,
   X,
 } from "lucide-react";
 
@@ -43,9 +44,13 @@ function NavigationItems({
             ? BookOpen
             : item.href === "/incidents/new"
               ? FilePlus2
-              : item.href === "/review/incidents"
-                ? ClipboardCheck
-                : LogIn;
+              : item.href === "/my-incidents"
+                ? UserRound
+                : item.href === "/review/incidents"
+                  ? ClipboardCheck
+                  : item.href === "/signup"
+                    ? UserRound
+                    : LogIn;
 
         const link = (
           <Link

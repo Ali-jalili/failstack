@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -157,6 +157,10 @@ export default function IncidentForm({
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
+  // Synchronous guard that prevents two concurrent onSubmit invocations
+  // (e.g. a double-click that slips past the isLocked state check).
+  const submitLockRef = useRef(false);
+
   // Generate a stable idempotency key for the form session (create mode only).
   // Re-submits from the same mounted form reuse the same key, so the server
   // can deduplicate concurrent or retried requests without relying on title
@@ -202,7 +206,8 @@ export default function IncidentForm({
   };
 
   async function onSubmit(data: IncidentFormValues) {
-    if (isLocked) return;
+    if (isLocked || submitLockRef.current) return;
+    submitLockRef.current = true;
 
     setIsSubmitting(true);
     setSubmitError(null);
@@ -255,6 +260,7 @@ export default function IncidentForm({
           : "An unexpected error occurred while saving the incident.",
       );
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   }
@@ -322,6 +328,7 @@ export default function IncidentForm({
             />
 
             <FormProvider {...form}>
+              {/* eslint-disable-next-line react-hooks/refs -- submitLockRef is read only inside the submit event handler, not during render */}
               <form onSubmit={handleSubmit(onSubmit)} noValidate>
                 <fieldset
                   disabled={isLocked}
