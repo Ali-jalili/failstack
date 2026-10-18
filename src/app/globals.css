@@ -598,6 +598,138 @@ body {
     transform 480ms cubic-bezier(0.2, 0.75, 0.25, 1);
 }
 
+/* Incident reporting form: layered ambient background */
+@keyframes incident-bg-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: translate(2rem, -1rem) scale(1.04);
+    opacity: 0.75;
+  }
+}
+
+.incident-canvas {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100dvh - 68px);
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse 80% 50% at 50% -10%,
+      rgb(198 228 124 / 0.07),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 85% 90%,
+      rgb(226 161 109 / 0.05),
+      transparent 65%
+    ),
+    #080d16;
+}
+
+.incident-canvas-grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.22;
+  background-image:
+    linear-gradient(rgb(148 163 184 / 7%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 7%) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(
+    ellipse 90% 80% at 50% 40%,
+    black 0%,
+    transparent 80%
+  );
+}
+
+.incident-orb {
+  position: absolute;
+  z-index: -1;
+  width: 480px;
+  height: 480px;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(90px);
+  animation: incident-bg-drift 14s ease-in-out infinite;
+}
+
+.incident-orb-lime {
+  top: -10rem;
+  left: 50%;
+  margin-left: -14rem;
+  background: rgb(198 228 124 / 0.12);
+}
+
+.incident-orb-warm {
+  bottom: -12rem;
+  right: -8rem;
+  width: 380px;
+  height: 380px;
+  background: rgb(226 161 109 / 0.1);
+  animation-delay: 5s;
+}
+
+/* Card entrance animation */
+@keyframes incident-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.incident-card-enter {
+  animation: incident-card-enter 480ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+/* Step transition: content slide */
+@keyframes incident-step-enter {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.incident-step-enter {
+  animation: incident-step-enter 320ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+/* Progress bar fill transition */
+.incident-progress-fill {
+  transition: width 500ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .incident-canvas-grid,
+  .incident-orb {
+    animation: none;
+  }
+
+  .incident-card-enter,
+  .incident-step-enter {
+    animation: none;
+  }
+
+  .incident-progress-fill {
+    transition: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-intro {
     animation: none;

@@ -3,6 +3,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -149,6 +150,7 @@ export default function IncidentForm({
   mode?: "create" | "edit";
   reviewerNote?: string | null;
 }) {
+  const router = useRouter();
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -235,6 +237,9 @@ export default function IncidentForm({
       }
 
       setHasSubmitted(true);
+      // Redirect to archive after a short delay so the user sees the
+      // success confirmation before navigating away.
+      setTimeout(() => router.push("/incidents"), 900);
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -253,13 +258,11 @@ export default function IncidentForm({
     "Document system outages, failure patterns, and the lessons they teach.";
 
   return (
-    <div className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
-      {/* Ambient background: grid + lime glow, matching FailStack identity */}
-      <div aria-hidden="true" className="home-grid" style={{ opacity: 0.18 }} />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-32 left-1/2 h-[360px] w-[560px] -translate-x-1/2 rounded-full bg-[#c6e47c]/[0.06] blur-[120px]"
-      />
+    <div className="incident-canvas text-slate-100">
+      {/* Layered ambient background */}
+      <div aria-hidden="true" className="incident-canvas-grid" />
+      <div aria-hidden="true" className="incident-orb incident-orb-lime" />
+      <div aria-hidden="true" className="incident-orb incident-orb-warm" />
 
       <div className="relative mx-auto max-w-2xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
         {/* Kicker */}
@@ -283,7 +286,7 @@ export default function IncidentForm({
         {mode === "edit" && reviewerNote ? (
           <div
             role="note"
-            className="mt-6 border border-[#e2a16d]/30 bg-[#e2a16d]/[0.08] px-4 py-3"
+            className="mt-6 border-l-2 border-[#e2a16d]/50 bg-[#e2a16d]/[0.07] px-4 py-3"
           >
             <p className="font-mono text-[9px] uppercase leading-[1.6] tracking-[0.12em] text-[#e2a16d]">
               Reviewer feedback
@@ -299,25 +302,28 @@ export default function IncidentForm({
           <StepIndicator steps={STEPS} currentStep={step} />
         </div>
 
-        {/* Active step */}
-        <div className="mt-6 border border-slate-800/80 bg-gradient-to-br from-[#0c151c] via-[#0b1219] to-[#101a1c] px-5 py-6 sm:px-7 sm:py-8">
-          <StepHeader
-            step={currentStepDefinition}
-            stepNumber={step + 1}
-            totalSteps={STEPS.length}
-            progressPercent={progressPercent}
-          />
+        {/* Active step card */}
+        <div className="incident-card-enter mt-6 border border-slate-800/80 bg-gradient-to-br from-[#0c151c] via-[#0b1219] to-[#101a1c] px-5 py-6 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.55)] sm:px-7 sm:py-8">
+          {/* Key on step so the step-enter animation replays on each change */}
+          <div key={step} className="incident-step-enter">
+            <StepHeader
+              step={currentStepDefinition}
+              stepNumber={step + 1}
+              totalSteps={STEPS.length}
+              progressPercent={progressPercent}
+            />
 
-          <FormProvider {...form}>
-            <form onSubmit={handleSubmit(onSubmit)} noValidate>
-              <fieldset
-                disabled={isLocked}
-                className={isLocked ? "mt-6 opacity-60" : "mt-6"}
-              >
-                <CurrentStepComponent />
-              </fieldset>
-            </form>
-          </FormProvider>
+            <FormProvider {...form}>
+              <form onSubmit={handleSubmit(onSubmit)} noValidate>
+                <fieldset
+                  disabled={isLocked}
+                  className={`mt-6 ${isLocked ? "opacity-60" : ""}`}
+                >
+                  <CurrentStepComponent />
+                </fieldset>
+              </form>
+            </FormProvider>
+          </div>
 
           {/* Navigation */}
           <div className="mt-7">
@@ -339,7 +345,9 @@ export default function IncidentForm({
             error={submitError}
             success={hasSubmitted ? submitSuccess : null}
             successActionHref={hasSubmitted ? "/incidents" : undefined}
-            successActionLabel={hasSubmitted ? "View your reports" : undefined}
+            successActionLabel={
+              hasSubmitted ? "View your reports" : undefined
+            }
           />
         </div>
       </div>

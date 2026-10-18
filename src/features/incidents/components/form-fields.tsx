@@ -2,20 +2,25 @@
 
 "use client";
 
+import { useFormContext } from "react-hook-form";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 const labelClass =
   "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
 
-const inputClass = (hasError: boolean) =>
-  `block h-11 w-full border bg-[#0b121a] px-3.5 text-[13px] text-slate-100 placeholder-slate-600 transition-colors focus:outline-none focus:ring-1 ${
-    hasError
-      ? "border-rose-500/80 focus:border-rose-500 focus:ring-rose-500"
-      : "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c]/70 focus:ring-[#c6e47c]/40"
-  }`;
+const inputBase =
+  "block h-11 w-full border bg-[#0d1520] px-3.5 text-[13px] text-slate-100 placeholder-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:outline-none focus:ring-2 motion-reduce:transition-none";
 
-const errorClass =
-  "mt-1.5 text-[11px] text-rose-400 font-mono tracking-[0.02em]";
+const inputOk =
+  "border-slate-800 hover:border-slate-700 focus:border-[#c6e47c] focus:ring-[#c6e47c]/25";
+
+const inputErr =
+  "border-rose-500/70 focus:border-rose-500 focus:ring-rose-500/30";
+
+function useClearError(name: string) {
+  const { clearErrors } = useFormContext();
+  return () => clearErrors(name);
+}
 
 function FieldError({
   id,
@@ -26,10 +31,25 @@ function FieldError({
 }) {
   if (!error) return null;
   return (
-    <p id={`${id}-error`} role="alert" className={errorClass}>
-      {error}
+    <p
+      id={`${id}-error`}
+      role="alert"
+      className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-[1.5] text-rose-400"
+    >
+      <span aria-hidden="true" className="mt-px font-mono text-[10px] text-rose-500">
+        !
+      </span>
+      <span>{error}</span>
     </p>
   );
+}
+
+function useFieldClasses(error?: string) {
+  return `${inputBase} ${error ? inputErr : inputOk}`;
+}
+
+function useLabelClass(error?: string) {
+  return `${labelClass} ${error ? "!text-rose-400" : ""}`;
 }
 
 export function FormTextField({
@@ -49,9 +69,13 @@ export function FormTextField({
   error?: string;
   field: UseFormRegisterReturn;
 }) {
+  const clearError = useClearError(field.name);
+  const classes = useFieldClasses(error);
+  const labelClasses = useLabelClass(error);
+
   return (
     <div>
-      <label htmlFor={id} className={labelClass}>
+      <label htmlFor={id} className={labelClasses}>
         {label}
       </label>
       <div className="mt-1.5">
@@ -63,7 +87,11 @@ export function FormTextField({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           {...field}
-          className={inputClass(Boolean(error))}
+          onChange={(event) => {
+            field.onChange?.(event);
+            clearError();
+          }}
+          className={classes}
         />
       </div>
       <FieldError id={id} error={error} />
@@ -84,9 +112,13 @@ export function FormNumberField({
   error?: string;
   field: UseFormRegisterReturn;
 }) {
+  const clearError = useClearError(field.name);
+  const classes = useFieldClasses(error);
+  const labelClasses = useLabelClass(error);
+
   return (
     <div>
-      <label htmlFor={id} className={labelClass}>
+      <label htmlFor={id} className={labelClasses}>
         {label}
       </label>
       <div className="mt-1.5">
@@ -97,7 +129,11 @@ export function FormNumberField({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           {...field}
-          className={inputClass(Boolean(error))}
+          onChange={(event) => {
+            field.onChange?.(event);
+            clearError();
+          }}
+          className={`${classes} [appearance:textfield]`}
         />
       </div>
       <FieldError id={id} error={error} />
@@ -116,9 +152,13 @@ export function FormDateTimeField({
   error?: string;
   field: UseFormRegisterReturn;
 }) {
+  const clearError = useClearError(field.name);
+  const classes = useFieldClasses(error);
+  const labelClasses = useLabelClass(error);
+
   return (
     <div>
-      <label htmlFor={id} className={labelClass}>
+      <label htmlFor={id} className={labelClasses}>
         {label}
       </label>
       <div className="mt-1.5">
@@ -128,7 +168,11 @@ export function FormDateTimeField({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           {...field}
-          className={`${inputClass(Boolean(error))} [color-scheme:dark]`}
+          onChange={(event) => {
+            field.onChange?.(event);
+            clearError();
+          }}
+          className={`${classes} [color-scheme:dark]`}
         />
       </div>
       <FieldError id={id} error={error} />
@@ -151,9 +195,13 @@ export function FormTextAreaField({
   error?: string;
   field: UseFormRegisterReturn;
 }) {
+  const clearError = useClearError(field.name);
+  const classes = useFieldClasses(error);
+  const labelClasses = useLabelClass(error);
+
   return (
     <div>
-      <label htmlFor={id} className={labelClass}>
+      <label htmlFor={id} className={labelClasses}>
         {label}
       </label>
       <div className="mt-1.5">
@@ -164,7 +212,11 @@ export function FormTextAreaField({
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           {...field}
-          className={`${inputClass(Boolean(error))} resize-y py-2.5 leading-5`}
+          onChange={(event) => {
+            field.onChange?.(event);
+            clearError();
+          }}
+          className={`${classes} h-auto resize-y py-2.5 leading-5`}
         />
       </div>
       <FieldError id={id} error={error} />
@@ -185,29 +237,43 @@ export function FormSelectField<T extends string>({
   error?: string;
   field: UseFormRegisterReturn;
 }) {
+  const clearError = useClearError(field.name);
+  const classes = useFieldClasses(error);
+  const labelClasses = useLabelClass(error);
+
   return (
     <div>
-      <label htmlFor={id} className={labelClass}>
+      <label htmlFor={id} className={labelClasses}>
         {label}
       </label>
-      <div className="mt-1.5">
+      <div className="relative mt-1.5">
         <select
           id={id}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${id}-error` : undefined}
           {...field}
-          className={inputClass(Boolean(error))}
+          onChange={(event) => {
+            field.onChange?.(event);
+            clearError();
+          }}
+          className={`${classes} cursor-pointer appearance-none pr-9`}
         >
           {options.map((option) => (
             <option
               key={option.value}
               value={option.value}
-              className="bg-[#0b121a] text-slate-100"
+              className="bg-[#0d1520] text-slate-100"
             >
               {option.label}
             </option>
           ))}
         </select>
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-[10px] text-slate-500"
+        >
+          ▾
+        </span>
       </div>
       <FieldError id={id} error={error} />
     </div>
@@ -216,7 +282,7 @@ export function FormSelectField<T extends string>({
 
 export function FormHint({ children }: { children: string }) {
   return (
-    <p className="mt-1 font-mono text-[10px] leading-[1.5] tracking-[0.04em] text-slate-500">
+    <p className="mt-1.5 font-mono text-[10px] leading-[1.5] tracking-[0.04em] text-slate-500">
       {children}
     </p>
   );
@@ -230,7 +296,7 @@ export function FormSectionHeading({
   description?: string;
 }) {
   return (
-    <div className="border-b border-slate-800/80 pb-4">
+    <div>
       <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-slate-100">
         {title}
       </h3>
