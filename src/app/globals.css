@@ -1331,3 +1331,116 @@ body {
     transition: none;
   }
 }
+
+/* Reviewer workspace: restrained movement follows selection changes only. */
+@keyframes review-soft-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.review-panel-enter {
+  animation: review-soft-enter 280ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.review-selection-enter {
+  animation: review-soft-enter 220ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.review-section-enter {
+  animation: review-soft-enter 300ms 70ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.review-section-enter:nth-of-type(2) {
+  animation-delay: 110ms;
+}
+
+.review-section-enter:nth-of-type(3) {
+  animation-delay: 150ms;
+}
+
+.review-decision-enter {
+  animation: review-soft-enter 280ms 130ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-panel-enter,
+  .review-selection-enter,
+  .review-section-enter,
+  .review-decision-enter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 1023px) {
+  .review-section-nav {
+    position: sticky;
+    top: 68px;
+    z-index: 20;
+  }
+
+  .review-investigation-sections[data-active-section="timeline"] [data-review-section]:not([data-review-section="timeline"]),
+  .review-investigation-sections[data-active-section="causes"] [data-review-section]:not([data-review-section="causes"]),
+  .review-investigation-sections[data-active-section="architecture"] [data-review-section]:not([data-review-section="architecture"]),
+  .review-investigation-sections[data-active-section="prevention"] [data-review-section]:not([data-review-section="prevention"]),
+  .review-investigation-sections .review-mobile-active {
+    animation: review-soft-enter 240ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+    margin-top: 0;
+    border-top: 0;
+    padding-top: 0;
+  }
+
+  .review-workspace-detail {
+    padding-bottom: 9rem;
+  }
+
+  .review-decision-enter {
+    position: fixed;
+    z-index: 50;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    max-height: min(44dvh, 340px);
+    overflow-y: auto;
+    border-top: 1px solid rgb(51 65 85 / 85%);
+    background: #080d16;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -10px 30px rgb(0 0 0 / 30%);
+  }
+
+  .review-decision-copy > p {
+    display: none;
+  }
+
+  .review-decision-buttons {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .review-decision-buttons > button {
+    min-width: 0;
+    min-height: 46px;
+    justify-content: center;
+    gap: 5px;
+    padding-inline: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-investigation-sections .review-mobile-active {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
