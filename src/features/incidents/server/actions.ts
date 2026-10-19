@@ -5,6 +5,10 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserState,
+  hasAuthorAccess,
+} from "@/features/auth/server/current-user";
 import { incidentFormSchema } from "@/features/incidents/form-schema";
 import { getMyReports, getPublishedIncidents } from "@/features/incidents/server/queries";
 
@@ -50,17 +54,27 @@ export async function createIncident(
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUserState();
 
-  if (authError || !user) {
+  if (currentUser.kind === "anonymous") {
     return {
       error: "You must be signed in to submit an incident.",
     };
   }
+
+  if (currentUser.kind === "error") {
+    return { error: "Could not verify your sign-in. Please sign in again." };
+  }
+
+  if (currentUser.roleError) {
+    return { error: "Could not verify your role. Please try again." };
+  }
+
+  if (!hasAuthorAccess(currentUser)) {
+    return { error: "Author access required." };
+  }
+
+  const supabase = await createClient();
 
   const incident = parsed.data;
 
@@ -71,7 +85,7 @@ export async function createIncident(
       .from("incidents")
       .select("slug")
       .eq("idempotency_key", idempotencyKey)
-      .eq("author_id", user.id)
+      .eq("author_id", currentUser.userId)
       .maybeSingle();
 
     if (existing?.slug) {
@@ -96,7 +110,7 @@ export async function createIncident(
     root_cause_tree: incident.rootCauseTree,
     architecture_diff: incident.architectureDiff,
     prevention_actions: incident.preventionActions,
-    author_id: user.id,
+    author_id: currentUser.userId,
     status: "PENDING_REVIEW",
   };
 
@@ -117,7 +131,7 @@ export async function createIncident(
       .from("incidents")
       .select("slug")
       .eq("idempotency_key", idempotencyKey)
-      .eq("author_id", user.id)
+      .eq("author_id", currentUser.userId)
       .maybeSingle();
 
     if (concurrent?.slug) {
@@ -187,15 +201,25 @@ export async function updateIncidentResubmit(input: unknown) {
     };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const currentUser = await getCurrentUserState();
 
-  if (authError || !user) {
+  if (currentUser.kind === "anonymous") {
     return { error: "You must be signed in to resubmit an incident." };
   }
+
+  if (currentUser.kind === "error") {
+    return { error: "Could not verify your sign-in. Please sign in again." };
+  }
+
+  if (currentUser.roleError) {
+    return { error: "Could not verify your role. Please try again." };
+  }
+
+  if (!hasAuthorAccess(currentUser)) {
+    return { error: "Author access required." };
+  }
+
+  const supabase = await createClient();
 
   const id = parsed.data.id;
 
@@ -223,7 +247,7 @@ export async function updateIncidentResubmit(input: unknown) {
   const { count: updatedCount, error: updateError } = await incidentUpdate
     .update(row, { count: "exact" })
     .eq("id", id)
-    .eq("author_id", user.id)
+    .eq("author_id", currentUser.userId)
     .eq("status", "CHANGES_REQUESTED");
 
   if (updateError) {

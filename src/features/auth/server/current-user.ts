@@ -14,6 +14,28 @@ export type CurrentUserState =
       roleError: string | null;
     };
 
+type AuthenticatedUserState = Extract<CurrentUserState, { kind: "authenticated" }>;
+
+export function hasAuthorAccess(
+  userState: CurrentUserState,
+): userState is AuthenticatedUserState {
+  return (
+    userState.kind === "authenticated" &&
+    !userState.roleError &&
+    userState.reviewRole !== "reviewer"
+  );
+}
+
+export function hasReviewerAccess(
+  userState: CurrentUserState,
+): userState is AuthenticatedUserState {
+  return (
+    userState.kind === "authenticated" &&
+    !userState.roleError &&
+    userState.reviewRole === "reviewer"
+  );
+}
+
 export const getCurrentUserState = cache(
   async (): Promise<CurrentUserState> => {
     const supabase = await createClient();

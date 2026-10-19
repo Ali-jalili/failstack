@@ -20,28 +20,31 @@ export default async function Navbar() {
           { label: "Log in", href: "/login", placement: "action" as const },
           { label: "Sign up", href: "/signup", placement: "action" as const },
         ]
-      : isReviewer
-        ? [
-            {
-              label: "Review queue",
-              href: "/review/incidents",
-              primary: false,
-            },
-          ]
-        : isWriter
-          ? [
-              {
-                label: "My reports",
-                href: "/my-incidents",
-                primary: false,
-              },
-              {
-                label: "Submit report",
-                href: "/incidents/new",
-                primary: true,
-              },
-            ]
-          : []),
+      : [
+          ...(isWriter
+            ? [
+                {
+                  label: "My reports",
+                  href: "/my-incidents",
+                  primary: false,
+                },
+                {
+                  label: "Submit report",
+                  href: "/incidents/new",
+                  primary: true,
+                },
+              ]
+            : []),
+          ...(isReviewer
+            ? [
+                {
+                  label: "Review queue",
+                  href: "/review/incidents",
+                  primary: false,
+                },
+              ]
+            : []),
+        ]),
   ];
 
   return (

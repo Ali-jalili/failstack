@@ -5,7 +5,10 @@ import type {
   RootCauseNode,
   TimelineEvent,
 } from "@/types/incident";
-import { getCurrentUserState } from "@/features/auth/server/current-user";
+import {
+  getCurrentUserState,
+  hasReviewerAccess,
+} from "@/features/auth/server/current-user";
 import { createClient } from "@/lib/supabase/server";
 
 export interface ReviewIncident {
@@ -55,7 +58,7 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
     };
   }
 
-  if (currentUser.reviewRole !== "reviewer") {
+  if (!hasReviewerAccess(currentUser)) {
     return { kind: "forbidden" };
   }
 

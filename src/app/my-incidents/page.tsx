@@ -25,6 +25,10 @@ export default async function MyIncidentsPage() {
     redirect(`/login?next=${encodeURIComponent("/my-incidents")}`);
   }
 
+  if (result.kind === "forbidden") {
+    notFound();
+  }
+
   return (
     <main className="home-page relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
       <div aria-hidden="true" className="home-grid" />

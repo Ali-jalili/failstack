@@ -1,8 +1,11 @@
 /** @format */
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import IncidentForm from "@/features/incidents/components/IncidentForm";
-import { getCurrentUserState } from "@/features/auth/server/current-user";
+import {
+  getCurrentUserState,
+  hasAuthorAccess,
+} from "@/features/auth/server/current-user";
 
 export default async function NewIncidents() {
   const userState = await getCurrentUserState();
@@ -13,6 +16,14 @@ export default async function NewIncidents() {
 
   if (userState.kind === "anonymous") {
     redirect(`/login?next=${encodeURIComponent("/incidents/new")}`);
+  }
+
+  if (userState.kind === "authenticated" && userState.roleError) {
+    throw new Error(`Unable to verify account role: ${userState.roleError}`);
+  }
+
+  if (!hasAuthorAccess(userState)) {
+    notFound();
   }
 
   return <IncidentForm />;

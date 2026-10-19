@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUserState } from "@/features/auth/server/current-user";
+import {
+  getCurrentUserState,
+  hasAuthorAccess,
+} from "@/features/auth/server/current-user";
 import { z } from "zod";
 import type { IncidentStatus } from "@/types/incident";
 
@@ -43,6 +46,7 @@ export interface MyReport {
 
 export type MyReportsResult =
   | { kind: "anonymous" }
+  | { kind: "forbidden" }
   | { kind: "error"; message: string }
   | { kind: "success"; reports: MyReport[] };
 
@@ -58,6 +62,17 @@ export async function getMyReports(): Promise<MyReportsResult> {
       kind: "error",
       message: `Could not verify your sign-in: ${currentUser.message}`,
     };
+  }
+
+  if (currentUser.kind === "authenticated" && currentUser.roleError) {
+    return {
+      kind: "error",
+      message: `Could not verify your role: ${currentUser.roleError}`,
+    };
+  }
+
+  if (!hasAuthorAccess(currentUser)) {
+    return { kind: "forbidden" };
   }
 
   const supabase = await createClient();

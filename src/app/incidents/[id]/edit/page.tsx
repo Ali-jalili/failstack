@@ -3,26 +3,35 @@
 import IncidentForm from "@/features/incidents/components/IncidentForm";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import {
+  getCurrentUserState,
+  hasAuthorAccess,
+} from "@/features/auth/server/current-user";
 import { getMyReports } from "@/features/incidents/server/queries";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditIncidentPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
+  const currentUser = await getCurrentUserState();
 
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError && authError.name !== "AuthSessionMissingError") {
-    throw new Error(`Unable to verify sign-in: ${authError.message}`);
+  if (currentUser.kind === "error") {
+    throw new Error(`Unable to verify sign-in: ${currentUser.message}`);
   }
 
-  if (!user) {
+  if (currentUser.kind === "anonymous") {
     redirect(`/login?next=${encodeURIComponent(`/incidents/${id}/edit`)}`);
   }
+
+  if (currentUser.roleError) {
+    throw new Error(`Unable to verify account role: ${currentUser.roleError}`);
+  }
+
+  if (!hasAuthorAccess(currentUser)) {
+    redirect("/incidents");
+  }
+
+  const supabase = await createClient();
 
   const { data: incident, error } = await supabase
     .from("incidents")
@@ -30,7 +39,7 @@ export default async function EditIncidentPage({ params }: Props) {
       "id, author_id, status, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, official_post_mortem_url, system, technologies, timeline, root_cause_tree, architecture_diff, prevention_actions",
     )
     .eq("id", id)
-    .eq("author_id", user.id)
+    .eq("author_id", currentUser.userId)
     .eq("status", "CHANGES_REQUESTED")
     .maybeSingle();
 

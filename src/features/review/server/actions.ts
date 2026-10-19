@@ -4,7 +4,10 @@
 
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getCurrentUserState } from "@/features/auth/server/current-user";
+import {
+  getCurrentUserState,
+  hasReviewerAccess,
+} from "@/features/auth/server/current-user";
 
 const reviewSchema = z.discriminatedUnion("action", [
   z.object({
@@ -47,7 +50,7 @@ export async function reviewIncident(input: unknown) {
     };
   }
 
-  if (currentUser.reviewRole !== "reviewer") {
+  if (!hasReviewerAccess(currentUser)) {
     return { error: "Reviewer access required." };
   }
 
