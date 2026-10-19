@@ -1,10 +1,24 @@
 /** @format */
 
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import MyReportsList from "@/features/incidents/components/MyReportsList";
 import { getMyReports } from "@/features/incidents/server/queries";
+import { getCurrentUserState } from "@/features/auth/server/current-user";
 
 export default async function MyIncidentsPage() {
+  const currentUser = await getCurrentUserState();
+
+  if (currentUser.kind === "anonymous") {
+    redirect(`/login?next=${encodeURIComponent("/my-incidents")}`);
+  }
+
+  if (
+    currentUser.kind === "authenticated" &&
+    (currentUser.roleError || currentUser.reviewRole !== null)
+  ) {
+    notFound();
+  }
+
   const result = await getMyReports();
 
   if (result.kind === "anonymous") {

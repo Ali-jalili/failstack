@@ -8,37 +8,40 @@ import { getCurrentUserState } from "@/features/auth/server/current-user";
 export default async function Navbar() {
   const userState = await getCurrentUserState();
   const user = userState.kind === "authenticated" ? userState : null;
-  const canReviewIncidents =
+  const isReviewer =
     user !== null && !user.roleError && user.reviewRole === "reviewer";
+  const isWriter =
+    user !== null && !user.roleError && user.reviewRole === null;
 
   const navItems = [
     { label: "Incident archive", href: "/incidents", primary: false },
-    ...(user
+    ...(user === null
       ? [
-          {
-            label: "My reports",
-            href: "/my-incidents",
-            primary: false,
-          },
-          {
-            label: "Submit report",
-            href: "/incidents/new",
-            primary: true,
-          },
-          ...(canReviewIncidents
-            ? [
-                {
-                  label: "Review queue",
-                  href: "/review/incidents",
-                  primary: false,
-                },
-              ]
-            : []),
-        ]
-      : [
           { label: "Log in", href: "/login", placement: "action" as const },
           { label: "Sign up", href: "/signup", placement: "action" as const },
-        ]),
+        ]
+      : isReviewer
+        ? [
+            {
+              label: "Review queue",
+              href: "/review/incidents",
+              primary: false,
+            },
+          ]
+        : isWriter
+          ? [
+              {
+                label: "My reports",
+                href: "/my-incidents",
+                primary: false,
+              },
+              {
+                label: "Submit report",
+                href: "/incidents/new",
+                primary: true,
+              },
+            ]
+          : []),
   ];
 
   return (
@@ -70,7 +73,7 @@ export default async function Navbar() {
           {user && (
             <AccountMenu
               email={user.email}
-              isReviewer={canReviewIncidents}
+              isReviewer={isReviewer}
             />
           )}
         </div>
