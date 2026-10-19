@@ -95,14 +95,15 @@ function StatusOverview({ reports }: { reports: MyReport[] }) {
         Status overview
       </h2>
       <dl className="mt-3 grid grid-cols-1 border-y border-slate-800/80 sm:grid-cols-3">
-        {summaryStatuses.map((status) => {
+        {summaryStatuses.map((status, index) => {
           const details = statusDetails[status];
           const count = reports.filter((report) => report.status === status).length;
 
           return (
             <div
               key={status}
-              className="flex items-center justify-between gap-4 border-b border-slate-800/70 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:first:pl-0 sm:last:border-r-0 sm:last:pr-0"
+              style={{ animationDelay: `${100 + index * 55}ms` }}
+              className="casebook-status flex items-center justify-between gap-4 border-b border-slate-800/70 py-3 last:border-b-0 sm:border-b-0 sm:border-r sm:px-4 sm:first:pl-0 sm:last:border-r-0 sm:last:pr-0"
             >
               <dt className="flex items-center gap-2 text-xs text-slate-400">
                 <span
@@ -138,7 +139,11 @@ function SubmissionJourney() {
       </div>
       <ol className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4 sm:gap-x-4">
         {lifecycleStages.map((stage, index) => (
-          <li key={stage} className="min-w-0 border-t border-slate-700/80 pt-2.5">
+          <li
+            key={stage}
+            style={{ animationDelay: `${95 + index * 45}ms` }}
+            className="casebook-journey-step min-w-0 pt-2.5"
+          >
             <p className="font-mono text-[9px] tabular-nums tracking-[0.08em] text-slate-500">
               0{index + 1}
             </p>
@@ -177,10 +182,10 @@ function ReportStatus({ report }: { report: MyReport }) {
           )}
           <Link
             href={`/incidents/${report.id}/edit`}
-            className="mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-[#e2a16d] underline decoration-[#e2a16d]/30 underline-offset-4 transition-colors hover:text-[#f0b88f] hover:decoration-[#f0b88f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2a16d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
+            className="group mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-[#e2a16d] underline decoration-[#e2a16d]/30 underline-offset-4 transition-colors hover:text-[#f0b88f] hover:decoration-[#f0b88f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2a16d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
           >
             Edit report
-            <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+            <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1 group-focus-visible:translate-x-1 motion-reduce:transition-none" />
           </Link>
         </div>
       )}
@@ -227,15 +232,16 @@ function ReportHistory({ reports }: { reports: MyReport[] }) {
         </p>
       </div>
 
-      <ol className="relative border-t border-slate-800/80 before:absolute before:bottom-0 before:left-[3px] before:top-0 before:w-px before:bg-slate-800/80">
-        {sortedReports.map((report) => (
+      <ol className="casebook-history relative border-t border-slate-800/80 before:absolute before:bottom-0 before:left-[3px] before:top-0 before:w-px before:bg-slate-800/80">
+        {sortedReports.map((report, index) => (
           <li
             key={report.id}
-            className="relative grid grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-3 border-b border-slate-800/80 py-5 pl-6 sm:grid-cols-[8.5rem_minmax(0,1fr)_12rem] sm:gap-x-5 sm:py-6"
+            className="casebook-row relative grid grid-cols-[minmax(0,1fr)] gap-x-5 gap-y-3 border-b border-slate-800/80 py-5 pl-6 transition-colors duration-200 hover:bg-white/[0.025] focus-within:bg-white/[0.025] motion-reduce:transition-none sm:grid-cols-[8.5rem_minmax(0,1fr)_12rem] sm:gap-x-5 sm:py-6"
           >
             <span
               aria-hidden="true"
-              className="absolute left-0 top-[1.8rem] h-[7px] w-[7px] border border-[#c6e47c] bg-[#080d16]"
+              style={{ animationDelay: `${120 + Math.min(index, 4) * 25}ms` }}
+              className="casebook-marker absolute left-0 top-[1.8rem] h-[7px] w-[7px] border border-[#c6e47c] bg-[#080d16]"
             />
             <time
               dateTime={report.created_at}
@@ -276,7 +282,7 @@ export default function MyReportsList({
     <div className="grid gap-10 lg:grid-cols-[minmax(13rem,0.72fr)_minmax(0,1.7fr)] lg:gap-14 xl:gap-20">
       <EditorialSidebar count={contributionCount} />
 
-      <div className="min-w-0">
+      <div className="casebook-main min-w-0">
         {error ? (
           <div
             role="alert"

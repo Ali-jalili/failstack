@@ -9,7 +9,7 @@ const footerLinks = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-slate-800/80 bg-[#080d16] text-slate-400">
+    <footer className="site-grid-surface border-t border-slate-800/80 bg-[#080d16] text-slate-400">
       <div className="mx-auto max-w-[1440px] px-4 py-12 sm:px-6 lg:px-10">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-[1fr_auto] sm:items-start">
           <div>

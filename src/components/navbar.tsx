@@ -42,7 +42,7 @@ export default async function Navbar() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-800/90 bg-[#090d12] text-slate-100">
+    <header className="site-grid-surface sticky top-0 z-50 border-b border-slate-800/90 bg-[#090d12] text-slate-100">
       <div className="mx-auto flex min-h-[68px] max-w-[1360px] items-center gap-3 px-4 sm:px-6 lg:gap-8 lg:px-10">
         <Link
           href="/"

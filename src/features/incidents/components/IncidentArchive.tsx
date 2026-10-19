@@ -43,8 +43,9 @@ export default function IncidentArchive() {
   }, []);
 
   return (
-    <main className="min-h-[calc(100vh-80px)] bg-slate-950 px-6 py-14 text-slate-100">
-      <div className="mx-auto max-w-5xl">
+    <main className="relative isolate min-h-[calc(100vh-80px)] overflow-hidden bg-[#080d16] px-6 py-14 text-slate-100">
+      <div aria-hidden="true" className="home-grid" />
+      <div className="relative mx-auto max-w-5xl">
         <header className="mb-10 flex flex-wrap items-end justify-between gap-5">
           <div>
             <p className="font-mono text-xs uppercase tracking-[0.2em] text-blue-400">

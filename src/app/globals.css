@@ -25,6 +25,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+.site-grid-surface {
+  background-image:
+    linear-gradient(rgb(148 163 184 / 2%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(148 163 184 / 2%) 1px, transparent 1px);
+  background-size: 72px 72px;
+}
+
 .home-page {
   --home-lime: #c6e47c;
   font-family: var(--font-geist-sans), Arial, sans-serif;
@@ -636,16 +643,12 @@ body {
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.22;
+  opacity: 0.25;
   background-image:
     linear-gradient(rgb(148 163 184 / 7%) 1px, transparent 1px),
     linear-gradient(90deg, rgb(148 163 184 / 7%) 1px, transparent 1px);
   background-size: 72px 72px;
-  mask-image: radial-gradient(
-    ellipse 90% 80% at 50% 40%,
-    black 0%,
-    transparent 80%
-  );
+  mask-image: linear-gradient(to bottom, black, transparent 76%);
 }
 
 .incident-orb {
@@ -1151,5 +1154,180 @@ body {
   .investigation-step,
   .investigation-step-mark {
     animation: none;
+  }
+}
+
+/* Incident Casebook motion: one short entrance and a one-time ledger reveal. */
+@keyframes casebook-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes casebook-line-reveal {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes casebook-marker-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes casebook-rule-reveal {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes casebook-trace {
+  0% {
+    top: 0;
+    opacity: 0;
+    transform: rotate(0deg);
+  }
+
+  10%,
+  88% {
+    opacity: 0.8;
+  }
+
+  100% {
+    top: calc(100% - 7px);
+    opacity: 0;
+    transform: rotate(360deg);
+  }
+}
+
+.casebook-intro {
+  animation: casebook-rise-in 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.casebook-main {
+  animation: casebook-rise-in 420ms 65ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.casebook-history::before {
+  transform: scaleY(0);
+  transform-origin: top;
+  animation: casebook-line-reveal 280ms 150ms ease-out both;
+}
+
+.casebook-history::after {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #c6e47c;
+  background: #080d16;
+  content: "";
+  pointer-events: none;
+  animation: casebook-trace 5.2s 480ms linear infinite both;
+}
+
+.casebook-status,
+.casebook-journey-step {
+  animation: casebook-rise-in 260ms ease-out both;
+}
+
+.casebook-journey-step {
+  position: relative;
+}
+
+.casebook-journey-step::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: rgb(71 85 105 / 80%);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  animation: casebook-rule-reveal 260ms ease-out both;
+}
+
+.casebook-journey-step:nth-child(1)::before {
+  animation-delay: 95ms;
+}
+
+.casebook-journey-step:nth-child(2)::before {
+  animation-delay: 140ms;
+}
+
+.casebook-journey-step:nth-child(3)::before {
+  animation-delay: 185ms;
+}
+
+.casebook-journey-step:nth-child(4)::before {
+  animation-delay: 230ms;
+}
+
+.casebook-marker {
+  opacity: 0;
+  animation: casebook-marker-in 200ms ease-out both;
+  transition: background-color 150ms ease;
+}
+
+.casebook-row {
+  transition: background-color 160ms ease;
+}
+
+.casebook-row:hover .casebook-marker,
+.casebook-row:focus-within .casebook-marker {
+  background-color: #c6e47c;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .casebook-intro,
+  .casebook-main,
+  .casebook-history::before,
+  .casebook-marker {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .casebook-status,
+  .casebook-journey-step,
+  .casebook-journey-step::before {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .casebook-history::after {
+    display: none;
+    animation: none;
+  }
+
+  .casebook-row {
+    transition: none;
+  }
+
+  .casebook-marker {
+    transition: none;
   }
 }
