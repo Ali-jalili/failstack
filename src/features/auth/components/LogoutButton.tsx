@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { LogOut } from "lucide-react";
 import { handleLogout } from "@/features/auth/server/actions";
 
 /**
@@ -39,17 +40,18 @@ export default function LogoutButton() {
   }
 
   return (
-    <div className="flex flex-col items-end">
+    <div className="flex flex-col items-start">
       <button
         type="button"
         onClick={logout}
         disabled={isPending}
-        className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-wait disabled:opacity-60"
+        className="flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] font-medium text-slate-300 transition-colors duration-150 hover:bg-white/[0.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c1118] disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none"
       >
+        <LogOut aria-hidden="true" className="h-4 w-4 text-slate-500" strokeWidth={1.7} />
         {isPending ? "Signing out..." : "Sign out"}
       </button>
       {error && (
-        <span role="alert" className="mt-1 max-w-48 text-right text-[10px] text-rose-300">
+        <span role="alert" className="mt-1 max-w-48 text-[10px] text-rose-300">
           {error}
         </span>
       )}
