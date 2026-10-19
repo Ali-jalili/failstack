@@ -1,13 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserState } from "@/features/auth/server/current-user";
 import { z } from "zod";
+import type { IncidentStatus } from "@/types/incident";
+
+const incidentStatusValues = [
+  "DRAFT",
+  "PENDING_REVIEW",
+  "CHANGES_REQUESTED",
+  "PUBLISHED",
+] as const satisfies readonly IncidentStatus[];
 
 const myReportSchema = z.object({
   id: z.string().min(1),
   slug: z.string().min(1),
   title: z.string(),
   created_at: z.string().datetime({ offset: true }),
-  status: z.string().min(1),
+  status: z.enum(incidentStatusValues),
   latest_review_reason: z.string().nullable(),
 });
 
@@ -29,7 +37,7 @@ export interface MyReport {
   slug: string;
   title: string;
   created_at: string;
-  status: string;
+  status: IncidentStatus;
   latest_review_reason: string | null;
 }
 

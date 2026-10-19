@@ -107,9 +107,9 @@ export default function NavbarLinks({ items }: { items: NavbarLinkItem[] }) {
   }, [isOpen]);
 
   return (
-    <div className="relative">
-      <div className="hidden items-center gap-5 lg:flex">
-        <nav aria-label="Main navigation" className="flex items-center gap-4">
+    <div className="relative flex min-w-0 flex-1 items-center justify-end lg:block">
+      <div className="hidden w-full items-center lg:flex">
+        <nav aria-label="Main navigation" className="flex min-w-0 flex-1 items-center justify-center gap-4">
           <NavigationItems items={desktopNavigation} pathname={pathname} />
         </nav>
         {desktopActions.length > 0 && (

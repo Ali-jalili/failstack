@@ -11,54 +11,29 @@ export default async function MyIncidentsPage() {
     redirect(`/login?next=${encodeURIComponent("/my-incidents")}`);
   }
 
-  if (result.kind === "error") {
-    return (
-      <main className="min-h-[calc(100vh-80px)] bg-slate-950 px-6 py-14 text-slate-100">
-        <div className="mx-auto max-w-3xl">
-          <header className="mb-10">
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-blue-400">
-              My incidents
+  return (
+    <main className="home-page relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
+      <div aria-hidden="true" className="home-grid" />
+      <div className="relative mx-auto max-w-[1440px] px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
+        <div className="mx-auto max-w-[58rem]">
+          <header className="mb-10 sm:mb-12">
+            <p className="home-kicker">
+              <span aria-hidden="true" className="home-kicker-mark" />
+              Author workspace
             </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Your reports
+            <h1 className="mt-6 text-[clamp(2.6rem,6vw,4.2rem)] font-normal leading-[0.98] tracking-[-0.06em] text-[#f1f1e9] [font-family:Georgia,'Times_New_Roman',serif]">
+              My <em className="text-[#c6e47c]">reports.</em>
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Track the review status of incidents you submitted.
+            <p className="mt-5 max-w-xl text-[13px] leading-[1.75] text-slate-400 sm:text-sm">
+              Follow each incident from submission through review and publication.
             </p>
           </header>
 
-          <div
-            role="alert"
-            className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-5 text-sm text-rose-200"
-          >
-            <p className="font-semibold">Unable to load your reports.</p>
-            <p className="mt-2 break-words text-rose-200/80">
-              {result.message}
-            </p>
-          </div>
+          <MyReportsList
+            reports={result.kind === "success" ? result.reports : null}
+            error={result.kind === "error" ? result.message : null}
+          />
         </div>
-      </main>
-    );
-  }
-
-  return (
-    <main className="min-h-[calc(100vh-80px)] bg-slate-950 px-6 py-14 text-slate-100">
-      <div className="mx-auto max-w-3xl">
-        <header className="mb-10">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-blue-400">
-            My incidents
-          </p>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Your reports
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-            Track the review status of incidents you submitted. When a
-            reviewer requests changes, you can see their feedback and
-            resubmit.
-          </p>
-        </header>
-
-        <MyReportsList reports={result.reports} error={null} />
       </div>
     </main>
   );
