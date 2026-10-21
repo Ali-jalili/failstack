@@ -1,38 +1,34 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowRight, ArrowUpRight, ChevronDown, List, RefreshCw, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  ChevronDown,
+  Clock,
+  Cpu,
+  GitBranch,
+  List,
+  RefreshCw,
+  Shield,
+  X,
+} from "lucide-react";
 import { reviewIncident } from "@/features/review/server/actions";
+import {
+  ArchitectureDiffDiagram,
+  IncidentFactsBar,
+  IncidentTimeline,
+  PreventionList,
+  ProgressRing,
+  RootCauseDiagram,
+  SectionHeading,
+  formatDate,
+  severityMeta,
+} from "@/app/review/incidents/components/diagrams";
 import type { ReviewIncident } from "@/features/review/server/queries";
-import type { RootCauseNode } from "@/types/incident";
-
-const severityStyles: Record<string, string> = {
-  CRITICAL: "text-rose-300",
-  MAJOR: "text-amber-200",
-  MINOR: "text-[#c6e47c]",
-};
-
-const causeTypeStyles = {
-  ROOT_CAUSE: "text-rose-300 before:bg-rose-400",
-  CONTRIBUTING_FACTOR: "text-amber-200 before:bg-amber-300",
-  DIRECT_FAILURE: "text-violet-300 before:bg-violet-400",
-  SYSTEM_IMPACT: "text-slate-300 before:bg-slate-500",
-} as const;
 
 type ReviewSectionId = "timeline" | "causes" | "architecture" | "prevention";
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleString("en", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "UTC",
-  });
-}
-
-function formatLabel(value: string) {
-  return value.replaceAll("_", " ").toLowerCase();
-}
 
 function SectionLabel({
   index,
@@ -49,346 +45,202 @@ function SectionLabel({
   );
 }
 
-function TimelineExplorer({ incident }: { incident: ReviewIncident }) {
-  const events = useMemo(
-    () =>
-      [...incident.timeline].sort(
-        (first, second) =>
-          first.timestampOffsetMinutes - second.timestampOffsetMinutes,
-      ),
-    [incident.timeline],
-  );
-  const [activeEventId, setActiveEventId] = useState(events[0]?.id ?? null);
-  const activeEvent = events.find((event) => event.id === activeEventId) ?? events[0];
-
-  if (!activeEvent) {
-    return <p className="mt-4 text-sm text-slate-500">No timeline events were submitted.</p>;
-  }
-
-  return (
-    <div className="mt-4 grid gap-5 md:grid-cols-[minmax(9rem,0.38fr)_minmax(0,1fr)] md:gap-8">
-      <ol aria-label="Incident events in chronological order" className="relative space-y-1 before:absolute before:bottom-3 before:left-[5px] before:top-3 before:w-px before:bg-slate-800">
-        {events.map((event, index) => {
-          const isActive = event.id === activeEvent.id;
-
-          return (
-            <li key={event.id} className="relative">
-              <button
-                type="button"
-                aria-pressed={isActive}
-                aria-label={`${formatLabel(event.stage)} at T plus ${event.timestampOffsetMinutes} minutes: ${event.title}`}
-                onClick={() => setActiveEventId(event.id)}
-                className="group flex min-h-11 w-full items-start gap-3 rounded-sm px-1 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`relative z-10 mt-1 h-[11px] w-[11px] shrink-0 rotate-45 border transition-colors motion-reduce:transition-none ${
-                    isActive
-                      ? "border-[#c6e47c] bg-[#c6e47c]"
-                      : "border-slate-600 bg-[#080d16] group-hover:border-[#c6e47c]"
-                  }`}
-                />
-                <span className="min-w-0">
-                  <span className={`block font-mono text-[10px] tabular-nums ${isActive ? "text-[#c6e47c]" : "text-slate-500"}`}>
-                    T+{event.timestampOffsetMinutes}m
-                    <span className="mx-1.5 text-slate-700">/</span>
-                    {formatLabel(event.stage)}
-                  </span>
-                  <span className={`mt-1 block text-xs leading-5 ${isActive ? "text-slate-100" : "text-slate-400 group-hover:text-slate-200"}`}>
-                    {event.title}
-                  </span>
-                  {index === 0 && (
-                    <span className="sr-only">First event in chronological order</span>
-                  )}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-
-      <article
-        key={activeEvent.id}
-        aria-live="polite"
-        className="review-selection-enter min-w-0 border-l border-slate-800 pl-4 sm:pl-5"
-      >
-        <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">
-          {formatLabel(activeEvent.stage)} · T+{activeEvent.timestampOffsetMinutes}m
-        </p>
-        <h4 className="mt-2 text-lg font-medium leading-snug text-slate-100 [font-family:Georgia,'Times_New_Roman',serif]">
-          {activeEvent.title}
-        </h4>
-        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-400">
-          {activeEvent.description}
-        </p>
-        <p className="mt-3 text-xs text-slate-500">
-          Affected component <span className="ml-2 text-slate-300">{activeEvent.affectedComponent}</span>
-        </p>
-        {activeEvent.cliCommands && activeEvent.cliCommands.length > 0 && (
-          <details className="group mt-4 border-t border-slate-800 pt-3">
-            <summary className="min-h-9 cursor-pointer list-none font-mono text-[9px] uppercase tracking-[0.12em] text-slate-500 marker:hidden hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] [&::-webkit-details-marker]:hidden">
-              Inspect {activeEvent.cliCommands.length} command{activeEvent.cliCommands.length === 1 ? "" : "s"}
-              <span aria-hidden="true" className="ml-2 text-[#c6e47c] transition-transform group-open:inline-block group-open:rotate-90 motion-reduce:transition-none">›</span>
-            </summary>
-            <ul className="mt-3 space-y-2">
-              {activeEvent.cliCommands.map((command, index) => (
-                <li key={`${activeEvent.id}-command-${index}`}>
-                  <pre className="overflow-x-auto border-l border-[#c6e47c]/40 bg-black/20 px-3 py-2 font-mono text-xs leading-5 text-[#c6e47c]"><code>{command}</code></pre>
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-      </article>
-    </div>
-  );
-}
-
-function RootCauseExplorer({ nodes }: { nodes: RootCauseNode[] }) {
-  const firstNodeId = nodes[0]?.id ?? null;
-  const [activeNodeId, setActiveNodeId] = useState(firstNodeId);
-  const nodesById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
-  const childrenByParent = useMemo(() => {
-    const result = new Map<string | null, RootCauseNode[]>();
-    for (const node of nodes) {
-      const siblings = result.get(node.parentId) ?? [];
-      siblings.push(node);
-      result.set(node.parentId, siblings);
-    }
-    return result;
-  }, [nodes]);
-  const activeNode = nodes.find((node) => node.id === activeNodeId) ?? nodes[0];
-
-  const connectedIds = useMemo(() => {
-    const connected = new Set<string>();
-    let node: RootCauseNode | undefined = activeNode;
-    while (node && !connected.has(node.id)) {
-      connected.add(node.id);
-      node = node.parentId ? nodesById.get(node.parentId) : undefined;
-    }
-    if (activeNode) {
-      for (const child of childrenByParent.get(activeNode.id) ?? []) {
-        connected.add(child.id);
-      }
-    }
-    return connected;
-  }, [activeNode, childrenByParent, nodesById]);
-
-  if (!activeNode) {
-    return <p className="mt-4 text-sm text-slate-500">No root cause analysis was submitted.</p>;
-  }
-
-  const visited = new Set<string>();
-
-  function renderNode(node: RootCauseNode, path: Set<string>): ReactNode {
-    if (path.has(node.id) || visited.has(node.id)) return null;
-    visited.add(node.id);
-    const nextPath = new Set(path).add(node.id);
-    const isSelected = node.id === activeNode.id;
-    const isConnected = connectedIds.has(node.id);
-    const children = childrenByParent.get(node.id) ?? [];
-    const typeStyle = causeTypeStyles[node.type];
-
-    return (
-      <li key={node.id} className="relative min-w-0">
-        <button
-          type="button"
-          aria-pressed={isSelected}
-          aria-label={`${formatLabel(node.type)}: ${node.title}; component ${node.systemComponent}`}
-          onClick={() => setActiveNodeId(node.id)}
-          className={`relative block min-h-11 w-full border-l py-2 pl-4 pr-2 text-left transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] ${
-            isSelected
-              ? "border-[#c6e47c] bg-[#c6e47c]/[0.06]"
-              : isConnected
-                ? "border-[#c6e47c]/45 hover:bg-white/[0.025]"
-                : "border-slate-800 hover:border-slate-600 hover:bg-white/[0.025]"
-          }`}
-        >
-          <span className={`before:mr-2 before:inline-block before:h-1.5 before:w-1.5 before:rotate-45 ${typeStyle} font-mono text-[9px] uppercase tracking-[0.09em]`}>
-            {formatLabel(node.type)} <span className="text-slate-700">/</span> {node.systemComponent}
-          </span>
-          <span className={`mt-1 block text-sm leading-5 ${isSelected ? "text-[#e8ece4]" : "text-slate-300"}`}>
-            {node.title}
-          </span>
-        </button>
-        {children.length > 0 && (
-          <ol className="ml-3 mt-1 space-y-1 border-l border-slate-800 pl-3 sm:ml-4 sm:pl-4">
-            {children.map((child) => renderNode(child, nextPath))}
-          </ol>
-        )}
-      </li>
-    );
-  }
-
-  const roots = childrenByParent.get(null) ?? [];
-  const renderedRoots = roots.map((node) => renderNode(node, new Set()));
-  const disconnected = nodes.filter((node) => !visited.has(node.id));
-
-  return (
-    <div className="mt-4 grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(15rem,1.1fr)] lg:gap-8">
-      <div>
-        <ol className="space-y-2">{renderedRoots}</ol>
-        {disconnected.length > 0 && (
-          <div className="mt-4 border-t border-dashed border-slate-800 pt-3">
-            <p className="mb-2 font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">
-              Unlinked entries · relationship not established
-            </p>
-            <ol className="space-y-2">
-              {disconnected.map((node) => renderNode(node, new Set()))}
-            </ol>
-          </div>
-        )}
-      </div>
-      <article aria-live="polite" className="min-w-0 border-l border-slate-800 pl-4 sm:pl-5">
-        <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#c6e47c]">
-          Selected factor · {formatLabel(activeNode.type)}
-        </p>
-        <h4 className="mt-2 text-lg font-medium leading-snug text-slate-100 [font-family:Georgia,'Times_New_Roman',serif]">
-          {activeNode.title}
-        </h4>
-        <p className="mt-1 text-xs text-slate-500">{activeNode.systemComponent}</p>
-        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-400">
-          {activeNode.description}
-        </p>
-        <p className="mt-4 border-t border-slate-800 pt-3 text-[11px] leading-5 text-slate-600">
-          Type labels and markers distinguish cause, contributing factor, direct failure, and impact. Lime connectors trace the recorded parent path and direct children; other branches keep their submitted relationships.
-        </p>
-      </article>
-    </div>
-  );
-}
-
 function IncidentInvestigation({
   incident,
   activeSection,
+  onSectionChange,
   onReviewed,
   onRefresh,
 }: {
   incident: ReviewIncident;
   activeSection: ReviewSectionId;
+  onSectionChange: (section: ReviewSectionId) => void;
   onReviewed: (message: string) => void;
   onRefresh: () => void;
 }) {
+  const sev = severityMeta[incident.severity];
+  const sectionCount = [
+    incident.timeline.length > 0,
+    incident.root_cause_tree.length > 0,
+    incident.architecture_diff.beforeFix.length > 0,
+    incident.prevention_actions.length > 0,
+  ].filter(Boolean).length;
+
   return (
     <>
-      <header className="review-panel-enter border-b border-slate-800/80 px-5 py-6 sm:px-7 sm:py-8">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className={`font-mono text-[10px] font-medium uppercase tracking-[0.1em] ${severityStyles[incident.severity] ?? "text-slate-300"}`}>
-            {incident.severity} severity
+      {/* ---- header ---- */}
+      <header className="review-panel-enter border-b border-slate-800/80 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-sm border px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] ${sev.bg} ${sev.text}`}
+          >
+            {sev.label}
           </span>
-          <span className="h-1 w-1 rotate-45 bg-slate-600" aria-hidden="true" />
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-[#c6e47c]">Awaiting review</span>
-          <time dateTime={incident.created_at} className="text-[11px] text-slate-600">
+          <span className="h-1 w-1 rotate-45 bg-slate-600" aria-hidden />
+          <span className="rounded-sm border border-[#c6e47c]/25 bg-[#c6e47c]/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-[#c6e47c]">
+            Awaiting review
+          </span>
+          <time dateTime={incident.created_at} className="ml-auto text-[11px] text-slate-500">
             Submitted {formatDate(incident.created_at)} UTC
           </time>
         </div>
-        <h2 className="mt-4 break-words text-[clamp(1.8rem,3vw,2.8rem)] font-normal leading-[1.08] tracking-[-0.045em] text-[#e8ece4] [font-family:Georgia,'Times_New_Roman',serif]">
+
+        <h2 className="mt-4 break-words text-[clamp(1.5rem,2.6vw,2.2rem)] font-medium leading-tight tracking-tight text-slate-100">
           {incident.title}
         </h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <p className="mt-1.5 break-words text-sm text-slate-400">
           <span className="text-slate-200">{incident.company_name}</span>
-          <span className="mx-2 text-slate-700">/</span>{incident.system}
+          <span className="mx-1.5 text-slate-600">/</span>
+          {incident.system}
         </p>
-        <p className="mt-5 max-w-4xl whitespace-pre-wrap text-sm leading-7 text-slate-300">
+
+        <p className="mt-4 max-w-3xl break-words whitespace-pre-wrap text-sm leading-7 text-slate-300">
           {incident.summary}
         </p>
-        <dl className="mt-6 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-slate-800/80 pt-4 sm:grid-cols-4">
-          <div>
-            <dt className="font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">Incident time</dt>
-            <dd className="mt-1 text-xs text-slate-300">{formatDate(incident.occurred_at)} UTC</dd>
-          </div>
-          <div>
-            <dt className="font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">Duration</dt>
-            <dd className="mt-1 text-xs text-slate-300">{incident.duration_minutes} minutes</dd>
-          </div>
-          <div>
-            <dt className="font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">Pattern</dt>
-            <dd className="mt-1 text-xs capitalize text-slate-300">{formatLabel(incident.pattern)}</dd>
-          </div>
-          <div>
-            <dt className="font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">Technologies</dt>
-            <dd className="mt-1 text-xs text-slate-300">{incident.technologies.length ? incident.technologies.join(" · ") : "Not specified"}</dd>
-          </div>
-        </dl>
+
+        <div className="mt-5">
+          <IncidentFactsBar incident={incident} />
+        </div>
       </header>
 
+      {/* ---- section tabs (sticky on desktop) ---- */}
+      <nav
+        aria-label="Incident review sections"
+        className="review-section-links hidden border-b border-slate-800/80 px-4 sm:px-6 lg:flex"
+      >
+        {([
+          ["timeline", "01", "Timeline"],
+          ["causes", "02", "Root Cause"],
+          ["architecture", "03", "Architecture"],
+          ["prevention", "04", "Prevention"],
+          ["decision", "05", "Decision"],
+        ] as const).map(([section, index, label]) => (
+          <a
+            key={section}
+            href={
+              section === "decision"
+                ? `#review-decision-${incident.id}`
+                : `#review-section-${section}-${incident.id}`
+            }
+            onClick={() => {
+              if (section !== "decision") onSectionChange(section);
+            }}
+            aria-current={section === activeSection ? "location" : undefined}
+            className={`inline-flex min-h-12 items-center gap-2 border-b-2 px-3 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c6e47c] motion-reduce:transition-none ${
+              section === activeSection
+                ? "border-[#c6e47c] text-[#d9f09b]"
+                : "border-transparent text-slate-500 hover:text-slate-200"
+            }`}
+          >
+            <span className="font-mono text-[9px] text-slate-600">{index}</span>
+            {label}
+          </a>
+        ))}
+        <div className="ml-auto flex items-center gap-2">
+          <ProgressRing
+            value={sectionCount}
+            total={4}
+            size={40}
+            label="Sections completed"
+          />
+          <span className="font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">
+            {sectionCount}/4
+            <br />
+            sections
+          </span>
+        </div>
+      </nav>
+
+      {/* ---- sections ---- */}
       <div
         id={`review-sections-${incident.id}`}
-        className="review-investigation-sections px-5 py-6 sm:px-7 sm:py-7"
+        className="review-investigation-sections px-4 py-5 sm:px-6 sm:py-6"
         data-active-section={activeSection}
       >
+        {/* 01 · timeline */}
         <section
+          id={`review-section-timeline-${incident.id}`}
           data-review-section="timeline"
-          aria-labelledby={`timeline-${incident.id}`}
-          className={`review-mobile-section review-section-enter ${activeSection === "timeline" ? "review-mobile-active" : ""}`}
+          className={`review-mobile-section review-section-enter ${
+            activeSection === "timeline" ? "review-mobile-active" : ""
+          }`}
         >
-          <SectionLabel index="01" title="Incident timeline" />
-          <h3 id={`timeline-${incident.id}`} className="sr-only">Interactive incident timeline</h3>
-          <TimelineExplorer incident={incident} />
+          <SectionHeading
+            icon={Clock}
+            title="01 · Incident Timeline"
+            subtitle={`${incident.timeline.length} events recorded`}
+          />
+          <IncidentTimeline events={incident.timeline} />
         </section>
 
+        {/* 02 · root cause */}
         <section
+          id={`review-section-causes-${incident.id}`}
           data-review-section="causes"
-          aria-labelledby={`root-cause-${incident.id}`}
-          className={`review-mobile-section review-section-enter mt-8 border-t border-slate-800/80 pt-6 ${activeSection === "causes" ? "review-mobile-active" : ""}`}
+          className={`review-mobile-section review-section-enter mt-8 border-t border-slate-800/80 pt-6 ${
+            activeSection === "causes" ? "review-mobile-active" : ""
+          }`}
         >
-          <SectionLabel index="02" title="Root cause exploration" />
-          <h3 id={`root-cause-${incident.id}`} className="sr-only">Root cause relationships</h3>
-          <RootCauseExplorer nodes={incident.root_cause_tree} />
+          <SectionHeading
+            icon={GitBranch}
+            title="02 · Root Cause Exploration"
+            subtitle={`${incident.root_cause_tree.length} factors identified`}
+          />
+          <RootCauseDiagram nodes={incident.root_cause_tree} />
         </section>
 
+        {/* 03 · architecture */}
         <section
+          id={`review-section-architecture-${incident.id}`}
           data-review-section="architecture"
-          className={`review-mobile-section review-section-enter mt-8 border-t border-slate-800/80 pt-6 ${activeSection === "architecture" ? "review-mobile-active" : ""}`}
+          className={`review-mobile-section review-section-enter mt-8 border-t border-slate-800/80 pt-6 ${
+            activeSection === "architecture" ? "review-mobile-active" : ""
+          }`}
         >
-          <SectionLabel index="03" title="Architecture change" />
-          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.1em] text-slate-600">
-            {incident.architecture_diff.isFact ? "Documented facts" : "Reconstructed"}
-          </p>
-          <div className="mt-4 grid gap-5 md:grid-cols-2 md:gap-8">
-            <div>
-              <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">Before</h4>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">{incident.architecture_diff.beforeFix}</p>
-            </div>
-            <div className="md:border-l md:border-slate-800 md:pl-7">
-              <h4 className="font-mono text-[10px] uppercase tracking-[0.1em] text-slate-500">After</h4>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">{incident.architecture_diff.afterFix}</p>
-            </div>
-          </div>
-          {incident.architecture_diff.notes && (
-            <p className="mt-4 border-l border-slate-700 pl-3 text-sm leading-6 text-slate-500">{incident.architecture_diff.notes}</p>
-          )}
+          <SectionHeading
+            icon={Cpu}
+            title="03 · Architecture Change"
+            subtitle={
+              incident.architecture_diff.isFact
+                ? "Documented facts"
+                : "Reconstructed"
+            }
+          />
+          <ArchitectureDiffDiagram incident={incident} />
         </section>
 
+        {/* 04 · prevention */}
         <section
+          id={`review-section-prevention-${incident.id}`}
           data-review-section="prevention"
-          className={`review-mobile-section review-section-enter mt-8 border-t border-slate-800/80 pt-6 ${activeSection === "prevention" ? "review-mobile-active" : ""}`}
+          className={`review-mobile-section review-section-enter mt-8 border-t border-slate-800/80 pt-6 ${
+            activeSection === "prevention" ? "review-mobile-active" : ""
+          }`}
         >
-          <SectionLabel index="04" title="Prevention actions" />
-          {incident.prevention_actions.length ? (
-            <ol className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              {incident.prevention_actions.map((action, index) => (
-                <li key={`${incident.id}-prevention-${index}`} className="flex gap-3">
-                  <span className="mt-0.5 font-mono text-[10px] text-[#c6e47c]">{String(index + 1).padStart(2, "0")}</span>
-                  <div>
-                    <h4 className="text-sm font-medium text-slate-200">{action.title}</h4>
-                    {action.description && <p className="mt-1 text-sm leading-6 text-slate-400">{action.description}</p>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          ) : <p className="mt-3 text-sm text-slate-500">No prevention actions were submitted.</p>}
+          <SectionHeading
+            icon={Shield}
+            title="04 · Prevention Actions"
+            subtitle={`${incident.prevention_actions.length} recommended`}
+          />
+          <PreventionList actions={incident.prevention_actions} />
           {incident.official_post_mortem_url && (
             <div className="mt-6 border-t border-slate-800/80 pt-4">
-              <a href={incident.official_post_mortem_url} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-slate-400 underline decoration-slate-700 underline-offset-4 transition-colors hover:text-[#c6e47c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none">
-                Open official post-mortem <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+              <a
+                href={incident.official_post_mortem_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-slate-400 underline decoration-slate-700 underline-offset-4 transition-colors hover:text-[#c6e47c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
+              >
+                Open official post-mortem{" "}
+                <ArrowUpRight aria-hidden className="h-3.5 w-3.5" />
               </a>
             </div>
           )}
         </section>
-
       </div>
+
       <IncidentReviewActions
+        id={`review-decision-${incident.id}`}
         incidentId={incident.id}
         onReviewed={onReviewed}
         onRefresh={onRefresh}
@@ -403,16 +255,22 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
   const [queueNotice, setQueueNotice] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(incidents[0]?.id ?? null);
   const [activeSection, setActiveSection] = useState<ReviewSectionId>("timeline");
+  const [isMobileSectionMenuOpen, setIsMobileSectionMenuOpen] = useState(false);
   const [isMobileQueueOpen, setIsMobileQueueOpen] = useState(false);
-  const mobileQueueRef = useRef<HTMLDivElement>(null);
   const mobileQueueDialogRef = useRef<HTMLDivElement>(null);
   const mobileQueueButtonRef = useRef<HTMLButtonElement>(null);
+  const wasMobileQueueOpen = useRef(false);
   const pendingIncidents = incidents.filter((incident) => !processedIncidentIds.includes(incident.id));
   const selectedIncident = pendingIncidents.find((incident) => incident.id === selectedIncidentId) ?? pendingIncidents[0] ?? null;
 
   useEffect(() => {
-    if (!isMobileQueueOpen) return;
+    if (!isMobileQueueOpen) {
+      if (wasMobileQueueOpen.current) mobileQueueButtonRef.current?.focus();
+      wasMobileQueueOpen.current = false;
+      return;
+    }
 
+    wasMobileQueueOpen.current = true;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     mobileQueueDialogRef.current?.focus();
@@ -438,21 +296,25 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
       }
     }
 
+    function closeWhenDesktop(event: MediaQueryListEvent) {
+      if (event.matches) setIsMobileQueueOpen(false);
+    }
+
     document.addEventListener("keydown", handleDialogKeys);
+    const desktopQuery = window.matchMedia("(min-width: 1024px)");
+    desktopQuery.addEventListener("change", closeWhenDesktop);
     return () => {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleDialogKeys);
+      desktopQuery.removeEventListener("change", closeWhenDesktop);
     };
-  }, [isMobileQueueOpen]);
-
-  useEffect(() => {
-    if (!isMobileQueueOpen) mobileQueueButtonRef.current?.focus();
   }, [isMobileQueueOpen]);
 
   function handleReviewed(incidentId: string, message: string) {
     const nextIncident = pendingIncidents.find((incident) => incident.id !== incidentId);
     setProcessedIncidentIds((current) => [...current, incidentId]);
     setSelectedIncidentId(nextIncident?.id ?? null);
+    setActiveSection("timeline");
     setQueueNotice(message);
     router.refresh();
   }
@@ -495,7 +357,7 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
                   >
                     <span aria-hidden="true" className={`absolute bottom-4 left-0 top-4 w-px ${isSelected ? "bg-[#c6e47c]" : "bg-transparent group-hover:bg-slate-600"}`} />
                     <span className="flex items-center justify-between gap-3">
-                      <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${severityStyles[incident.severity] ?? "text-slate-400"}`}>{incident.severity}</span>
+                      <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${severityMeta[incident.severity]?.text ?? "text-slate-400"}`}>{incident.severity}</span>
                       <span className="font-mono text-[9px] tabular-nums text-slate-600">{String(index + 1).padStart(2, "0")}</span>
                     </span>
                     <span className={`mt-2 block break-words text-sm leading-5 ${isSelected ? "text-[#f1f1e9]" : "text-slate-300 group-hover:text-slate-100"}`}>{incident.title}</span>
@@ -516,28 +378,79 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
                 ref={mobileQueueButtonRef}
                 type="button"
                 aria-expanded={isMobileQueueOpen}
-                aria-controls="mobile-review-queue-dialog"
+                aria-controls={isMobileQueueOpen ? "mobile-review-queue-dialog" : undefined}
                 onClick={() => setIsMobileQueueOpen(true)}
                 className="inline-flex min-h-11 items-center justify-center gap-2 border border-slate-700 px-3 text-xs font-medium text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]"
               >
                 <List aria-hidden="true" className="h-4 w-4 text-[#c6e47c]" />
                 Queue <span className="font-mono tabular-nums text-slate-500">{String(pendingIncidents.length).padStart(2, "0")}</span>
               </button>
-              <label className="flex min-w-0 items-center gap-2 border border-slate-800 px-2.5">
-                <span className="sr-only">Review section</span>
-                <select value={activeSection} onChange={(event) => setActiveSection(event.target.value as ReviewSectionId)} className="min-h-11 w-full min-w-0 appearance-none bg-transparent text-xs text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c6e47c]">
-                  <option value="timeline">01 · Timeline</option>
-                  <option value="causes">02 · Root cause</option>
-                  <option value="architecture">03 · Architecture</option>
-                  <option value="prevention">04 · Prevention</option>
-                </select>
-                <ChevronDown aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-              </label>
+              <div
+                className="review-section-picker relative min-w-0"
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setIsMobileSectionMenuOpen(false);
+                  }
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setIsMobileSectionMenuOpen(false);
+                }}
+              >
+                <button
+                  type="button"
+                  aria-label="Choose review section"
+                  aria-haspopup="listbox"
+                  aria-expanded={isMobileSectionMenuOpen}
+                  aria-controls="review-section-options"
+                  onClick={() => setIsMobileSectionMenuOpen((open) => !open)}
+                  className="review-section-picker-trigger flex min-h-11 w-full min-w-0 items-center justify-between gap-2 px-3 text-left text-xs text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c6e47c]"
+                >
+                  <span className="truncate">
+                    {activeSection === "timeline" && "01 · Timeline"}
+                    {activeSection === "causes" && "02 · Root cause"}
+                    {activeSection === "architecture" && "03 · Architecture"}
+                    {activeSection === "prevention" && "04 · Prevention"}
+                  </span>
+                  <ChevronDown aria-hidden="true" className={`h-3.5 w-3.5 shrink-0 text-[#c6e47c] transition-transform duration-200 ${isMobileSectionMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+                {isMobileSectionMenuOpen && (
+                  <div
+                    id="review-section-options"
+                    role="listbox"
+                    aria-label="Review sections"
+                    className="review-section-picker-menu absolute inset-x-0 top-[calc(100%+6px)] z-40 overflow-hidden"
+                  >
+                    {([
+                      ["timeline", "01", "Timeline"],
+                      ["causes", "02", "Root cause"],
+                      ["architecture", "03", "Architecture"],
+                      ["prevention", "04", "Prevention"],
+                    ] as const).map(([section, number, label]) => (
+                      <button
+                        key={section}
+                        type="button"
+                        role="option"
+                        aria-selected={activeSection === section}
+                        onClick={() => {
+                          setActiveSection(section);
+                          setIsMobileSectionMenuOpen(false);
+                        }}
+                        className={`review-section-picker-option flex min-h-11 w-full items-center gap-2.5 px-3 text-left text-xs transition-colors ${activeSection === section ? "is-selected" : ""}`}
+                      >
+                        <span className="font-mono text-[10px] text-slate-500">{number}</span>
+                        <span>{label}</span>
+                        {activeSection === section && <span aria-hidden="true" className="ml-auto h-1.5 w-1.5 rounded-full bg-[#c6e47c] shadow-[0_0_8px_#c6e47c]" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             <IncidentInvestigation
               key={selectedIncident.id}
               incident={selectedIncident}
               activeSection={activeSection}
+              onSectionChange={setActiveSection}
               onReviewed={(message) => handleReviewed(selectedIncident.id, message)}
               onRefresh={() => router.refresh()}
             />
@@ -545,16 +458,15 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
         )}
       </div>
 
-      <div
+      {isMobileQueueOpen && <div
         id="mobile-review-queue-dialog"
         ref={mobileQueueDialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-review-queue-title"
         tabIndex={-1}
-        hidden={!isMobileQueueOpen}
         className="review-queue-sheet fixed inset-0 z-[60] flex items-end bg-black/70 p-0 outline-none lg:hidden"
-        onMouseDown={(event) => { if (event.target === event.currentTarget) setIsMobileQueueOpen(false); }}
+        onClick={(event) => { if (event.target === event.currentTarget) setIsMobileQueueOpen(false); }}
       >
         <div className="max-h-[88dvh] w-full min-w-0 overflow-hidden border-t border-slate-700 bg-[#0b111b] pb-[env(safe-area-inset-bottom)] shadow-2xl shadow-black/50">
           <div className="flex items-center justify-between gap-4 border-b border-slate-800 px-4 py-4">
@@ -571,7 +483,7 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
                 <li key={incident.id}>
                   <button type="button" aria-pressed={isSelected} onClick={() => { setSelectedIncidentId(incident.id); setActiveSection("timeline"); setIsMobileQueueOpen(false); }} className={`block min-h-20 w-full min-w-0 px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#c6e47c] ${isSelected ? "bg-[#c6e47c]/[0.06]" : "hover:bg-white/[0.03]"}`}>
                     <span className="flex min-w-0 items-center justify-between gap-3">
-                      <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${severityStyles[incident.severity] ?? "text-slate-400"}`}>{String(index + 1).padStart(2, "0")} / {incident.severity}</span>
+                      <span className={`font-mono text-[9px] uppercase tracking-[0.1em] ${severityMeta[incident.severity]?.text ?? "text-slate-400"}`}>{String(index + 1).padStart(2, "0")} / {incident.severity}</span>
                       <time dateTime={incident.created_at} className="shrink-0 text-[9px] text-slate-500">{formatDate(incident.created_at)} UTC</time>
                     </span>
                     <span className="mt-1 block break-words text-sm leading-5 text-slate-100">{incident.title}</span>
@@ -582,12 +494,12 @@ export default function IncidentReviewQueue({ incidents }: { incidents: ReviewIn
             })}
           </ol>
         </div>
-      </div>
+      </div>}
     </section>
   );
 }
 
-function IncidentReviewActions({ incidentId, onReviewed, onRefresh }: { incidentId: string; onReviewed: (message: string) => void; onRefresh: () => void }) {
+function IncidentReviewActions({ id, incidentId, onReviewed, onRefresh }: { id: string; incidentId: string; onReviewed: (message: string) => void; onRefresh: () => void }) {
   const [reason, setReason] = useState("");
   const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -622,7 +534,7 @@ function IncidentReviewActions({ incidentId, onReviewed, onRefresh }: { incident
   }
 
   return (
-    <section className="review-decision-enter border-t border-slate-800/80 bg-black/[0.12] px-5 py-5 sm:px-7 sm:py-6">
+    <section id={id} className="review-decision-enter border-t border-slate-800/80 bg-black/[0.12] px-5 py-5 sm:px-7 sm:py-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="review-decision-copy max-w-xl">
           <SectionLabel index="05" title="Review decision" />
@@ -639,7 +551,7 @@ function IncidentReviewActions({ incidentId, onReviewed, onRefresh }: { incident
       </div>
 
       {isChangeRequestOpen && (
-        <form id={`change-request-${incidentId}`} onSubmit={(event) => submitDecision("CHANGES_REQUESTED", event)} className="mt-5 max-w-2xl border-l-2 border-amber-300/60 pl-4 sm:pl-5">
+        <form id={`change-request-${incidentId}`} onSubmit={(event) => submitDecision("CHANGES_REQUESTED", event)} className="review-change-form mt-5 max-w-2xl border-l-2 border-amber-300/60 pl-4 sm:pl-5">
           <label htmlFor={`review-reason-${incidentId}`} className="block text-sm font-medium text-slate-200">Reason for requested changes</label>
           <p id={`review-reason-help-${incidentId}`} className="mt-1 text-xs text-slate-500">Explain what needs clarification or revision. A reason is required.</p>
           <textarea id={`review-reason-${incidentId}`} value={reason} onChange={(event) => setReason(event.target.value)} rows={3} disabled={isSubmitting} aria-describedby={`review-reason-help-${incidentId}`} autoFocus className="mt-3 block w-full resize-y border border-slate-700 bg-[#080d16] px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-amber-300 focus:outline-none focus:ring-1 focus:ring-amber-300 disabled:opacity-60" placeholder="Write a clear, actionable reason." />
