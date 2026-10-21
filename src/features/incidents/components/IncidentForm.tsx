@@ -250,9 +250,9 @@ export default function IncidentForm({
       }
 
       setHasSubmitted(true);
-      // Redirect to archive after a short delay so the user sees the
-      // success confirmation before navigating away.
-      setTimeout(() => router.push("/incidents"), 2500);
+      // Keep the confirmation visible briefly, then return the author to
+      // their report list where the new review status is available.
+      setTimeout(() => router.push("/my-incidents"), 2500);
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -359,7 +359,7 @@ export default function IncidentForm({
           <StepStatusPanel
             error={submitError}
             success={hasSubmitted ? submitSuccess : null}
-            successActionHref={hasSubmitted ? "/incidents" : undefined}
+            successActionHref={hasSubmitted ? "/my-incidents" : undefined}
             successActionLabel={
               hasSubmitted ? "View your reports" : undefined
             }

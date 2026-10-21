@@ -22,7 +22,7 @@ export function hasAuthorAccess(
   return (
     userState.kind === "authenticated" &&
     !userState.roleError &&
-    userState.reviewRole !== "reviewer"
+    userState.reviewRole === null
   );
 }
 
@@ -32,7 +32,7 @@ export function hasReviewerAccess(
   return (
     userState.kind === "authenticated" &&
     !userState.roleError &&
-    userState.reviewRole === "reviewer"
+    (userState.reviewRole === "reviewer" || userState.reviewRole === "admin")
   );
 }
 

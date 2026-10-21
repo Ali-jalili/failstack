@@ -41,10 +41,6 @@ function toUserFacingError(error: { code?: string; message?: string }): string {
 
 async function getAuthenticatedDestination(destination: unknown) {
   const safeDestination = getSafeRedirectPath(destination, "");
-  if (safeDestination) {
-    return { destination: safeDestination };
-  }
-
   const userState = await getCurrentUserState();
   if (userState.kind === "error") {
     return {
@@ -60,9 +56,27 @@ async function getAuthenticatedDestination(destination: unknown) {
     };
   }
 
-  return {
-    destination: userState.reviewRole ? "/review/incidents" : "/incidents",
-  };
+  const isReviewer = userState.reviewRole !== null;
+  const fallback = isReviewer ? "/review/incidents" : "/my-incidents";
+  if (!safeDestination) return { destination: fallback };
+
+  const pathname = new URL(safeDestination, "https://failstack.invalid").pathname;
+  const isPublicDestination = pathname === "/" || pathname === "/incidents";
+  const isReviewDestination = pathname === "/review/incidents";
+  const isAuthorDestination =
+    pathname === "/my-incidents" ||
+    pathname === "/incidents/new" ||
+    /^\/incidents\/[^/]+\/edit$/.test(pathname);
+
+  if (
+    isPublicDestination ||
+    (isReviewer && isReviewDestination) ||
+    (!isReviewer && isAuthorDestination)
+  ) {
+    return { destination: safeDestination };
+  }
+
+  return { destination: fallback };
 }
 
 export async function handleSignUp(formData: FormData) {

@@ -9,7 +9,9 @@ export default async function Navbar() {
   const userState = await getCurrentUserState();
   const user = userState.kind === "authenticated" ? userState : null;
   const isReviewer =
-    user !== null && !user.roleError && user.reviewRole === "reviewer";
+    user !== null &&
+    !user.roleError &&
+    (user.reviewRole === "reviewer" || user.reviewRole === "admin");
   const isWriter =
     user !== null && !user.roleError && user.reviewRole === null;
 

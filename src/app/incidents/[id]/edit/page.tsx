@@ -28,7 +28,7 @@ export default async function EditIncidentPage({ params }: Props) {
   }
 
   if (!hasAuthorAccess(currentUser)) {
-    redirect("/incidents");
+    redirect("/review/incidents");
   }
 
   const supabase = await createClient();
@@ -45,8 +45,8 @@ export default async function EditIncidentPage({ params }: Props) {
 
   if (error || !incident) {
     // Incident not found, not the owner's, no longer in CHANGES_REQUESTED,
-    // or DB error: go back to archive
-    redirect("/incidents");
+    // or DB error: return to the author's report list.
+    redirect("/my-incidents");
   }
 
   // Fetch the latest reviewer reason from the canonical RPC. The RPC is

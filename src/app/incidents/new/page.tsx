@@ -1,6 +1,6 @@
 /** @format */
 
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import IncidentForm from "@/features/incidents/components/IncidentForm";
 import {
   getCurrentUserState,
@@ -23,7 +23,7 @@ export default async function NewIncidents() {
   }
 
   if (!hasAuthorAccess(userState)) {
-    notFound();
+    redirect("/review/incidents");
   }
 
   return <IncidentForm />;

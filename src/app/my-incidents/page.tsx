@@ -1,6 +1,6 @@
 /** @format */
 
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import MyReportsList from "@/features/incidents/components/MyReportsList";
 import { getMyReports } from "@/features/incidents/server/queries";
 import { getCurrentUserState } from "@/features/auth/server/current-user";
@@ -12,11 +12,12 @@ export default async function MyIncidentsPage() {
     redirect(`/login?next=${encodeURIComponent("/my-incidents")}`);
   }
 
-  if (
-    currentUser.kind === "authenticated" &&
-    (currentUser.roleError || currentUser.reviewRole !== null)
-  ) {
-    notFound();
+  if (currentUser.kind === "authenticated" && currentUser.roleError) {
+    throw new Error(`Unable to verify account role: ${currentUser.roleError}`);
+  }
+
+  if (currentUser.kind === "authenticated" && currentUser.reviewRole !== null) {
+    redirect("/review/incidents");
   }
 
   const result = await getMyReports();
@@ -26,7 +27,7 @@ export default async function MyIncidentsPage() {
   }
 
   if (result.kind === "forbidden") {
-    notFound();
+    redirect("/review/incidents");
   }
 
   return (

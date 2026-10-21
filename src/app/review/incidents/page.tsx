@@ -3,6 +3,7 @@
 import { notFound, redirect } from "next/navigation";
 import IncidentReviewQueue from "@/features/review/components/IncidentReviewQueue";
 import { getIncidentReviewQueue } from "@/features/review/server/queries";
+import { getCurrentUserState } from "@/features/auth/server/current-user";
 
 export default async function ReviewIncidentsPage() {
   const result = await getIncidentReviewQueue();
@@ -12,6 +13,10 @@ export default async function ReviewIncidentsPage() {
   }
 
   if (result.kind === "forbidden") {
+    const currentUser = await getCurrentUserState();
+    if (currentUser.kind === "authenticated" && currentUser.reviewRole === null) {
+      redirect("/my-incidents");
+    }
     notFound();
   }
 
