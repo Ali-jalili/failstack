@@ -17,15 +17,14 @@ import {
 import { reviewIncident } from "@/features/review/server/actions";
 import {
   ArchitectureDiffDiagram,
-  IncidentFactsBar,
-  IncidentTimeline,
-  PreventionList,
-  ProgressRing,
-  RootCauseDiagram,
-  SectionHeading,
-  formatDate,
-  severityMeta,
-} from "@/app/review/incidents/components/diagrams";
+} from "@/app/review/incidents/components/architecture-diff-diagram";
+import { IncidentFactsBar } from "@/app/review/incidents/components/incident-facts-bar";
+import { IncidentTimeline } from "@/app/review/incidents/components/incident-timeline";
+import { PreventionList } from "@/app/review/incidents/components/prevention-list";
+import { ProgressRing } from "@/app/review/incidents/components/progress-ring";
+import { RootCauseDiagram } from "@/app/review/incidents/components/root-cause-diagram";
+import { SectionHeading } from "@/app/review/incidents/components/section-heading";
+import { formatDate, severityMeta } from "@/app/review/incidents/components/visualization-shared";
 import type { ReviewIncident } from "@/features/review/server/queries";
 
 type ReviewSectionId = "timeline" | "causes" | "architecture" | "prevention";
