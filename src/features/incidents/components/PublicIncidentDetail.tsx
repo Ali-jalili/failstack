@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -17,6 +17,7 @@ import {
   Server,
 } from "lucide-react";
 import type { PublishedIncident } from "@/features/incidents/server/queries";
+import type { TimelineEvent } from "@/types/incident";
 
 const severityTone = {
   CRITICAL: "border-rose-400/45 bg-rose-400/10 text-rose-300",
@@ -85,6 +86,89 @@ function SectionLead({
   );
 }
 
+/* ---------- Evidence card used in both event detail and evidence explorer ---------- */
+function EvidenceCommands({
+  commands,
+  copiedCommand,
+  onCopy,
+}: {
+  commands: string[];
+  copiedCommand: string | null;
+  onCopy: (cmd: string) => void;
+}) {
+  if (!commands.length) return null;
+  return (
+    <ul className="mt-3 space-y-2 border-t border-slate-800 pt-3" aria-label="Commands linked to this item">
+      {commands.map((command, index) => (
+        <li key={`${command}-${index}`} className="relative min-w-0 border-l border-slate-700 bg-black/20 pr-2">
+          <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 pr-10 font-mono text-[10px] leading-5 text-[#d5eca0]">{command}</pre>
+          <button
+            type="button"
+            onClick={() => onCopy(command)}
+            aria-label={copiedCommand === command ? "Command copied" : "Copy command"}
+            className="absolute right-1 top-1 inline-flex h-7 min-w-7 items-center justify-center gap-1 border border-slate-700 px-1.5 text-[9px] text-slate-400 hover:border-sky-300/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            {copiedCommand === command ? (
+              <>
+                <Check aria-hidden="true" className="h-3 w-3 text-emerald-300" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy aria-hidden="true" className="h-3 w-3" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/* ---------- Event detail card (used inline in timeline section and as the selected-event panel) ---------- */
+function EventDetailCard({
+  event,
+  copiedCommand,
+  onCopy,
+}: {
+  event: TimelineEvent;
+  copiedCommand: string | null;
+  onCopy: (cmd: string) => void;
+}) {
+  return (
+    <div className="border border-sky-300/25 bg-[#0b1725]/90 p-3 sm:p-4">
+      <p className="font-mono text-[9px] uppercase tracking-[.1em] text-rose-300">
+        {offsetLabel(event.timestampOffsetMinutes)} · {label(event.stage)}
+      </p>
+      <p className="mt-1 text-xs font-medium text-slate-100">{event.title}</p>
+      <p className="mt-1 text-[11px] leading-4 text-slate-400">{event.description}</p>
+      <p className="mt-2 border-t border-slate-800/70 pt-2 text-[10px] text-slate-500">
+        <span className="font-mono text-[8px] uppercase tracking-[.08em] text-sky-300">Component</span>{" "}
+        <span className="text-slate-300">{event.affectedComponent}</span>
+      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <a
+          href={`#event-${event.id}`}
+          className="inline-flex min-h-7 items-center gap-1 text-[9px] text-sky-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+        >
+          <Link2 aria-hidden="true" className="h-3 w-3" />
+          Link to event
+        </a>
+        {event.cliCommands?.length ? (
+          <span className="font-mono text-[9px] text-slate-500">
+            {event.cliCommands.length} linked command{event.cliCommands.length === 1 ? "" : "s"}
+          </span>
+        ) : (
+          <span className="text-[9px] text-slate-600">No linked command evidence</span>
+        )}
+      </div>
+      <EvidenceCommands commands={event.cliCommands ?? []} copiedCommand={copiedCommand} onCopy={onCopy} />
+      {copiedCommand && <p role="status" className="sr-only">Command copied to clipboard.</p>}
+    </div>
+  );
+}
+
 export default function PublicIncidentDetail({
   incident,
   related,
@@ -101,6 +185,7 @@ export default function PublicIncidentDetail({
       ),
     [incident.timeline],
   );
+  const timelineRef = useRef<HTMLOListElement>(null);
   const [activeEventId, setActiveEventId] = useState(events[0]?.id ?? null);
   const [activeCauseId, setActiveCauseId] = useState(
     incident.root_cause_tree.find((node) => node.type === "ROOT_CAUSE")?.id ??
@@ -108,12 +193,38 @@ export default function PublicIncidentDetail({
   );
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
 
+  // Build a flat ordered list of event ids for keyboard navigation
+  const eventIds = useMemo(() => events.map((e) => e.id), [events]);
+
+  const handleTimelineKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLOListElement>) => {
+      const currentIdx = eventIds.indexOf(activeEventId ?? "");
+      if (currentIdx === -1) return;
+
+      if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+        event.preventDefault();
+        const next = Math.min(currentIdx + 1, eventIds.length - 1);
+        setActiveEventId(eventIds[next]);
+        timelineRef.current?.querySelectorAll("button")[next]?.focus();
+      } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const prev = Math.max(currentIdx - 1, 0);
+        setActiveEventId(eventIds[prev]);
+        timelineRef.current?.querySelectorAll("button")[prev]?.focus();
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        setActiveEventId(eventIds[0]);
+        timelineRef.current?.querySelectorAll("button")[0]?.focus();
+      } else if (event.key === "End") {
+        event.preventDefault();
+        setActiveEventId(eventIds[eventIds.length - 1]);
+        timelineRef.current?.querySelectorAll("button")[eventIds.length - 1]?.focus();
+      }
+    },
+    [eventIds, activeEventId],
+  );
+
   useEffect(() => {
-    setActiveEventId(events[0]?.id ?? null);
-    setActiveCauseId(
-      incident.root_cause_tree.find((node) => node.type === "ROOT_CAUSE")?.id ??
-        incident.root_cause_tree[0]?.id ?? null,
-    );
     const syncSelectionFromHash = () => {
       const hash = decodeURIComponent(window.location.hash.slice(1));
       if (hash.startsWith("event-")) {
@@ -132,7 +243,7 @@ export default function PublicIncidentDetail({
       window.removeEventListener("popstate", syncSelectionFromHash);
       window.removeEventListener("hashchange", syncSelectionFromHash);
     };
-  }, [incident.id, events, incident.root_cause_tree]);
+  }, [events, incident.root_cause_tree]);
 
   function selectEvent(id: string) {
     setActiveEventId(id);
@@ -160,35 +271,39 @@ export default function PublicIncidentDetail({
 
   const activeEvent = events.find((event) => event.id === activeEventId) ?? events[0];
   const rootCause = incident.root_cause_tree.find((node) => node.type === "ROOT_CAUSE");
-  const causeRows = useMemo(() => {
-    const byParent = new Map<string | null, typeof incident.root_cause_tree>();
-    const knownIds = new Set(incident.root_cause_tree.map((node) => node.id));
-    for (const node of incident.root_cause_tree) {
-      const parentId = node.parentId && knownIds.has(node.parentId) ? node.parentId : null;
-      const siblings = byParent.get(parentId) ?? [];
-      siblings.push(node);
-      byParent.set(parentId, siblings);
-    }
-    const rows: { node: (typeof incident.root_cause_tree)[number]; depth: number }[] = [];
-    const visited = new Set<string>();
-    const visit = (parentId: string | null, depth: number) => {
-      for (const node of byParent.get(parentId) ?? []) {
-        if (visited.has(node.id)) continue;
-        visited.add(node.id);
-        rows.push({ node, depth });
-        visit(node.id, depth + 1);
+  const causeRows = useMemo(
+    () => {
+      const tree = incident.root_cause_tree;
+      const byParent = new Map<string | null, typeof tree>();
+      const knownIds = new Set(tree.map((node) => node.id));
+      for (const node of tree) {
+        const parentId = node.parentId && knownIds.has(node.parentId) ? node.parentId : null;
+        const siblings = byParent.get(parentId) ?? [];
+        siblings.push(node);
+        byParent.set(parentId, siblings);
       }
-    };
-    visit(null, 0);
-    for (const node of incident.root_cause_tree) {
-      if (!visited.has(node.id)) {
-        visited.add(node.id);
-        rows.push({ node, depth: 0 });
-        visit(node.id, 1);
+      const rows: { node: (typeof tree)[number]; depth: number }[] = [];
+      const visited = new Set<string>();
+      const visit = (parentId: string | null, depth: number) => {
+        for (const node of byParent.get(parentId) ?? []) {
+          if (visited.has(node.id)) continue;
+          visited.add(node.id);
+          rows.push({ node, depth });
+          visit(node.id, depth + 1);
+        }
+      };
+      visit(null, 0);
+      for (const node of tree) {
+        if (!visited.has(node.id)) {
+          visited.add(node.id);
+          rows.push({ node, depth: 0 });
+          visit(node.id, 1);
+        }
       }
-    }
-    return rows;
-  }, [incident.root_cause_tree]);
+      return rows;
+    },
+    [incident.root_cause_tree],
+  );
   const selectedCause = incident.root_cause_tree.find((node) => node.id === activeCauseId) ?? rootCause;
   const selectedCausePath = useMemo(() => {
     const byId = new Map(incident.root_cause_tree.map((node) => [node.id, node]));
@@ -200,12 +315,18 @@ export default function PublicIncidentDetail({
     }
     return path;
   }, [incident.root_cause_tree, selectedCause]);
-  const componentNames = Array.from(
-    new Set([
-      ...events.map((event) => event.affectedComponent.trim()),
-      ...incident.root_cause_tree.map((node) => node.systemComponent.trim()),
-    ].filter(Boolean)),
-  );
+  const componentNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const event of events) {
+      const name = event.affectedComponent.trim();
+      if (name) names.add(name);
+    }
+    for (const node of incident.root_cause_tree) {
+      const name = node.systemComponent.trim();
+      if (name) names.add(name);
+    }
+    return Array.from(names);
+  }, [events, incident.root_cause_tree]);
   const responseEvents = events.filter((event) => event.stage === "MITIGATION");
   const severityClass = severityTone[incident.severity] ?? severityTone.MINOR;
 
@@ -280,34 +401,23 @@ export default function PublicIncidentDetail({
 
       <section className="public-report-section border-b border-slate-800/80 py-8 sm:py-10">
         <div className="grid gap-6 lg:grid-cols-[minmax(13rem,.34fr)_minmax(0,1fr)] lg:gap-10">
-          <SectionLead index="01" eyebrow="Incident story" title="From trigger to recovery" description="Select a moment to follow the report in chronological order." />
+          <SectionLead index="01" eyebrow="Incident story" title="From trigger to recovery" description="Select a moment to follow the report in chronological order. Use ← → arrow keys to navigate." />
           <div className="min-w-0">
             {activeEvent && (
-              <div className="mb-5 ml-auto max-w-sm border border-sky-300/25 bg-[#0b1725]/90 p-3 sm:mr-[8%]">
-                <p className="font-mono text-[9px] uppercase tracking-[.1em] text-rose-300">{offsetLabel(activeEvent.timestampOffsetMinutes)} · {label(activeEvent.stage)}</p>
-                <p className="mt-1 text-xs font-medium text-slate-100">{activeEvent.title}</p>
-                <p className="mt-1 text-[11px] leading-4 text-slate-400">{activeEvent.description}</p>
-                <p className="mt-2 border-t border-slate-800 pt-2 text-[10px] text-slate-500">Affected component: <span className="text-slate-300">{activeEvent.affectedComponent || "Not specified"}</span></p>
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <a href={`#event-${activeEvent.id}`} className="inline-flex min-h-7 items-center gap-1 text-[9px] text-sky-300 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"><Link2 aria-hidden="true" className="h-3 w-3" /> Link to event</a>
-                  {activeEvent.cliCommands?.length ? <span className="font-mono text-[9px] text-slate-500">{activeEvent.cliCommands.length} linked command{activeEvent.cliCommands.length === 1 ? "" : "s"}</span> : <span className="text-[9px] text-slate-600">No linked command evidence</span>}
-                </div>
-                {activeEvent.cliCommands?.length ? <ul className="mt-3 space-y-2 border-t border-slate-800 pt-3" aria-label="Commands linked to this event">
-                  {activeEvent.cliCommands.map((command, index) => <li key={`${command}-${index}`} className="relative min-w-0 border-l border-slate-700 bg-black/20 pr-2">
-                    <pre className="overflow-x-auto whitespace-pre-wrap break-all px-3 py-2 pr-10 font-mono text-[10px] leading-5 text-[#d5eca0]">{command}</pre>
-                    <button type="button" onClick={() => void copyCommand(command)} aria-label={copiedCommand === command ? "Command copied" : "Copy command"} className="absolute right-1 top-1 inline-flex h-7 min-w-7 items-center justify-center gap-1 border border-slate-700 px-1.5 text-[9px] text-slate-400 hover:border-sky-300/50 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
-                      {copiedCommand === command ? <><Check aria-hidden="true" className="h-3 w-3 text-emerald-300" /><span>Copied</span></> : <><Copy aria-hidden="true" className="h-3 w-3" /><span>Copy</span></>}
-                    </button>
-                  </li>)}
-                </ul> : null}
-                {copiedCommand && <p role="status" className="sr-only">Command copied to clipboard.</p>}
+              <div className="mb-5 ml-auto max-w-sm lg:mr-[8%]">
+                <EventDetailCard
+                  event={activeEvent}
+                  copiedCommand={copiedCommand}
+                  onCopy={(cmd) => void copyCommand(cmd)}
+                />
               </div>
             )}
             {events.length ? (
               <div className="public-story-scroll overflow-x-auto pb-2">
-                <div className="relative min-w-[600px] px-2 pt-2">
+                {/* Horizontal timeline (md and above) */}
+                <div className="relative hidden min-w-[600px] px-2 pt-2 md:block">
                   <svg className="absolute inset-x-2 top-2 h-16 w-[calc(100%-1rem)] overflow-visible" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true">
-                    <defs><linearGradient id="storyLine"><stop stopColor="#c6e47c" /><stop offset=".34" stopColor="#60a5fa" /><stop offset=".55" stopColor="#fb7185" /><stop offset=".78" stopColor="#a78bfa" /><stop offset="1" stopColor="#93c5fd" /></linearGradient></defs>
+                    <defs><linearGradient id="storyLine"><stop stopColor="#c6e47c" /><stop offset=".34" stopColor="#60a5fa" /><stop offset=".55" stopColor="#fb7185" /><stop offset=".78" stopColor="#a78bfa" /><stop stopColor="#93c5fd" /></linearGradient></defs>
                     {events.length > 1 && <path d={events.map((event, index) => {
                       const x = 35 + (index * 930) / (events.length - 1);
                       const y = event.stage === "IMPACT" || event.stage === "FAILURE" ? 23 : event.stage === "ROOT_CAUSE" ? 38 : 66;
@@ -320,18 +430,63 @@ export default function PublicIncidentDetail({
                     }).join(" ")} fill="none" stroke="url(#storyLine)" strokeWidth="2" />}
                     {events.length === 1 && <path d="M35 66 H965" fill="none" stroke="#334155" strokeWidth="1" />}
                   </svg>
-                  <ol aria-label="Incident events" className="public-story-events relative flex items-start">
+                  <ol
+                    ref={timelineRef}
+                    aria-label="Incident events"
+                    aria-roledescription="timeline"
+                    tabIndex={0}
+                    onKeyDown={handleTimelineKeyDown}
+                    className="public-story-events relative flex items-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
+                  >
                     {events.map((event) => {
                       const isActive = event.id === activeEvent?.id;
                       const color = stageTone[event.stage] ?? "#93c5fd";
                       return (
                         <li id={`event-${event.id}`} key={event.id} className="public-story-event min-w-0 flex-1 text-center">
-                          <button type="button" aria-pressed={isActive} aria-label={`${offsetLabel(event.timestampOffsetMinutes)} ${label(event.stage)}: ${event.title}`} onClick={() => selectEvent(event.id)} className="group relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border bg-[#080d16] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white" style={{ borderColor: color, boxShadow: isActive ? `0 0 0 5px ${color}20,0 0 18px ${color}55` : undefined }}>
+                          <button
+                            type="button"
+                            aria-pressed={isActive}
+                            aria-label={`${offsetLabel(event.timestampOffsetMinutes)} ${label(event.stage)}: ${event.title}`}
+                            onClick={() => selectEvent(event.id)}
+                            className="group relative z-10 inline-flex h-9 w-9 items-center justify-center rounded-full border bg-[#080d16] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                            style={{ borderColor: color, boxShadow: isActive ? `0 0 0 5px ${color}20,0 0 18px ${color}55` : undefined }}
+                          >
                             <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
                           </button>
                           <p className="public-story-event-offset mt-3 font-mono text-[9px] tabular-nums text-slate-400">{offsetLabel(event.timestampOffsetMinutes)}</p>
                           <p className="mt-1 text-[10px] font-semibold capitalize" style={{ color }}>{label(event.stage)}</p>
                           <p className="mx-auto mt-1 max-w-28 text-[10px] leading-4 text-slate-400">{event.title}</p>
+                        </li>
+                      );
+                    })}
+                  </ol>
+                </div>
+
+                {/* Vertical timeline (mobile, below md) */}
+                <div className="md:hidden">
+                  <ol
+                    aria-label="Incident events"
+                    aria-roledescription="timeline"
+                    className="public-story-vertical relative ml-4 border-l border-slate-800 pl-5"
+                  >
+                    {events.map((event) => {
+                      const isActive = event.id === activeEvent?.id;
+                      const color = stageTone[event.stage] ?? "#93c5fd";
+                      return (
+                        <li id={`event-${event.id}`} key={event.id} className="public-story-vertical-event relative mb-5 last:mb-0">
+                          <button
+                            type="button"
+                            aria-pressed={isActive}
+                            aria-label={`${offsetLabel(event.timestampOffsetMinutes)} ${label(event.stage)}: ${event.title}`}
+                            onClick={() => selectEvent(event.id)}
+                            className="absolute -left-[1.7rem] top-0.5 flex h-8 w-8 items-center justify-center rounded-full border bg-[#080d16] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                            style={{ borderColor: color, boxShadow: isActive ? `0 0 0 4px ${color}25,0 0 14px ${color}44` : undefined }}
+                          >
+                            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                          </button>
+                          <p className="font-mono text-[9px] tabular-nums text-slate-400">{offsetLabel(event.timestampOffsetMinutes)}</p>
+                          <p className="mt-0.5 text-[10px] font-semibold capitalize" style={{ color }}>{label(event.stage)}</p>
+                          <p className="mt-1 text-[11px] leading-5 text-slate-300">{event.title}</p>
                         </li>
                       );
                     })}
@@ -367,6 +522,7 @@ export default function PublicIncidentDetail({
                 <GitBranch aria-hidden="true" className="h-4 w-4 text-rose-300" />
               </div>
               {incident.root_cause_tree.length ? (
+                <>
                 <ol aria-label="Causal items, arranged by their recorded parent relationships" className="mt-4 space-y-1">
                   {causeRows.map(({ node, depth }) => {
                     const isSelected = node.id === selectedCause?.id;
@@ -388,6 +544,7 @@ export default function PublicIncidentDetail({
                   <p className="mt-1 text-[11px] leading-5 text-slate-300">{selectedCause.description}</p>
                   <p className="mt-2 text-[9px] text-slate-600">No direct timeline-event or evidence link is recorded for this item.</p>
                 </div>}
+                </>
               ) : <p className="mt-4 text-xs text-slate-500">No causal factors were recorded.</p>}
             </div>
           </div>
@@ -396,7 +553,7 @@ export default function PublicIncidentDetail({
 
       <section className="public-report-section border-b border-slate-800/80 py-8 sm:py-10">
         <div className="grid gap-7 lg:grid-cols-[minmax(12rem,.29fr)_minmax(0,.71fr)] lg:gap-10">
-          <SectionLead index="03" eyebrow="Evidence" title="The root cause" description={rootCause?.description ?? "The report's root cause and supporting system changes."} />
+          <SectionLead index="03" eyebrow="Architecture" title="System change" description={rootCause?.description ?? "The recorded change that contributed to the incident."} />
           <div className="overflow-hidden border border-slate-800 bg-[#090f19]">
             <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
               <div className="flex items-center gap-2 text-[10px] text-slate-300"><Code2 aria-hidden="true" className="h-3.5 w-3.5 text-sky-300" /> Configuration / change record</div>
@@ -418,8 +575,69 @@ export default function PublicIncidentDetail({
       </section>
 
       <section className="public-report-section border-b border-slate-800/80 py-8 sm:py-10">
+        <div className="grid gap-6 lg:grid-cols-[minmax(12rem,.29fr)_minmax(0,.71fr)] lg:gap-10">
+          <SectionLead index="04" eyebrow="Evidence" title="Recorded evidence" description="CLI commands and supporting material linked to the incident events." />
+          <div className="min-w-0">
+            {(() => {
+              const allCommands = events
+                .filter((event) => event.cliCommands?.length)
+                .map((event) => ({ event, commands: event.cliCommands! }));
+
+              const hasEvidence = allCommands.length > 0 || incident.official_post_mortem_url;
+
+              if (!hasEvidence) {
+                return (
+                  <p className="border border-dashed border-slate-800 bg-[#0a121e]/50 px-4 py-6 text-xs leading-5 text-slate-500">
+                    No linked commands or external evidence were recorded in this report.
+                  </p>
+                );
+              }
+
+              return (
+                <div className="space-y-5">
+                  {allCommands.length > 0 && (
+                    <div className="space-y-3">
+                      {allCommands.map(({ event, commands }) => (
+                        <div key={event.id} className="border border-slate-800 bg-[#0a121e]/60 p-3 sm:p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-mono text-[9px] uppercase tracking-[.1em] text-rose-300">{offsetLabel(event.timestampOffsetMinutes)}</span>
+                            <span className="text-[10px] font-medium text-slate-300">{event.title}</span>
+                            <span className="ml-auto font-mono text-[8px] text-slate-600">affected: {event.affectedComponent}</span>
+                          </div>
+                          <EvidenceCommands
+                            commands={commands}
+                            copiedCommand={copiedCommand}
+                            onCopy={(cmd) => void copyCommand(cmd)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {incident.official_post_mortem_url && (
+                    <div className="border border-sky-300/20 bg-sky-300/[.04] p-3 sm:p-4">
+                      <p className="font-mono text-[8px] uppercase tracking-[.12em] text-sky-300">External reference</p>
+                      <a
+                        href={incident.official_post_mortem_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex min-h-8 items-center gap-1.5 text-xs text-sky-200 underline decoration-sky-300/30 underline-offset-4 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      >
+                        <Network aria-hidden="true" className="h-3.5 w-3.5" />
+                        Open the official post-mortem
+                      </a>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      </section>
+
+      <section className="public-report-section border-b border-slate-800/80 py-8 sm:py-10">
         <div className="grid gap-6 lg:grid-cols-[minmax(12rem,.29fr)_minmax(0,.71fr)] lg:items-start lg:gap-10">
-          <SectionLead index="04" eyebrow="Impact" title="How it affected the system" description="The report records severity and duration, but no error-rate, latency, or transaction measurements." />
+          <SectionLead index="05" eyebrow="Impact" title="How it affected the system" description="The report records severity and duration. No error-rate, latency, or transaction measurements are available." />
           <div className="grid gap-3 sm:grid-cols-[minmax(8rem,.55fr)_minmax(8rem,.55fr)_minmax(0,1.9fr)]">
             <div className="border border-rose-400/25 bg-rose-400/[.04] p-4"><p className="font-mono text-[8px] uppercase tracking-[.12em] text-slate-500">Reported severity</p><p className="mt-2 text-sm font-semibold text-rose-300">{incident.severity}</p></div>
             <div className="border border-slate-800 bg-[#0a121e]/80 p-4"><p className="font-mono text-[8px] uppercase tracking-[.12em] text-slate-500">Reported duration</p><p className="mt-2 text-sm font-semibold text-slate-100">{durationLabel(incident.duration_minutes)}</p></div>
@@ -430,7 +648,7 @@ export default function PublicIncidentDetail({
 
       <section className="public-report-section grid gap-7 border-b border-slate-800/80 py-8 sm:py-10 lg:grid-cols-2 lg:gap-10">
         <div className="grid gap-5 sm:grid-cols-[minmax(10rem,.7fr)_minmax(0,1fr)] sm:gap-7">
-          <SectionLead index="05" eyebrow="Resolution" title="Recorded response" description="Mitigation events documented in the incident timeline. This report does not identify a separate recovery event." />
+          <SectionLead index="06" eyebrow="Resolution" title="Recorded response" description="Mitigation events documented in the incident timeline. This report does not identify a separate recovery event." />
           {responseEvents.length ? <ol className="space-y-4 border-l border-slate-800 pl-5">
             {responseEvents.map((event) => <li key={event.id} className="relative">
               <span className="absolute -left-[1.62rem] top-1 flex h-3 w-3 items-center justify-center rounded-full border border-violet-300/50 bg-[#080d16]"><span className="h-1 w-1 rounded-full bg-violet-300" /></span>
@@ -441,7 +659,7 @@ export default function PublicIncidentDetail({
           </ol> : <p className="text-xs text-slate-500">No resolution actions were documented.</p>}
         </div>
         <div className="grid gap-5 border-t border-slate-800/80 pt-7 sm:grid-cols-[minmax(10rem,.7fr)_minmax(0,1fr)] sm:gap-7 lg:border-l lg:border-t-0 lg:py-0 lg:pl-8">
-          <SectionLead index="06" eyebrow="Prevention" title="What will prevent this?" description="Follow-up actions included by the report author." />
+          <SectionLead index="07" eyebrow="Prevention" title="What will prevent this?" description="Follow-up actions included by the report author." />
           {incident.prevention_actions.length ? <ol className="space-y-3">
             {incident.prevention_actions.map((action, index) => <li key={`${action.title}-${index}`} className="flex gap-2.5 text-[11px] leading-5 text-slate-300">
               <span className="font-mono text-[9px] text-[#c6e47c]">{String(index + 1).padStart(2, "0")}</span>
@@ -457,7 +675,7 @@ export default function PublicIncidentDetail({
 
       {related.length > 0 && <section id="related-incidents" className="public-report-section py-8 sm:py-10">
         <div className="grid gap-6 lg:grid-cols-[minmax(12rem,.29fr)_minmax(0,.71fr)] lg:gap-10">
-          <SectionLead index="07" eyebrow="Explore more" title="Related incidents" description="Other reviewed reports in the public archive." />
+          <SectionLead index="08" eyebrow="Explore more" title="Related incidents" description="Other reviewed reports in the public archive." />
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {related.map((item) => <button key={item.id} type="button" onClick={() => { onSelect(item.id); window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" }); }} className="group flex min-h-28 min-w-0 items-start gap-3 border border-slate-800 bg-[#0b1420]/80 p-3 text-left transition-colors hover:border-sky-300/40 hover:bg-[#0e1a2a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300">
               <span aria-hidden="true" className="public-related-art relative flex h-[4.5rem] w-14 shrink-0 items-center justify-center overflow-hidden border border-slate-800"><span className="public-related-pulse" /></span>
@@ -490,17 +708,3 @@ function Fact({
   </div>;
 }
 
-function Metric({
-  icon: Icon,
-  value,
-  label: title,
-}: {
-  icon: typeof Clock3;
-  value: string;
-  label: string;
-}) {
-  return <div className="min-w-0 border border-slate-800 bg-[#0a121e]/80 p-3.5 sm:p-4">
-    <div className="flex items-center justify-between gap-2"><p className="font-mono text-lg tracking-tight text-sky-200 sm:text-xl">{value}</p><Icon aria-hidden="true" className="h-4 w-4 shrink-0 text-sky-300/70" /></div>
-    <p className="mt-2 text-[10px] leading-4 text-slate-400">{title}</p>
-  </div>;
-}
