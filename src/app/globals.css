@@ -1567,6 +1567,80 @@ body {
   color: #d9f09b;
 }
 
+.public-incident-hero::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 58% 75%, rgb(14 116 144 / 13%), transparent 34%),
+    linear-gradient(90deg, #080d16 12%, rgb(8 13 22 / 65%) 58%, #080d16 100%);
+  content: "";
+  pointer-events: none;
+}
+
+.public-incident-signal {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 20%;
+  width: min(34vw, 28rem);
+  height: 100%;
+  overflow: hidden;
+  opacity: 0.7;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgb(56 189 248 / 12%) 50%, transparent 50.2%),
+    repeating-linear-gradient(90deg, transparent 0 34px, rgb(56 189 248 / 5%) 35px, transparent 36px);
+  mask-image: linear-gradient(180deg, transparent, #000 20%, #000 78%, transparent);
+}
+
+.public-incident-signal span {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  width: 3.25rem;
+  height: 3.25rem;
+  transform: translateX(-50%);
+  border: 1px solid rgb(251 113 133 / 70%);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgb(251 113 133 / 48%), rgb(244 63 94 / 15%) 52%, transparent 72%);
+  box-shadow: 0 0 28px 8px rgb(244 63 94 / 20%), inset 0 0 18px rgb(251 113 133 / 28%);
+}
+
+.public-incident-signal span::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 1px;
+  height: min(24vh, 11rem);
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgb(251 113 133 / 75%), transparent);
+  content: "";
+}
+
+.public-incident-section > :last-child {
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .public-incident-signal {
+    right: -8%;
+    width: 52vw;
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-incident-detail *,
+  .public-incident-detail *::before,
+  .public-incident-detail *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media (max-width: 639px) {
   .review-timeline-track li > div:first-child > button {
     width: 2rem;

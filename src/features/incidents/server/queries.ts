@@ -5,6 +5,14 @@ import {
 } from "@/features/auth/server/current-user";
 import { z } from "zod";
 import type { IncidentStatus } from "@/types/incident";
+import type {
+  ArchitectureDiff,
+  IncidentSeverity,
+  IncidentPattern,
+  PreventionAction,
+  RootCauseNode,
+  TimelineEvent,
+} from "@/types/incident";
 
 const incidentStatusValues = [
   "DRAFT",
@@ -24,15 +32,21 @@ const myReportSchema = z.object({
 
 export interface PublishedIncident {
   id: string;
+  slug: string;
   title: string;
   company_name: string;
   occurred_at: string;
   duration_minutes: number;
-  severity: string;
-  pattern: string;
+  severity: IncidentSeverity;
+  pattern: IncidentPattern;
   summary: string;
   system: string;
   technologies: string[];
+  timeline: TimelineEvent[];
+  root_cause_tree: RootCauseNode[];
+  architecture_diff: ArchitectureDiff;
+  prevention_actions: PreventionAction[];
+  official_post_mortem_url: string | null;
 }
 
 export interface MyReport {
@@ -108,7 +122,7 @@ export async function getPublishedIncidents(): Promise<{
   const { data, error } = await supabase
     .from("incidents")
     .select(
-      "id, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies",
+      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline, root_cause_tree, architecture_diff, prevention_actions, official_post_mortem_url",
     )
     .eq("status", "PUBLISHED")
     .order("occurred_at", { ascending: false });
@@ -119,6 +133,7 @@ export async function getPublishedIncidents(): Promise<{
 
   const incidents = data.map((incident) => ({
     id: incident.id,
+    slug: incident.slug,
     title: incident.title,
     company_name: incident.company_name,
     occurred_at: incident.occurred_at,
@@ -132,6 +147,20 @@ export async function getPublishedIncidents(): Promise<{
           (technology): technology is string => typeof technology === "string",
         )
       : [],
+    timeline: Array.isArray(incident.timeline) ? incident.timeline : [],
+    root_cause_tree: Array.isArray(incident.root_cause_tree)
+      ? incident.root_cause_tree
+      : [],
+    architecture_diff: incident.architecture_diff ?? {
+      beforeFix: "No prior architecture details were provided.",
+      afterFix: "No updated architecture details were provided.",
+      isFact: false,
+      notes: "The report did not include an architecture comparison.",
+    },
+    prevention_actions: Array.isArray(incident.prevention_actions)
+      ? incident.prevention_actions
+      : [],
+    official_post_mortem_url: incident.official_post_mortem_url ?? null,
   }));
 
   return { incidents, error: null };

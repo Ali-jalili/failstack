@@ -4,19 +4,11 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { fetchPublishedIncidents } from "@/features/incidents/server/actions";
 import type { PublishedIncident } from "@/features/incidents/server/queries";
-
-const severityStyles: Record<string, string> = {
-  CRITICAL: "border-rose-500/30 bg-rose-500/10 text-rose-300",
-  MAJOR: "border-amber-500/30 bg-amber-500/10 text-amber-300",
-  MINOR: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300",
-};
-
-function formatLabel(value: string) {
-  return value.replaceAll("_", " ").toLowerCase();
-}
+import PublicIncidentDetail from "@/features/incidents/components/PublicIncidentDetail";
 
 export default function IncidentArchive() {
   const [incidents, setIncidents] = useState<PublishedIncident[] | null>(null);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,30 +34,19 @@ export default function IncidentArchive() {
     };
   }, []);
 
+  const selectedIncident =
+    incidents?.find((incident) => incident.id === selectedIncidentId) ??
+    incidents?.[0] ??
+    null;
+  const relatedIncidents = selectedIncident
+    ? (incidents ?? []).filter((incident) => incident.id !== selectedIncident.id)
+    : [];
+
   return (
-    <main className="relative isolate min-h-[calc(100vh-80px)] overflow-hidden bg-[#080d16] px-6 py-14 text-slate-100">
+    <main className="home-page relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] px-5 py-10 text-slate-100 sm:px-8 sm:py-14 lg:px-12 lg:py-16">
       <div aria-hidden="true" className="home-grid" />
       <div className="relative mx-auto max-w-5xl">
-        <header className="mb-10 flex flex-wrap items-end justify-between gap-5">
-          <div>
-            <p className="font-mono text-xs uppercase tracking-[0.2em] text-blue-400">
-              Incident archive
-            </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Published Incidents
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-              Explore documented production incidents, their impact, and the
-              systems involved.
-            </p>
-          </div>
-          <Link
-            href="/incidents/new"
-            className="inline-flex shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-blue-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-          >
-            Submit an Incident
-          </Link>
-        </header>
+        {!selectedIncident && <h1 className="sr-only">Published incidents</h1>}
 
         {error ? (
           <div
@@ -80,73 +61,35 @@ export default function IncidentArchive() {
             Loading published incidents...
           </p>
         ) : incidents.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 px-6 py-14 text-center">
-            <h2 className="text-lg font-semibold text-slate-200">
-              No published incidents yet
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">
-              Published incidents will appear here.
-            </p>
-          </div>
-        ) : (
-          <ul className="grid gap-5 md:grid-cols-2">
-            {incidents.map((incident) => (
-              <li
-                key={incident.id}
-                className="flex h-full flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-5 shadow-lg shadow-black/10"
+          <section className="relative isolate overflow-hidden border-y border-dashed border-slate-700/80 px-5 py-14 text-center sm:py-20">
+            <div aria-hidden="true" className="home-grid opacity-40" />
+            <div className="relative mx-auto max-w-xl">
+              <p className="home-kicker justify-center">
+                <span className="home-kicker-mark" aria-hidden="true" />
+                The public archive
+              </p>
+              <h2 className="mt-5 font-normal tracking-tight text-[#f1f1e9] [font-family:Georgia,'Times_New_Roman',serif] text-3xl sm:text-4xl">
+                No incidents published <em className="text-[#c6e47c]">yet.</em>
+              </h2>
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-slate-400">
+                Reviewed incident reports will appear here as the archive grows.
+                Have a postmortem to share? Start the first report.
+              </p>
+              <Link
+                href="/incidents/new"
+                className="home-primary-action mt-7 inline-flex min-h-11 items-center justify-center gap-3 rounded-none px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-4 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
               >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <span
-                    className={`rounded-full border px-2.5 py-1 font-mono text-[10px] font-semibold uppercase ${
-                      severityStyles[incident.severity] ??
-                      "border-slate-700 bg-slate-800 text-slate-300"
-                    }`}
-                  >
-                    {incident.severity}
-                  </span>
-                  <time
-                    dateTime={incident.occurred_at}
-                    className="text-xs text-slate-500"
-                  >
-                    {new Date(incident.occurred_at).toLocaleDateString("en", {
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                      timeZone: "UTC",
-                    })}
-                  </time>
-                </div>
-
-                <h2 className="mt-4 text-lg font-semibold leading-snug text-white">
-                  {incident.title}
-                </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  {incident.company_name} · {incident.system}
-                </p>
-                <p className="mt-4 line-clamp-3 flex-1 text-sm leading-6 text-slate-400">
-                  {incident.summary}
-                </p>
-
-                <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-4">
-                  <span className="rounded-md bg-slate-800 px-2.5 py-1 text-[11px] text-slate-300">
-                    {formatLabel(incident.pattern)}
-                  </span>
-                  <span className="rounded-md bg-slate-800 px-2.5 py-1 text-[11px] text-slate-300">
-                    {incident.duration_minutes} min
-                  </span>
-                  {incident.technologies.slice(0, 3).map((technology) => (
-                    <span
-                      key={technology}
-                      className="rounded-md border border-slate-700 px-2.5 py-1 text-[11px] text-slate-400"
-                    >
-                      {technology}
-                    </span>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+                Submit an incident <span aria-hidden="true">↗</span>
+              </Link>
+            </div>
+          </section>
+        ) : selectedIncident ? (
+          <PublicIncidentDetail
+            incident={selectedIncident}
+            related={relatedIncidents}
+            onSelect={setSelectedIncidentId}
+          />
+        ) : null}
       </div>
     </main>
   );
