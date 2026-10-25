@@ -17,14 +17,14 @@ import {
 import { reviewIncident } from "@/features/review/server/actions";
 import {
   ArchitectureDiffDiagram,
-} from "@/app/review/incidents/components/architecture-diff-diagram";
-import { IncidentFactsBar } from "@/app/review/incidents/components/incident-facts-bar";
-import { IncidentTimeline } from "@/app/review/incidents/components/incident-timeline";
-import { PreventionList } from "@/app/review/incidents/components/prevention-list";
-import { ProgressRing } from "@/app/review/incidents/components/progress-ring";
-import { RootCauseDiagram } from "@/app/review/incidents/components/root-cause-diagram";
-import { SectionHeading } from "@/app/review/incidents/components/section-heading";
-import { formatDate, severityMeta } from "@/app/review/incidents/components/visualization-shared";
+} from "@/features/review/components/architecture-diff-diagram";
+import { IncidentFactsBar } from "@/features/review/components/incident-facts-bar";
+import { IncidentTimeline } from "@/features/review/components/incident-timeline";
+import { PreventionList } from "@/features/review/components/prevention-list";
+import { ProgressRing } from "@/features/review/components/progress-ring";
+import { RootCauseDiagram } from "@/features/review/components/root-cause-diagram";
+import { SectionHeading } from "@/features/review/components/section-heading";
+import { formatDate, severityMeta } from "@/features/review/components/visualization-shared";
 import type { ReviewIncident } from "@/features/review/server/queries";
 
 type ReviewSectionId = "timeline" | "causes" | "architecture" | "prevention";

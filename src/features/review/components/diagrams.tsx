@@ -11,18 +11,18 @@ export {
   formatDate,
   formatLabel,
   patternLabel,
-} from "@/app/review/incidents/components/visualization-shared";
+} from "@/features/review/components/visualization-shared";
 
-export { SectionHeading } from "@/app/review/incidents/components/section-heading";
+export { SectionHeading } from "@/features/review/components/section-heading";
 
-export { IncidentTimeline } from "@/app/review/incidents/components/incident-timeline";
+export { IncidentTimeline } from "@/features/review/components/incident-timeline";
 
-export { RootCauseDiagram } from "@/app/review/incidents/components/root-cause-diagram";
+export { RootCauseDiagram } from "@/features/review/components/root-cause-diagram";
 
-export { ArchitectureDiffDiagram } from "@/app/review/incidents/components/architecture-diff-diagram";
+export { ArchitectureDiffDiagram } from "@/features/review/components/architecture-diff-diagram";
 
-export { PreventionList } from "@/app/review/incidents/components/prevention-list";
+export { PreventionList } from "@/features/review/components/prevention-list";
 
-export { ProgressRing } from "@/app/review/incidents/components/progress-ring";
+export { ProgressRing } from "@/features/review/components/progress-ring";
 
-export { IncidentFactsBar } from "@/app/review/incidents/components/incident-facts-bar";
+export { IncidentFactsBar } from "@/features/review/components/incident-facts-bar";

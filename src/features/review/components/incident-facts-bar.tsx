@@ -2,7 +2,7 @@
 
 import { Clock, Cpu, Timer, Waypoints } from "lucide-react";
 import type { ReviewIncident } from "@/features/review/server/queries";
-import { formatDate, patternLabel } from "@/app/review/incidents/components/visualization-shared";
+import { formatDate, patternLabel } from "@/features/review/components/visualization-shared";
 
 /* ---------- Facts bar ---------- */
 

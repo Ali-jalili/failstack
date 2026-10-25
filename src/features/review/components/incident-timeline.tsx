@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { TimelineEvent } from "@/types/incident";
-import { formatLabel } from "@/app/review/incidents/components/visualization-shared";
+import { formatLabel } from "@/features/review/components/visualization-shared";
 
 const stageIcons: Record<TimelineEvent["stage"], LucideIcon> = {
   TRIGGER: AlertTriangle,
