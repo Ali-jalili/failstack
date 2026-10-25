@@ -12,7 +12,7 @@ type Props = {
 };
 
 function rankRelatedIncidents(
-  current: PublishedIncidentSummary,
+  current: Pick<PublishedIncidentSummary, "slug" | "system" | "pattern" | "technologies">,
   candidates: PublishedIncidentSummary[],
 ) {
   const currentTechnologies = new Set(current.technologies);
@@ -69,21 +69,8 @@ export default async function PublishedIncidentPage({ params }: Props) {
   if (!detailResult.incident) notFound();
 
   const incident = detailResult.incident;
-  const summary: PublishedIncidentSummary = {
-    id: incident.id,
-    slug: incident.slug,
-    title: incident.title,
-    company_name: incident.company_name,
-    occurred_at: incident.occurred_at,
-    duration_minutes: incident.duration_minutes,
-    severity: incident.severity,
-    pattern: incident.pattern,
-    summary: incident.summary,
-    system: incident.system,
-    technologies: incident.technologies,
-  };
   const related = summaryResult.incidents
-    ? rankRelatedIncidents(summary, summaryResult.incidents)
+    ? rankRelatedIncidents(incident, summaryResult.incidents)
     : [];
 
   return <PublicIncidentDetail incident={incident} related={related} />;

@@ -11,6 +11,7 @@ import type {
   IncidentPattern,
   PreventionAction,
   RootCauseNode,
+  TimelineStage,
   TimelineEvent,
 } from "@/types/incident";
 
@@ -49,6 +50,11 @@ export interface PublishedIncident {
   official_post_mortem_url: string | null;
 }
 
+export type TimelinePreviewMarker = Pick<
+  TimelineEvent,
+  "stage" | "timestampOffsetMinutes" | "title"
+>;
+
 export type PublishedIncidentSummary = Pick<
   PublishedIncident,
   | "id"
@@ -62,7 +68,10 @@ export type PublishedIncidentSummary = Pick<
   | "summary"
   | "system"
   | "technologies"
->;
+> & {
+  timelineCount: number;
+  timelinePreview: TimelinePreviewMarker[];
+};
 
 type PublishedIncidentRow = Omit<
   PublishedIncident,
@@ -81,6 +90,64 @@ type PublishedIncidentRow = Omit<
 
 const publishedIncidentColumns =
   "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline, root_cause_tree, architecture_diff, prevention_actions, official_post_mortem_url";
+
+const timelineStages: TimelineStage[] = [
+  "TRIGGER",
+  "FAILURE",
+  "PROPAGATION",
+  "IMPACT",
+  "DETECTION",
+  "MITIGATION",
+  "ROOT_CAUSE",
+  "PREVENTION",
+];
+
+function getTimelinePreview(value: unknown) {
+  const events = (Array.isArray(value)
+    ? value.flatMap((entry) => {
+        if (!entry || typeof entry !== "object") return [];
+        const event = entry as Partial<TimelineEvent>;
+        if (
+          typeof event.stage !== "string" ||
+          !timelineStages.includes(event.stage as TimelineStage) ||
+          typeof event.timestampOffsetMinutes !== "number" ||
+          typeof event.title !== "string"
+        ) {
+          return [];
+        }
+        return [
+          {
+            stage: event.stage as TimelineStage,
+            timestampOffsetMinutes: event.timestampOffsetMinutes,
+            title: event.title,
+          },
+        ];
+      })
+    : []).sort(
+      (a, b) => a.timestampOffsetMinutes - b.timestampOffsetMinutes,
+    );
+
+  if (events.length <= 3) {
+    return { timelineCount: events.length, timelinePreview: events };
+  }
+
+  const first = events[0];
+  const last = events[events.length - 1];
+  const middle =
+    events.find(
+      (event, index) =>
+        index > 0 &&
+        index < events.length - 1 &&
+        ["DETECTION", "ROOT_CAUSE", "MITIGATION", "IMPACT"].includes(
+          event.stage,
+        ),
+    ) ?? events[Math.floor((events.length - 1) / 2)];
+
+  return {
+    timelineCount: events.length,
+    timelinePreview: [first, middle, last],
+  };
+}
 
 function mapPublishedIncident(incident: PublishedIncidentRow): PublishedIncident {
   return {
@@ -215,7 +282,7 @@ export async function getPublishedIncidentSummaries(): Promise<{
   const { data, error } = await supabase
     .from("incidents")
     .select(
-      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies",
+      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline",
     )
     .eq("status", "PUBLISHED")
     .order("occurred_at", { ascending: false });
@@ -238,6 +305,7 @@ export async function getPublishedIncidentSummaries(): Promise<{
           (technology): technology is string => typeof technology === "string",
         )
       : [],
+    ...getTimelinePreview(incident.timeline),
   }));
 
   return { incidents, error: null };

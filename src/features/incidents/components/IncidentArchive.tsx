@@ -7,6 +7,7 @@ import type { IncidentSeverity } from "@/types/incident";
 import type { PublishedIncidentSummary } from "@/features/incidents/server/queries";
 
 type SeverityFilter = "ALL" | IncidentSeverity;
+const PAGE_SIZE = 10;
 
 const severityClass: Record<IncidentSeverity, string> = {
   CRITICAL: "is-critical",
@@ -37,6 +38,27 @@ function formatLabel(value: string) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatTimelineTime(occurredAt: string, offsetMinutes: number) {
+  return new Date(
+    new Date(occurredAt).getTime() + offsetMinutes * 60_000,
+  ).toLocaleTimeString("en", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
+}
+
+function timelinePosition(
+  offsetMinutes: number,
+  preview: PublishedIncidentSummary["timelinePreview"],
+) {
+  const firstOffset = preview[0]?.timestampOffsetMinutes ?? 0;
+  const lastOffset = preview[preview.length - 1]?.timestampOffsetMinutes ?? firstOffset;
+  const span = lastOffset - firstOffset;
+  if (span <= 0) return 50;
+  return Math.min(100, Math.max(0, ((offsetMinutes - firstOffset) / span) * 100));
+}
+
 export default function IncidentArchive({
   incidents,
   error,
@@ -46,6 +68,7 @@ export default function IncidentArchive({
 }) {
   const [query, setQuery] = useState("");
   const [severity, setSeverity] = useState<SeverityFilter>("ALL");
+  const [page, setPage] = useState(1);
 
   const filteredIncidents = useMemo(() => {
     const search = query.trim().toLocaleLowerCase();
@@ -65,6 +88,22 @@ export default function IncidentArchive({
       return matchesSeverity && (!search || searchable.includes(search));
     });
   }, [incidents, query, severity]);
+
+  const pageCount = Math.ceil(filteredIncidents.length / PAGE_SIZE);
+  const pageStart = (page - 1) * PAGE_SIZE;
+  const visibleIncidents = filteredIncidents.slice(pageStart, pageStart + PAGE_SIZE);
+
+  function goToPage(nextPage: number) {
+    setPage(nextPage);
+    window.requestAnimationFrame(() => {
+      document.getElementById("incident-ledger")?.scrollIntoView({
+        behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "instant"
+          : "smooth",
+        block: "start",
+      });
+    });
+  }
 
   return (
     <main className="home-page incident-archive-page relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] px-5 py-10 text-slate-100 sm:px-8 sm:py-14 lg:px-12 lg:py-16">
@@ -112,7 +151,10 @@ export default function IncidentArchive({
                 <input
                   type="search"
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Search incidents, systems, technologies..."
                 />
               </label>
@@ -121,7 +163,10 @@ export default function IncidentArchive({
                 <select
                   value={severity}
                   onChange={(event) =>
-                    setSeverity(event.target.value as SeverityFilter)
+                    {
+                      setSeverity(event.target.value as SeverityFilter);
+                      setPage(1);
+                    }
                   }
                 >
                   <option value="ALL">All levels</option>
@@ -133,50 +178,134 @@ export default function IncidentArchive({
             </section>
 
             {filteredIncidents.length ? (
-              <ul className="incident-archive-grid" aria-label="Published incidents">
-                {filteredIncidents.map((incident, index) => (
-                  <li key={incident.id}>
+              <>
+              <ol
+                className="incident-ledger"
+                id="incident-ledger"
+                aria-label="Published incidents"
+              >
+                {visibleIncidents.map((incident, index) => (
+                  <li className="incident-ledger-item" key={incident.id}>
+                    <div className="incident-ledger-rail" aria-hidden="true">
+                      <span className="incident-ledger-index">
+                        {String(pageStart + index + 1).padStart(2, "0")}
+                      </span>
+                      <span
+                        className={`incident-ledger-marker ${severityClass[incident.severity]}`}
+                      />
+                    </div>
                     <Link
                       href={`/incidents/report/${incident.slug}`}
-                      className="incident-archive-card"
+                      className="incident-dossier"
                       style={{ animationDelay: `${Math.min(index, 5) * 45}ms` }}
                     >
-                      <div className="incident-archive-card-top">
+                      <div className="incident-dossier-topline">
                         <span
                           className={`incident-archive-severity ${severityClass[incident.severity]}`}
                         >
                           {incident.severity}
                         </span>
-                        <span>{formatDate(incident.occurred_at)}</span>
+                        <time dateTime={incident.occurred_at}>
+                          {formatDate(incident.occurred_at)}
+                        </time>
+                        <span className="incident-dossier-system">
+                          {incident.system}
+                        </span>
+                        <ArrowUpRight
+                          className="incident-dossier-arrow"
+                          aria-hidden="true"
+                          size={15}
+                        />
                       </div>
                       <h2>{incident.title}</h2>
                       <p className="incident-archive-summary">
                         {incident.summary}
                       </p>
-                      <div className="incident-archive-tags">
-                        <span className="incident-archive-tag is-system">
-                          {incident.system}
-                        </span>
-                        {incident.technologies.slice(0, 2).map((technology) => (
-                          <span className="incident-archive-tag" key={technology}>
-                            {technology}
-                          </span>
-                        ))}
+                      <div className="incident-dossier-stats">
+                        <span>{formatLabel(incident.pattern)}</span>
+                        <span>{formatDuration(incident.duration_minutes)}</span>
+                        <span>{incident.timelineCount} events</span>
                       </div>
-                      <div className="incident-archive-card-bottom">
-                        <span>
-                          {formatLabel(incident.pattern)}
-                          <span aria-hidden="true"> · </span>
-                          {formatDuration(incident.duration_minutes)}
-                        </span>
-                        <span className="incident-archive-open">
-                          Read report <ArrowUpRight aria-hidden="true" size={14} />
-                        </span>
-                      </div>
+                      {incident.timelinePreview.length ? (
+                        <div className="incident-trace">
+                          <div className="incident-trace-axis" aria-hidden="true">
+                            <span className="incident-trace-line" />
+                            {incident.timelinePreview.map((event, eventIndex) => (
+                              <span
+                                className={`incident-trace-marker stage-${event.stage.toLowerCase()}`}
+                                aria-hidden="true"
+                                key={`${event.stage}-${event.timestampOffsetMinutes}-${eventIndex}`}
+                                style={{
+                                  left: `${timelinePosition(event.timestampOffsetMinutes, incident.timelinePreview)}%`,
+                                }}
+                                title={`${event.title} · ${formatLabel(event.stage)} · ${formatTimelineTime(incident.occurred_at, event.timestampOffsetMinutes)}`}
+                              />
+                            ))}
+                          </div>
+                          <ol
+                            className="incident-trace-events"
+                            aria-label={`${incident.timelineCount} recorded events; showing selected checkpoints`}
+                            style={{
+                              gridTemplateColumns: `repeat(${incident.timelinePreview.length}, minmax(0, 1fr))`,
+                            }}
+                          >
+                            {incident.timelinePreview.map((event, eventIndex) => (
+                              <li
+                                className={`incident-trace-event stage-${event.stage.toLowerCase()}`}
+                                key={`${event.stage}-${event.timestampOffsetMinutes}-${eventIndex}`}
+                                aria-label={`${event.title}, ${formatLabel(event.stage)}, ${formatTimelineTime(incident.occurred_at, event.timestampOffsetMinutes)}`}
+                              >
+                                <span className="incident-trace-event-copy">
+                                  <span>{formatLabel(event.stage)}</span>
+                                  <time>
+                                    {formatTimelineTime(
+                                      incident.occurred_at,
+                                      event.timestampOffsetMinutes,
+                                    )}
+                                  </time>
+                                </span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      ) : (
+                        <p className="incident-mini-empty">
+                          No timeline was recorded for this incident.
+                        </p>
+                      )}
                     </Link>
                   </li>
                 ))}
-              </ul>
+              </ol>
+              {pageCount > 1 && (
+                <nav className="incident-archive-pagination" aria-label="Incident archive pages">
+                  <p>
+                    Showing {pageStart + 1}–
+                    {Math.min(pageStart + PAGE_SIZE, filteredIncidents.length)} of{" "}
+                    {filteredIncidents.length}
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      disabled={page === 1}
+                      onClick={() => goToPage(Math.max(1, page - 1))}
+                    >
+                      Previous
+                    </button>
+                    <span aria-live="polite">
+                      Page {page} of {pageCount}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={page === pageCount}
+                      onClick={() => goToPage(Math.min(pageCount, page + 1))}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </nav>
+              )}
+              </>
             ) : (
               <div className="incident-archive-state">
                 <h2>No matching incidents</h2>
