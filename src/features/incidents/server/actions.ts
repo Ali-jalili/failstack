@@ -10,7 +10,7 @@ import {
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
 import { incidentFormSchema } from "@/features/incidents/form-schema";
-import { getMyReports, getPublishedIncidents } from "@/features/incidents/server/queries";
+import { getMyReports } from "@/features/incidents/server/queries";
 
 const isoDateTimeSchema = z.string().datetime();
 
@@ -27,10 +27,6 @@ function createSlug(title: string) {
 
 export async function fetchMyReports() {
   return getMyReports();
-}
-
-export async function fetchPublishedIncidents() {
-  return getPublishedIncidents();
 }
 
 export async function createIncident(

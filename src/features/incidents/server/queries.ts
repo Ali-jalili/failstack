@@ -49,6 +49,78 @@ export interface PublishedIncident {
   official_post_mortem_url: string | null;
 }
 
+export type PublishedIncidentSummary = Pick<
+  PublishedIncident,
+  | "id"
+  | "slug"
+  | "title"
+  | "company_name"
+  | "occurred_at"
+  | "duration_minutes"
+  | "severity"
+  | "pattern"
+  | "summary"
+  | "system"
+  | "technologies"
+>;
+
+type PublishedIncidentRow = Omit<
+  PublishedIncident,
+  | "technologies"
+  | "timeline"
+  | "root_cause_tree"
+  | "architecture_diff"
+  | "prevention_actions"
+> & {
+  technologies: unknown;
+  timeline: unknown;
+  root_cause_tree: unknown;
+  architecture_diff: unknown;
+  prevention_actions: unknown;
+};
+
+const publishedIncidentColumns =
+  "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline, root_cause_tree, architecture_diff, prevention_actions, official_post_mortem_url";
+
+function mapPublishedIncident(incident: PublishedIncidentRow): PublishedIncident {
+  return {
+    id: incident.id,
+    slug: incident.slug,
+    title: incident.title,
+    company_name: incident.company_name,
+    occurred_at: incident.occurred_at,
+    duration_minutes: incident.duration_minutes,
+    severity: incident.severity,
+    pattern: incident.pattern,
+    summary: incident.summary,
+    system: incident.system,
+    technologies: Array.isArray(incident.technologies)
+      ? incident.technologies.filter(
+          (technology): technology is string => typeof technology === "string",
+        )
+      : [],
+    timeline: Array.isArray(incident.timeline)
+      ? (incident.timeline as TimelineEvent[])
+      : [],
+    root_cause_tree: Array.isArray(incident.root_cause_tree)
+      ? (incident.root_cause_tree as RootCauseNode[])
+      : [],
+    architecture_diff:
+      incident.architecture_diff && typeof incident.architecture_diff === "object"
+        ? (incident.architecture_diff as ArchitectureDiff)
+        : {
+            beforeFix: "No prior architecture details were provided.",
+            afterFix: "No updated architecture details were provided.",
+            isFact: false,
+            notes: "The report did not include an architecture comparison.",
+          },
+    prevention_actions: Array.isArray(incident.prevention_actions)
+      ? (incident.prevention_actions as PreventionAction[])
+      : [],
+    official_post_mortem_url: incident.official_post_mortem_url ?? null,
+  };
+}
+
 export interface MyReport {
   id: string;
   slug: string;
@@ -114,22 +186,41 @@ export async function getMyReports(): Promise<MyReportsResult> {
   };
 }
 
-export async function getPublishedIncidents(): Promise<{
-  incidents: PublishedIncident[] | null;
+export async function getPublishedIncidentBySlug(slug: string): Promise<{
+  incident: PublishedIncident | null;
+  error: string | null;
+}> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("incidents")
+    .select(publishedIncidentColumns)
+    .eq("status", "PUBLISHED")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) return { incident: null, error: error.message };
+  if (!data) return { incident: null, error: null };
+
+  return {
+    incident: mapPublishedIncident(data as PublishedIncidentRow),
+    error: null,
+  };
+}
+
+export async function getPublishedIncidentSummaries(): Promise<{
+  incidents: PublishedIncidentSummary[] | null;
   error: string | null;
 }> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("incidents")
     .select(
-      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline, root_cause_tree, architecture_diff, prevention_actions, official_post_mortem_url",
+      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies",
     )
     .eq("status", "PUBLISHED")
     .order("occurred_at", { ascending: false });
 
-  if (error) {
-    return { incidents: null, error: error.message };
-  }
+  if (error) return { incidents: null, error: error.message };
 
   const incidents = data.map((incident) => ({
     id: incident.id,
@@ -147,20 +238,6 @@ export async function getPublishedIncidents(): Promise<{
           (technology): technology is string => typeof technology === "string",
         )
       : [],
-    timeline: Array.isArray(incident.timeline) ? incident.timeline : [],
-    root_cause_tree: Array.isArray(incident.root_cause_tree)
-      ? incident.root_cause_tree
-      : [],
-    architecture_diff: incident.architecture_diff ?? {
-      beforeFix: "No prior architecture details were provided.",
-      afterFix: "No updated architecture details were provided.",
-      isFact: false,
-      notes: "The report did not include an architecture comparison.",
-    },
-    prevention_actions: Array.isArray(incident.prevention_actions)
-      ? incident.prevention_actions
-      : [],
-    official_post_mortem_url: incident.official_post_mortem_url ?? null,
   }));
 
   return { incidents, error: null };
