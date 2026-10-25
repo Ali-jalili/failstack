@@ -1,5 +1,7 @@
 # FailStack Audit Report
 
+> **Scope note (added 2026-10-26):** This document is a **historical audit** recorded against the pre-refactor layout, before commit `1dc5fa4` ("refactor: organize codebase into feature modules"). Several paths it cites — `src/lib/validation/*`, `src/app/actions/*`, `src/lib/services/*`, `src/lib/actions/*`, `src/components/auth/*` — no longer exist; their responsibilities now live under `src/features/` and `src/lib/supabase/*` (e.g. `src/features/incidents/schema.ts`, `src/features/auth/server/actions.ts`, `src/features/review/server/actions.ts`). This report is preserved as-is for its historical value; treat its path references as outdated, not as a description of the current tree.
+
 ## A. Executive Summary
 
 This project is a partial, polished prototype rather than a complete production-ready platform. The strongest implemented areas are the incident domain model, the multi-step incident creation flow, and the reviewer queue. The project compiles successfully and passes lint with only non-blocking warnings, but the overall product remains dependent on an external Supabase schema that is not present in the repository.
