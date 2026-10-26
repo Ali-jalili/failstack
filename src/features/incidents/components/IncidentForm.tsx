@@ -239,14 +239,15 @@ export default function IncidentForm({
         }
         setSubmitSuccess("Incident updated and resubmitted for review.");
       } else {
-        const result = await createIncident({ ...data, occurredAt }, idempotencyKeyRef);
+        const result = await createIncident(
+          { ...data, occurredAt },
+          idempotencyKeyRef,
+        );
         if (result.error) {
           setSubmitError(result.error);
           return;
         }
-        setSubmitSuccess(
-          `Incident submitted for review. Slug: ${result.slug}`,
-        );
+        setSubmitSuccess(`Incident submitted for review. Slug: ${result.slug}`);
       }
 
       setHasSubmitted(true);
@@ -298,10 +299,7 @@ export default function IncidentForm({
 
         {/* Reviewer note (edit mode only) */}
         {mode === "edit" && reviewerNote ? (
-          <div
-            role="note"
-            className="mt-6 border-l-2 border-[#e2a16d]/50 bg-[#e2a16d]/[0.07] px-4 py-3"
-          >
+          <div className="mt-6 border-l-2 border-[#e2a16d]/50 bg-[#e2a16d]/[0.07] px-4 py-3">
             <p className="font-mono text-[9px] uppercase leading-[1.6] tracking-[0.12em] text-[#e2a16d]">
               Reviewer feedback
             </p>
@@ -360,9 +358,7 @@ export default function IncidentForm({
             error={submitError}
             success={hasSubmitted ? submitSuccess : null}
             successActionHref={hasSubmitted ? "/my-incidents" : undefined}
-            successActionLabel={
-              hasSubmitted ? "View your reports" : undefined
-            }
+            successActionLabel={hasSubmitted ? "View your reports" : undefined}
           />
         </div>
       </div>

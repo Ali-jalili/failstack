@@ -1,3 +1,5 @@
+/** @format */
+
 "use client";
 
 import { useState, useTransition } from "react";
@@ -10,12 +12,9 @@ import { handleLogout } from "@/features/auth/server/actions";
  * attaches to the thrown error object.
  */
 function isNextRedirectError(error: unknown): boolean {
-  return (
-    error instanceof Error &&
-    "digest" in error &&
-    typeof (error as { digest?: string }).digest === "string" &&
-    (error as { digest: string }).digest!.startsWith("NEXT_REDIRECT")
-  );
+  if (!(error instanceof Error) || !("digest" in error)) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  return typeof digest === "string" && digest.startsWith("NEXT_REDIRECT");
 }
 
 export default function LogoutButton() {
@@ -47,7 +46,11 @@ export default function LogoutButton() {
         disabled={isPending}
         className="flex min-h-10 w-full items-center gap-2 rounded-md px-2.5 text-left text-[13px] font-medium text-slate-300 transition-colors duration-150 hover:bg-white/[0.045] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c1118] disabled:cursor-wait disabled:opacity-60 motion-reduce:transition-none"
       >
-        <LogOut aria-hidden="true" className="h-4 w-4 text-slate-500" strokeWidth={1.7} />
+        <LogOut
+          aria-hidden="true"
+          className="h-4 w-4 text-slate-500"
+          strokeWidth={1.7}
+        />
         {isPending ? "Signing out..." : "Sign out"}
       </button>
       {error && (
