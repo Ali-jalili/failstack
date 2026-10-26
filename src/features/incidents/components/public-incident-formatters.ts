@@ -1,3 +1,7 @@
+/** @format */
+
+import type { ArchitectureDiff } from "@/types/incident";
+
 export const stageColors: Record<string, string> = {
   TRIGGER: "#fb7185",
   FAILURE: "#fbbf24",
@@ -57,6 +61,18 @@ export function offsetClockLabel(occurredAt: string, offset: number) {
   });
 }
 
+/**
+ * True when the recorded architecture diff carries any before/after content.
+ * Shared by the detail page (evidence chips) and the evidence section
+ * (tab availability) so the two views cannot drift apart.
+ */
+export function hasConfigDiff(diff: ArchitectureDiff) {
+  return (
+    (diff.beforeFix ?? "").trim().length > 0 ||
+    (diff.afterFix ?? "").trim().length > 0
+  );
+}
+
 export function short(value: string, max: number) {
   return value.length > max ? value.slice(0, max) + "…" : value;
 }
@@ -76,4 +92,3 @@ export function wrapSvgLabel(value: string, maxChars: number) {
   }
   return lines;
 }
-

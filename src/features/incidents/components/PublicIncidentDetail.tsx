@@ -3,37 +3,31 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowUpRight,
-  Check,
-  GitBranch,
-  Link2,
-} from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Check, GitBranch, Link2 } from "lucide-react";
 import Link from "next/link";
 import type {
   PublishedIncident,
   PublishedIncidentSummary,
 } from "@/features/incidents/server/queries";
+import type { IncidentSeverity } from "@/types/incident";
 import { usePublicIncidentNavigation } from "./use-public-incident-navigation";
 import { PublicIncidentEvidence } from "./PublicIncidentEvidence";
 import { PublicIncidentImpactMap } from "./PublicIncidentImpactMap";
 import { PublicIncidentFixSection } from "./PublicIncidentFixSection";
 import { PublicIncidentCausalTree } from "./PublicIncidentCausalTree";
 import { PublicIncidentTimeline } from "./PublicIncidentTimeline";
-import type { EvidenceTab } from "./public-incident-types";
+import type { EvidenceTab, SeverityStyle } from "./public-incident-types";
 import { PublicIncidentOverview } from "./PublicIncidentOverview";
 import {
   dateLabel,
   durationLabel,
+  hasConfigDiff,
 } from "./public-incident-formatters";
 import { ServerIcon } from "./public-incident-icons";
 
 /* ---------- helpers ---------- */
 
-type SevStyle = { color: string; bg: string; border: string };
-
-const severityStyles: Record<string, SevStyle> = {
+const severityStyles: Record<IncidentSeverity, SeverityStyle> = {
   CRITICAL: {
     color: "#fb7185",
     bg: "rgba(251,113,133,.12)",
@@ -164,9 +158,7 @@ export default function PublicIncidentDetail({
   );
 
   /* evidence */
-  const hasConfigEvidence =
-    (incident.architecture_diff.beforeFix ?? "").trim().length > 0 ||
-    (incident.architecture_diff.afterFix ?? "").trim().length > 0;
+  const hasConfigEvidence = hasConfigDiff(incident.architecture_diff);
   const hasExternalEvidence = Boolean(incident.official_post_mortem_url);
 
   const [activeTab, setActiveTab] = useState<EvidenceTab>("config");
@@ -183,6 +175,8 @@ export default function PublicIncidentDetail({
     });
   }
 
+  // Defensive: DB rows are cast, not validated, so an unknown severity
+  // must still render with a valid style.
   const sev = severityStyles[incident.severity] ?? severityStyles.MINOR;
 
   const eventEvidenceChips = useMemo(() => {
@@ -424,6 +418,7 @@ export default function PublicIncidentDetail({
             />
             <div className="public-related-grid">
               {related.map((item) => {
+                // Defensive: see note above for the main severity lookup.
                 const itemSev =
                   severityStyles[item.severity] ?? severityStyles.MINOR;
                 return (

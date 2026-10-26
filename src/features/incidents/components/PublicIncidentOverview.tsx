@@ -1,3 +1,5 @@
+/** @format */
+
 import { ArrowUpRight } from "lucide-react";
 import type { PublishedIncident } from "@/features/incidents/server/queries";
 import {
@@ -10,9 +12,13 @@ import {
   WaypointsIcon,
   ZapIcon,
 } from "./public-incident-icons";
-import { dateLabel, dateTimeLabel, durationLabel, patternLabel } from "./public-incident-formatters";
-
-type SeverityStyle = { color: string; bg: string; border: string };
+import {
+  dateLabel,
+  dateTimeLabel,
+  durationLabel,
+  patternLabel,
+} from "./public-incident-formatters";
+import type { SeverityStyle } from "./public-incident-types";
 
 export function PublicIncidentOverview({
   incident,
@@ -58,13 +64,20 @@ export function PublicIncidentOverview({
         <div className="pid-meta-row">
           <span
             className="pid-badge"
-            style={{ backgroundColor: severityStyle.color, borderColor: severityStyle.color }}
+            style={{
+              backgroundColor: severityStyle.color,
+              borderColor: severityStyle.color,
+            }}
           >
             {incident.severity}
           </span>
-          <span className="pid-meta-item">{dateLabel(incident.occurred_at)}</span>
+          <span className="pid-meta-item">
+            {dateLabel(incident.occurred_at)}
+          </span>
           <span className="pid-meta-sep" aria-hidden />
-          <span className="pid-meta-item">{durationLabel(incident.duration_minutes)}</span>
+          <span className="pid-meta-item">
+            {durationLabel(incident.duration_minutes)}
+          </span>
         </div>
 
         <h1 className="pid-title">{incident.title}</h1>
@@ -103,27 +116,37 @@ export function PublicIncidentOverview({
         <h2 className="pid-glance-title">Incident at a glance</h2>
         <dl className="pid-glance-list">
           <div className="pid-glance-row">
-            <span className="pid-glance-icon" aria-hidden><CalendarIcon /></span>
+            <span className="pid-glance-icon" aria-hidden>
+              <CalendarIcon />
+            </span>
             <dt>Date</dt>
             <dd>{dateTimeLabel(incident.occurred_at)} UTC</dd>
           </div>
           <div className="pid-glance-row">
-            <span className="pid-glance-icon" aria-hidden><TimerIcon /></span>
+            <span className="pid-glance-icon" aria-hidden>
+              <TimerIcon />
+            </span>
             <dt>Duration</dt>
             <dd>{durationLabel(incident.duration_minutes)}</dd>
           </div>
           <div className="pid-glance-row">
-            <span className="pid-glance-icon" aria-hidden><WaypointsIcon /></span>
+            <span className="pid-glance-icon" aria-hidden>
+              <WaypointsIcon />
+            </span>
             <dt>Pattern</dt>
             <dd>{patternLabel(incident.pattern)}</dd>
           </div>
           <div className="pid-glance-row">
-            <span className="pid-glance-icon" aria-hidden><LayersIcon /></span>
+            <span className="pid-glance-icon" aria-hidden>
+              <LayersIcon />
+            </span>
             <dt>Technologies</dt>
             <dd>{incident.technologies.join(" · ") || "Not specified"}</dd>
           </div>
           <div className="pid-glance-row">
-            <span className="pid-glance-icon" aria-hidden><ServerIcon /></span>
+            <span className="pid-glance-icon" aria-hidden>
+              <ServerIcon />
+            </span>
             <dt>Services mentioned</dt>
             <dd>{namedServices.join(", ")}</dd>
           </div>

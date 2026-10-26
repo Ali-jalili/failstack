@@ -1,10 +1,17 @@
+/** @format */
+
 "use client";
 
 import { useMemo, useState } from "react";
 import { ArrowUpRight, Check, Copy, GitCommit, Link2 } from "lucide-react";
 import type { PublishedIncident } from "@/features/incidents/server/queries";
 import type { TimelineEvent } from "@/types/incident";
-import { label, offsetClockLabel, stageColors } from "./public-incident-formatters";
+import {
+  hasConfigDiff,
+  label,
+  offsetClockLabel,
+  stageColors,
+} from "./public-incident-formatters";
 import {
   Code2Icon,
   GitCommitIcon,
@@ -31,16 +38,15 @@ export function PublicIncidentEvidence({
         .map((event) => ({ event, commands: event.cliCommands ?? [] })),
     [events],
   );
-  const hasConfigEvidence =
-    (incident.architecture_diff.beforeFix ?? "").trim().length > 0 ||
-    (incident.architecture_diff.afterFix ?? "").trim().length > 0;
+  const hasConfigEvidence = hasConfigDiff(incident.architecture_diff);
   const hasExternalEvidence = Boolean(incident.official_post_mortem_url);
   const tabs: { id: EvidenceTab; name: string; has: boolean }[] = [
     { id: "config", name: "Configuration", has: hasConfigEvidence },
     { id: "cli", name: "CLI Commands", has: cliEvidence.length > 0 },
     { id: "external", name: "External post-mortem", has: hasExternalEvidence },
   ];
-  const effectiveTab: EvidenceTab = tabs.find((tab) => tab.id === activeTab)?.has
+  const effectiveTab: EvidenceTab = tabs.find((tab) => tab.id === activeTab)
+    ?.has
     ? activeTab
     : (tabs.find((tab) => tab.has)?.id ?? "config");
 
@@ -99,7 +105,9 @@ export function PublicIncidentEvidence({
               </div>
               <div className="public-diff-body">
                 <div className="public-diff-col is-before">
-                  <DiffLines text={incident.architecture_diff.beforeFix ?? ""} />
+                  <DiffLines
+                    text={incident.architecture_diff.beforeFix ?? ""}
+                  />
                 </div>
                 <div className="public-diff-col is-after">
                   <DiffLines text={incident.architecture_diff.afterFix ?? ""} />
@@ -185,7 +193,7 @@ export function PublicIncidentEvidence({
           ))}
 
         {effectiveTab === "external" &&
-          (hasExternalEvidence ? (
+          (incident.official_post_mortem_url ? (
             <div
               className="public-evidence-empty"
               style={{ borderStyle: "solid" }}
@@ -205,7 +213,7 @@ export function PublicIncidentEvidence({
               </p>
               <a
                 className="public-postmortem-link"
-                href={incident.official_post_mortem_url!}
+                href={incident.official_post_mortem_url}
                 target="_blank"
                 rel="noopener noreferrer"
               >
