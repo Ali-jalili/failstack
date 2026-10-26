@@ -94,13 +94,39 @@ export const incidentPreventionSchema = z.object({
 });
 
 //?? FormSchema
-
-export const incidentFormSchema = z.object({
-  ...incidentBasicInfoSchema.shape,
-  ...incidentSystemTechnologiesSchema.shape,
-  ...incidentTimelineSchema.shape,
-  ...incidentRootCauseArchitectureSchema.shape,
-  ...incidentPreventionSchema.shape,
-});
+//
+// The composed form schema is built from each step's `.shape`, which drops
+// object-level refinements. The two "first timeline event" rules are therefore
+// re-applied here so the full form (and the server actions that validate
+// against it) enforce them. These mirror the refinements on
+// `incidentTimelineSchema`.
+export const incidentFormSchema = z
+  .object({
+    ...incidentBasicInfoSchema.shape,
+    ...incidentSystemTechnologiesSchema.shape,
+    ...incidentTimelineSchema.shape,
+    ...incidentRootCauseArchitectureSchema.shape,
+    ...incidentPreventionSchema.shape,
+  })
+  .refine(
+    (data) => {
+      const firstEvent = data.timeline[0];
+      return firstEvent && firstEvent.timestampOffsetMinutes === 0;
+    },
+    {
+      message: "The first timeline event must have a timestamp offset of 0",
+      path: ["timeline", 0, "timestampOffsetMinutes"],
+    },
+  )
+  .refine(
+    (data) => {
+      const firstEvent = data.timeline[0];
+      return firstEvent && firstEvent.stage === "TRIGGER";
+    },
+    {
+      message: "The first timeline event must have stage TRIGGER",
+      path: ["timeline", 0, "stage"],
+    },
+  );
 
 export type IncidentFormValues = z.infer<typeof incidentFormSchema>;
