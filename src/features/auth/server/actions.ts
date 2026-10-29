@@ -31,7 +31,9 @@ function toUserFacingError(error: { code?: string; message?: string }): string {
 
   if (
     code === "auth/user-already-exists" ||
-    /already been taken/i.test(message)
+    code === "user_already_exists" ||
+    /already been taken/i.test(message) ||
+    /user already registered/i.test(message)
   ) {
     return "An account with this email already exists. Try signing in instead.";
   }
@@ -73,7 +75,8 @@ async function getAuthenticatedDestination(
   const fallback = isReviewer ? "/review/incidents" : "/my-incidents";
   if (!safeDestination) return { destination: fallback };
 
-  const pathname = new URL(safeDestination, "https://failstack.invalid").pathname;
+  const pathname = new URL(safeDestination, "https://failstack.invalid")
+    .pathname;
   const isPublicDestination = pathname === "/" || pathname === "/incidents";
   const isReviewDestination = pathname === "/review/incidents";
   const isAuthorDestination =

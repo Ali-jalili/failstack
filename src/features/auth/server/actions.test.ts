@@ -84,7 +84,63 @@ describe("handleSignUp email validation", () => {
     });
     expect(signUp).not.toHaveBeenCalled();
   });
+  it("maps the duplicate-email signup error to the sign-in prompt", async () => {
+    signUp.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "user_already_exists",
+        message: "User already registered",
+      },
+    });
+    const formData = new FormData();
+    formData.set("name", "Alex Morgan");
+    formData.set("email", "saman@company.com");
+    formData.set("password", "abc123");
 
+    const result = await handleSignUp(formData);
+
+    expect(result).toEqual({
+      error:
+        "An account with this email already exists. Try signing in instead.",
+    });
+    expect(signUp).toHaveBeenCalledTimes(1);
+  });
+
+  it("matches the user-already-exists code independently of the message", async () => {
+    signUp.mockResolvedValueOnce({
+      data: null,
+      error: { code: "user_already_exists", message: "" },
+    });
+    const formData = new FormData();
+    formData.set("name", "Alex Morgan");
+    formData.set("email", "saman@company.com");
+    formData.set("password", "abc123");
+
+    const result = await handleSignUp(formData);
+
+    expect(result).toEqual({
+      error:
+        "An account with this email already exists. Try signing in instead.",
+    });
+  });
+
+  it("matches the duplicate message independently of the error code", async () => {
+    signUp.mockResolvedValueOnce({
+      data: null,
+      error: { code: "some-unknown-code", message: "User already registered" },
+    });
+    const formData = new FormData();
+    formData.set("name", "Alex Morgan");
+    formData.set("email", "saman@company.com");
+    formData.set("password", "abc123");
+
+    const result = await handleSignUp(formData);
+
+    expect(result).toEqual({
+      error:
+        "An account with this email already exists. Try signing in instead.",
+    });
+  });
   it.each([
     ["test@gmaa.com"],
     ["test@gmaa.acom"],
