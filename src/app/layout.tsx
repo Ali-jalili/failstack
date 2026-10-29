@@ -39,9 +39,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
 
         <Toaster
           position="top-right"
-          richColors
           theme="dark"
           expand={false}
+          toastOptions={{
+            classNames: {
+              toast: "border border-[#c6e47c]/40 bg-[#0c151c] text-[#f1f1e9]",
+              title:
+                "font-mono text-[12px] font-medium uppercase tracking-[0.06em] text-[#d5e8a5]",
+              description: "text-slate-400",
+              icon: "border-[#c6e47c]/60 bg-[#c6e47c]/20 text-[#c6e47c]",
+            },
+          }}
         />
       </body>
     </html>

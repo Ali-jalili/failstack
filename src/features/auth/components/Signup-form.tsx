@@ -22,10 +22,9 @@ import {
 } from "./password-field";
 import EmailConfirmation from "./Email-confirmation";
 import ReviewWorkflowAside from "./ReviewWorkflowAside";
+import { successToastOptions } from "./auth-toast";
 
 const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";
-const signupSuccessToastClass =
-  "border border-[#c6e47c]/40 bg-[#0c151c] text-[#f1f1e9]";
 
 export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   const router = useRouter();
@@ -87,8 +86,7 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
       router.push(result.destination);
       toast.success("Account created", {
         description: "Your account is ready. Redirecting you now.",
-        className: signupSuccessToastClass,
-        descriptionClassName: "text-slate-400",
+        ...successToastOptions,
       });
     } catch {
       signupSubmissionLockRef.current = false;
@@ -149,14 +147,8 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   return (
     <section className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
       <div aria-hidden="true" className="home-grid" />
-      <div
-        aria-hidden="true"
-        className="auth-glow auth-glow-one"
-      />
-      <div
-        aria-hidden="true"
-        className="auth-glow auth-glow-two"
-      />
+      <div aria-hidden="true" className="auth-glow auth-glow-one" />
+      <div aria-hidden="true" className="auth-glow auth-glow-two" />
 
       <div className="relative mx-auto grid min-h-[inherit] max-w-[1440px] lg:grid-cols-2">
         {/* Form column */}
@@ -229,10 +221,7 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
               </div>
 
               {/* Confirm Password */}
-              <div
-                className="auth-field"
-                style={{ animationDelay: "340ms" }}
-              >
+              <div className="auth-field" style={{ animationDelay: "340ms" }}>
                 <ConfirmPasswordField
                   id="signup-confirm-password"
                   label="Confirm password"
@@ -253,24 +242,25 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
               )}
 
               {/* Submit Button */}
-              <div
-                className="auth-field"
-                style={{ animationDelay: "420ms" }}
-              >
+              <div className="auth-field" style={{ animationDelay: "420ms" }}>
                 <button
                   type="submit"
                   disabled={isBusy}
                   className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
                 >
                   <span>
-                    {isBusy
-                      ? "Creating account..."
-                      : "Create account"}
+                    {isBusy ? "Creating account..." : "Create account"}
                   </span>
                   {isBusy ? (
-                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                    <Loader2
+                      aria-hidden="true"
+                      className="h-4 w-4 animate-spin"
+                    />
                   ) : (
-                    <span aria-hidden="true" className="text-[17px] font-normal">
+                    <span
+                      aria-hidden="true"
+                      className="text-[17px] font-normal"
+                    >
                       ↗
                     </span>
                   )}

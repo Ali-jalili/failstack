@@ -12,13 +12,14 @@ vi.mock("server-only", () => ({}));
 // the mapper through that real handler means no production export of the
 // helper is required (a "use server" module may only export async functions).
 const signInWithPassword = vi.fn();
+const signUp = vi.fn();
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { signInWithPassword },
+    auth: { signInWithPassword, signUp },
   })),
 }));
 
-import { handleLogin } from "./actions";
+import { handleLogin, handleSignUp } from "./actions";
 
 const ACCOUNT_EXISTS =
   "An account with this email already exists. Try signing in instead.";
@@ -42,6 +43,70 @@ async function mappedError(errorPayload: { code?: string; message?: string }) {
 
 beforeEach(() => {
   signInWithPassword.mockReset();
+  signUp.mockReset();
+});
+
+describe("handleSignUp email validation", () => {
+  it.each([
+    ["saman", "saman"],
+    ["saman@", "saman@"],
+    ["@gmail.com", "@gmail.com"],
+    ["saman@@gmail.com", "saman@@gmail.com"],
+    ["saman gmail.com", "saman gmail.com"],
+    ["saman@gmail", "saman@gmail"],
+  ])(
+    "rejects the malformed email %s before calling Supabase",
+    async (_label, email) => {
+      const formData = new FormData();
+      formData.set("name", "Alex Morgan");
+      formData.set("email", email);
+      formData.set("password", "abc123");
+
+      const result = await handleSignUp(formData);
+
+      expect(result).toEqual({
+        error: "Please enter a valid email address.",
+      });
+      expect(signUp).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a malformed email before calling Supabase", async () => {
+    const formData = new FormData();
+    formData.set("name", "Alex Morgan");
+    formData.set("email", "saman@gma.com");
+    formData.set("password", "abc123");
+
+    const result = await handleSignUp(formData);
+
+    expect(result).toEqual({
+      error: "Please check your email address. Did you mean gmail.com?",
+    });
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["test@gmaa.com"],
+    ["test@gmaa.acom"],
+    ["test@gmail.acom"],
+    ["test@gimail.com"],
+    ["test@gmaill.com"],
+  ])(
+    "rejects the known Gmail typo %s before calling Supabase",
+    async (email) => {
+      const formData = new FormData();
+      formData.set("name", "Alex Morgan");
+      formData.set("email", email);
+      formData.set("password", "abc123");
+
+      const result = await handleSignUp(formData);
+
+      expect(result).toEqual({
+        error: "Please check your email address. Did you mean gmail.com?",
+      });
+      expect(signUp).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("toUserFacingError (via handleLogin) — account already exists", () => {

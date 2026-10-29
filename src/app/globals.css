@@ -1,5 +1,27 @@
 @import "tailwindcss";
 
+/* Sonner toasts: align the notification icons with the site's lime-on-dark
+   identity instead of Sonner's default. Sonner marks toast types with
+   `data-type` on the toast element, and the icon lives in a `[data-icon]`
+   wrapper whose `svg` uses `fill="currentColor"` — so recolouring the
+   wrapper's `color` tints the icon. */
+[data-sonner-toast] [data-type="success"] [data-icon],
+[data-sonner-toast][data-type="success"] [data-icon] {
+  border-color: rgb(198 228 124 / 60%);
+  background: rgb(198 228 124 / 20%);
+  color: #c6e47c;
+}
+
+[data-sonner-toast][data-type="success"] [data-icon] > svg {
+  color: #c6e47c;
+}
+
+[data-sonner-toast][data-type="error"] [data-icon] {
+  border-color: rgb(244 63 94 / 40%);
+  background: rgb(244 63 94 / 12%);
+  color: #f43f5e;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schema";
 import { handleLogin } from "@/features/auth/server/actions";
 import { PasswordField, TextField } from "./password-field";
+import { successToastOptions } from "./auth-toast";
 
 const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";
 
@@ -50,14 +51,15 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
         return;
       }
 
-      toast.success("Signed in successfully.");
+      toast.success("Signed in successfully.", {
+        description: "Welcome back. Taking you to your reports.",
+        ...successToastOptions,
+      });
       setIsNavigating(true);
       router.push(result.destination);
     } catch {
       setIsNavigating(false);
-      setFormError(
-        "Something went wrong while signing in. Please try again.",
-      );
+      setFormError("Something went wrong while signing in. Please try again.");
     }
   }
 
@@ -70,14 +72,8 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
   return (
     <section className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
       <div aria-hidden="true" className="home-grid" />
-      <div
-        aria-hidden="true"
-        className="auth-glow auth-glow-one"
-      />
-      <div
-        aria-hidden="true"
-        className="auth-glow auth-glow-two"
-      />
+      <div aria-hidden="true" className="auth-glow auth-glow-one" />
+      <div aria-hidden="true" className="auth-glow auth-glow-two" />
 
       <div className="relative mx-auto grid min-h-[inherit] max-w-[1440px] lg:grid-cols-2">
         {/* Form column */}
@@ -122,10 +118,7 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
               </div>
 
               {/* Password */}
-              <div
-                className="auth-field"
-                style={{ animationDelay: "220ms" }}
-              >
+              <div className="auth-field" style={{ animationDelay: "220ms" }}>
                 <PasswordField
                   id="login-password"
                   label="Password"
@@ -148,10 +141,7 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
               )}
 
               {/* Submit Button */}
-              <div
-                className="auth-field"
-                style={{ animationDelay: "320ms" }}
-              >
+              <div className="auth-field" style={{ animationDelay: "320ms" }}>
                 <button
                   type="submit"
                   disabled={isBusy}
@@ -159,9 +149,15 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
                 >
                   <span>{isBusy ? "Signing in..." : "Sign in"}</span>
                   {isBusy ? (
-                    <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+                    <Loader2
+                      aria-hidden="true"
+                      className="h-4 w-4 animate-spin"
+                    />
                   ) : (
-                    <span aria-hidden="true" className="text-[17px] font-normal">
+                    <span
+                      aria-hidden="true"
+                      className="text-[17px] font-normal"
+                    >
                       ↗
                     </span>
                   )}

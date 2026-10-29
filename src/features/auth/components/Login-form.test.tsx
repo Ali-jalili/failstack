@@ -76,6 +76,9 @@ describe("LoginForm success feedback", () => {
     );
     expect(mocks.toastSuccess).toHaveBeenCalledWith(
       "Signed in successfully.",
+      expect.objectContaining({
+        description: "Welcome back. Taking you to your reports.",
+      }),
     );
   });
 

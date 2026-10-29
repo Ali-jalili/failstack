@@ -79,6 +79,109 @@ describe("SignupForm submission lifecycle", () => {
     expect(mocks.handleSignUp).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["saman@gma.com"],
+    ["test@gmaa.com"],
+    ["test@gmaa.acom"],
+    ["test@gmail.acom"],
+    ["test@gimail.com"],
+  ])("rejects the known Gmail typo %s before submitting", async (email) => {
+    render(<SignupForm />);
+    fillValidSignupForm();
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: email },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "Did you mean gmail.com?",
+      ),
+    );
+    expect(mocks.handleSignUp).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "saman",
+    "saman@",
+    "@gmail.com",
+    "saman@@gmail.com",
+    "saman gmail.com",
+    "saman@gmail",
+  ])(
+    "rejects the malformed email %s on button click without calling handleSignUp",
+    async (email) => {
+      render(<SignupForm />);
+      fillValidSignupForm();
+      fireEvent.change(screen.getByLabelText("Email address"), {
+        target: { value: email },
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Create account" }));
+        await Promise.resolve();
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toContain(
+          "Please enter a valid email address.",
+        ),
+      );
+      expect(mocks.handleSignUp).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    "saman",
+    "saman@",
+    "@gmail.com",
+    "saman@@gmail.com",
+    "saman gmail.com",
+    "saman@gmail",
+  ])(
+    "rejects the malformed email %s on Enter submission without calling handleSignUp",
+    async (email) => {
+      render(<SignupForm />);
+      fillValidSignupForm();
+      fireEvent.change(screen.getByLabelText("Email address"), {
+        target: { value: email },
+      });
+
+      await act(async () => {
+        submitSignupForm();
+        await Promise.resolve();
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole("alert").textContent).toContain(
+          "Please enter a valid email address.",
+        ),
+      );
+      expect(mocks.handleSignUp).not.toHaveBeenCalled();
+    },
+  );
+
+  it("accepts a valid email submission and calls handleSignUp", async () => {
+    mocks.handleSignUp.mockResolvedValue({ destination: "/my-incidents" });
+    render(<SignupForm />);
+    fillValidSignupForm();
+    fireEvent.change(screen.getByLabelText("Email address"), {
+      target: { value: "saman@gmail.com" },
+    });
+
+    await act(async () => {
+      submitSignupForm();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(mocks.handleSignUp).toHaveBeenCalledTimes(1));
+    expect(mocks.push).toHaveBeenCalledWith("/my-incidents");
+  });
+
   it("prevents repeated handler entry and releases the guard after a server error", async () => {
     let resolveAction!: (result: { error: string }) => void;
     mocks.handleSignUp.mockReturnValueOnce(
