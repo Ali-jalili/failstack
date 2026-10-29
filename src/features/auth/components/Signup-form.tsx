@@ -55,18 +55,18 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
 
       const result = await handleSignUp(formData);
 
-      if (result.error) {
-        setFormError(result.error);
-        return;
-      }
+      if ("error" in result) {
+        if (result.error) {
+          setFormError(result.error);
+          return;
+        }
 
-      if (result.requiresEmailConfirmation) {
         setEmailConfirmationPending(data.email);
         return;
       }
 
       toast.success("Your account has been created successfully.");
-      router.push(`/login?next=${encodeURIComponent(returnTo)}`);
+      router.push(result.destination);
     } catch {
       setFormError(
         "Something went wrong while creating your account. Please try again.",

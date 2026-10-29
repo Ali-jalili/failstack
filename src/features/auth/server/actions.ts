@@ -14,6 +14,17 @@ const SAFE_SUPABASE_ERROR_CODES = new Set([
   "auth/formats/email-invalid",
 ]);
 
+type AuthErrorResult = { error: string };
+type NavigationResult = { destination: string };
+type AuthenticatedDestinationResult = AuthErrorResult | NavigationResult;
+
+export type HandleSignUpResult =
+  | AuthErrorResult
+  | NavigationResult
+  | { error: null; requiresEmailConfirmation: true };
+
+export type HandleLoginResult = AuthErrorResult | NavigationResult;
+
 function toUserFacingError(error: { code?: string; message?: string }): string {
   const code = error.code;
   const message = error.message ?? "";
@@ -39,7 +50,9 @@ function toUserFacingError(error: { code?: string; message?: string }): string {
   return "Unable to complete the request. Please try again.";
 }
 
-async function getAuthenticatedDestination(destination: unknown) {
+async function getAuthenticatedDestination(
+  destination: unknown,
+): Promise<AuthenticatedDestinationResult> {
   const safeDestination = getSafeRedirectPath(destination, "");
   const userState = await getCurrentUserState();
   if (userState.kind === "error") {
@@ -79,7 +92,9 @@ async function getAuthenticatedDestination(destination: unknown) {
   return { destination: fallback };
 }
 
-export async function handleSignUp(formData: FormData) {
+export async function handleSignUp(
+  formData: FormData,
+): Promise<HandleSignUpResult> {
   const name = formData.get("name");
   const email = formData.get("email");
   const password = formData.get("password");
@@ -131,11 +146,12 @@ export async function handleSignUp(formData: FormData) {
     return { error: destination.error };
   }
 
-  // redirect() never returns; it throws.
-  redirect(destination.destination);
+  return { destination: destination.destination };
 }
 
-export async function handleLogin(formData: FormData) {
+export async function handleLogin(
+  formData: FormData,
+): Promise<HandleLoginResult> {
   const email = formData.get("email");
   const password = formData.get("password");
 
@@ -163,7 +179,7 @@ export async function handleLogin(formData: FormData) {
     return { error: destination.error };
   }
 
-  redirect(destination.destination);
+  return { destination: destination.destination };
 }
 
 export async function handleLogout() {

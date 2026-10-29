@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schema";
 import { handleLogin } from "@/features/auth/server/actions";
@@ -14,7 +15,9 @@ import { PasswordField, TextField } from "./password-field";
 const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";
 
 export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
+  const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   const {
     register,
@@ -28,6 +31,8 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
     },
   });
 
+  const isBusy = isSubmitting || isNavigating;
+
   async function onValidSubmit(data: LoginFormValues) {
     setFormError(null);
 
@@ -39,14 +44,15 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
 
       const result = await handleLogin(formData);
 
-      if (result.error) {
+      if ("error" in result) {
         setFormError(result.error);
         return;
       }
 
-      // handleLogin redirects server-side on success; the router never
-      // reaches this point, so there is no toast to show here.
+      setIsNavigating(true);
+      router.push(result.destination);
     } catch {
+      setIsNavigating(false);
       setFormError(
         "Something went wrong while signing in. Please try again.",
       );
@@ -146,11 +152,11 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
               >
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isBusy}
                   className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
                 >
-                  <span>{isSubmitting ? "Signing in..." : "Sign in"}</span>
-                  {isSubmitting ? (
+                  <span>{isBusy ? "Signing in..." : "Sign in"}</span>
+                  {isBusy ? (
                     <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                   ) : (
                     <span aria-hidden="true" className="text-[17px] font-normal">
