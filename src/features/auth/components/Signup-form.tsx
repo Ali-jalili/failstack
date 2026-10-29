@@ -272,9 +272,10 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
               Already have an account?{" "}
               <Link
                 href={loginHref}
-                className="text-slate-200 underline decoration-slate-600 underline-offset-[5px] transition-colors hover:text-white hover:decoration-[#c6e47c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]"
+                className="inline-flex items-center gap-1 font-mono text-[#c6e47c] underline decoration-[#c6e47c]/40 underline-offset-4 transition-colors hover:text-[#dcf7a0] hover:decoration-[#dcf7a0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
               >
                 Sign in
+                <span aria-hidden="true">↗</span>
               </Link>
             </p>
           </div>
