@@ -7,6 +7,11 @@ import { Eye, EyeOff } from "lucide-react";
 import type { UseFormRegisterReturn } from "react-hook-form";
 
 type FieldError = string | { message?: string; type?: string };
+type PasswordRequirements = {
+  minLength: boolean;
+  hasLetter: boolean;
+  hasDigit: boolean;
+};
 
 const labelClass =
   "block font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-slate-400";
@@ -121,6 +126,7 @@ export function PasswordField({
   error,
   field,
   onClearError,
+  passwordRequirements,
 }: {
   id: string;
   label: string;
@@ -129,8 +135,33 @@ export function PasswordField({
   error?: FieldError;
   field: UseFormRegisterReturn;
   onClearError?: () => void;
+  passwordRequirements?: PasswordRequirements;
 }) {
   const [showPassword, setShowPassword] = useState(false);
+  const requirements = passwordRequirements
+    ? [
+        {
+          label: "At least 6 characters",
+          met: passwordRequirements.minLength,
+        },
+        {
+          label: "At least one English letter",
+          met: passwordRequirements.hasLetter,
+        },
+        {
+          label: "At least one digit",
+          met: passwordRequirements.hasDigit,
+        },
+      ]
+    : [];
+  const requirementsMet = requirements.filter((requirement) => requirement.met).length;
+  const passwordRequirementsId = `${id}-requirements`;
+  const describedBy = [
+    error ? `${id}-error` : null,
+    passwordRequirements ? passwordRequirementsId : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div>
@@ -144,7 +175,7 @@ export function PasswordField({
           autoComplete={autoComplete}
           placeholder={placeholder}
           aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${id}-error` : undefined}
+          aria-describedby={describedBy || undefined}
           {...field}
           onChange={(event) => {
             field.onChange?.(event);
@@ -158,6 +189,43 @@ export function PasswordField({
           onToggle={() => setShowPassword((current) => !current)}
         />
       </div>
+      {passwordRequirements && (
+        <div id={passwordRequirementsId} className="mt-2">
+          <div
+            aria-hidden="true"
+            className="flex gap-1"
+          >
+            {requirements.map((requirement) => (
+              <span
+                key={requirement.label}
+                className={`h-1 flex-1 transition-colors duration-200 ease-out motion-reduce:transition-none ${
+                  requirement.met
+                    ? "bg-[#c6e47c]"
+                    : "bg-slate-800"
+                }`}
+              />
+            ))}
+          </div>
+          <p className="mt-2 text-[10px] font-mono uppercase tracking-[0.1em] text-slate-500">
+            Password requirements
+          </p>
+          <ul className="mt-1.5 space-y-1 text-[11px] text-slate-400">
+            {requirements.map((requirement) => (
+              <li key={requirement.label} className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className={requirement.met ? "text-[#c6e47c]" : "text-slate-600"}
+                >
+                  {requirement.met ? "✓" : "·"}
+                </span>
+                <span>
+                  {requirement.label} — {requirement.met ? "met" : "required"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       {error && (
         <p
           id={`${id}-error`}

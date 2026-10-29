@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schema";
 import { handleLogin } from "@/features/auth/server/actions";
 import { PasswordField, TextField } from "./password-field";
@@ -49,6 +50,7 @@ export default function LoginForm({ returnTo = "" }: { returnTo?: string }) {
         return;
       }
 
+      toast.success("Signed in successfully.");
       setIsNavigating(true);
       router.push(result.destination);
     } catch {

@@ -29,7 +29,7 @@ export default function EmailConfirmation({
     <section className="relative isolate min-h-[calc(100dvh-68px)] overflow-hidden bg-[#080d16] text-slate-100">
       <div aria-hidden="true" className="home-grid" />
       <div className="relative mx-auto flex min-h-[inherit] max-w-[1440px] items-center px-4 py-12 sm:px-6 lg:px-10 lg:py-16">
-        <div className="mx-auto w-full max-w-[26rem]">
+        <div className="mx-auto w-full max-w-[32rem]">
           <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
             <span
               aria-hidden="true"
@@ -41,33 +41,38 @@ export default function EmailConfirmation({
           <h1
             ref={titleRef}
             tabIndex={-1}
-            className={`${serifClass} mt-5 text-[clamp(2.4rem,5vw,3.4rem)] font-normal leading-[0.99] tracking-[-0.055em] text-[#f1f1e9] focus:outline-none`}
+            className={`${serifClass} mt-4 text-[clamp(2.6rem,5vw,3.8rem)] font-normal leading-[0.98] tracking-[-0.055em] text-[#f1f1e9] focus:outline-none`}
           >
             One last step.
           </h1>
 
           <div
             role="status"
-            className="mt-5 border border-[#c6e47c]/30 bg-[#c6e47c]/5 p-4"
+            className="mt-7 border border-[#c6e47c]/30 border-l-2 bg-gradient-to-br from-[#0c151c] to-[#101a1c] p-5 sm:p-6"
           >
-            <div className="flex items-start gap-3">
-              <MailCheck
+            <div className="flex items-start gap-4">
+              <span
                 aria-hidden="true"
-                className="mt-0.5 h-4 w-4 shrink-0 text-[#c6e47c]"
-              />
-              <div>
-                <p className="text-[13px] font-medium text-slate-100">
+                className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#c6e47c]/30 bg-[#c6e47c]/10"
+              >
+                <MailCheck className="h-4 w-4 text-[#c6e47c]" />
+              </span>
+              <div className="min-w-0">
+                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-[#9cb876]">
+                  Email confirmation
+                </p>
+                <p className="mt-2 text-[16px] font-medium text-slate-100">
                   Check your inbox
                 </p>
-                <p className="mt-1 text-[12px] leading-[1.7] text-slate-400">
+                <p className="mt-2 text-[13px] leading-[1.75] text-slate-400">
                   We&apos;ve sent a confirmation link to{" "}
                   <span className="font-medium text-slate-200">{email}</span>
                   . Confirm your account, then sign in to start contributing
                   to the archive.
                 </p>
-                <p className="mt-3 text-[11px] text-slate-500">
-                                  No link? Check your spam folder.
-                                </p>
+                <p className="mt-4 text-[11px] text-slate-500">
+                  No link? Check your spam folder.
+                </p>
               </div>
             </div>
           </div>

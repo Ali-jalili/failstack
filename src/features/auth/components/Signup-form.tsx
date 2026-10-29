@@ -3,13 +3,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { signupSchema, type SignupFormValues } from "@/features/auth/schema";
+import {
+  getSignupPasswordRequirements,
+  signupSchema,
+  type SignupFormValues,
+} from "@/features/auth/schema";
 import { handleSignUp } from "@/features/auth/server/actions";
 import {
   ConfirmPasswordField,
@@ -20,18 +24,23 @@ import EmailConfirmation from "./Email-confirmation";
 import ReviewWorkflowAside from "./ReviewWorkflowAside";
 
 const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";
+const signupSuccessToastClass =
+  "border border-[#c6e47c]/40 bg-[#0c151c] text-[#f1f1e9]";
 
 export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
   const [emailConfirmationPending, setEmailConfirmationPending] = useState<
     string | null
   >(null);
+  const signupSubmissionLockRef = useRef(false);
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
@@ -43,7 +52,14 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
     },
   });
 
+  const passwordValue = useWatch({ control, name: "password" });
+  const passwordRequirements = getSignupPasswordRequirements(passwordValue);
+  const isBusy = isSubmitting || isNavigating;
+
   async function onValidSubmit(data: SignupFormValues) {
+    if (signupSubmissionLockRef.current) return;
+
+    signupSubmissionLockRef.current = true;
     setFormError(null);
 
     try {
@@ -57,6 +73,8 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
 
       if ("error" in result) {
         if (result.error) {
+          signupSubmissionLockRef.current = false;
+          setIsNavigating(false);
           setFormError(result.error);
           return;
         }
@@ -65,9 +83,16 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
         return;
       }
 
-      toast.success("Your account has been created successfully.");
+      setIsNavigating(true);
       router.push(result.destination);
+      toast.success("Account created", {
+        description: "Your account is ready. Redirecting you now.",
+        className: signupSuccessToastClass,
+        descriptionClassName: "text-slate-400",
+      });
     } catch {
+      signupSubmissionLockRef.current = false;
+      setIsNavigating(false);
       setFormError(
         "Something went wrong while creating your account. Please try again.",
       );
@@ -94,7 +119,9 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   }
 
   function handleRegisterAnother() {
+    signupSubmissionLockRef.current = false;
     reset();
+    setIsNavigating(false);
     setEmailConfirmationPending(null);
     setFormError(null);
   }
@@ -197,6 +224,7 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
                   error={errors.password?.message}
                   field={passwordField}
                   onClearError={() => setFormError(null)}
+                  passwordRequirements={passwordRequirements}
                 />
               </div>
 
@@ -231,15 +259,15 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
               >
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isBusy}
                   className="group flex min-h-12 w-full items-center justify-between border border-[#c6e47c] bg-[#c6e47c] px-4 text-[12px] font-semibold text-[#11190a] transition-[transform,background-color,border-color] duration-200 hover:-translate-y-0.5 hover:border-[#dcf7a0] hover:bg-[#dcf7a0] active:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 motion-reduce:transition-none"
                 >
                   <span>
-                    {isSubmitting
+                    {isBusy
                       ? "Creating account..."
                       : "Create account"}
                   </span>
-                  {isSubmitting ? (
+                  {isBusy ? (
                     <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
                   ) : (
                     <span aria-hidden="true" className="text-[17px] font-normal">

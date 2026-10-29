@@ -2,6 +2,26 @@
 
 import { z } from "zod";
 
+export const SIGNUP_PASSWORD_MIN_LENGTH = 6;
+
+export function getSignupPasswordRequirements(password: string) {
+  return {
+    minLength: password.length >= SIGNUP_PASSWORD_MIN_LENGTH,
+    hasLetter: /[A-Za-z]/.test(password),
+    hasDigit: /[0-9]/.test(password),
+  };
+}
+
+const signupPasswordSchema = z
+  .string()
+  .min(
+    SIGNUP_PASSWORD_MIN_LENGTH,
+    `Password must be at least ${SIGNUP_PASSWORD_MIN_LENGTH} characters.`,
+  )
+  .max(72, "Password must be at most 72 characters.")
+  .regex(/[A-Za-z]/, "Password must include at least one letter.")
+  .regex(/[0-9]/, "Password must include at least one number.");
+
 export const signupSchema = z
   .object({
     name: z
@@ -10,10 +30,7 @@ export const signupSchema = z
       .min(1, "Please enter your name.")
       .max(100, "Name must be at most 100 characters."),
     email: z.string().trim().email("Please enter a valid email address."),
-    password: z
-      .string()
-      .min(6, "Password must be at least 6 characters.")
-      .max(72, "Password must be at most 72 characters."),
+    password: signupPasswordSchema,
     confirmPassword: z.string().min(1, "Please confirm your password."),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -33,10 +50,7 @@ export const signupServerSchema = z.object({
     .min(1, "Please enter your name.")
     .max(100, "Name must be at most 100 characters."),
   email: z.string().trim().email("Please enter a valid email address."),
-  password: z
-    .string()
-    .min(6, "Password must be at least 6 characters.")
-    .max(72, "Password must be at most 72 characters."),
+  password: signupPasswordSchema,
 });
 
 export type SignupFormValues = z.infer<typeof signupSchema>;
