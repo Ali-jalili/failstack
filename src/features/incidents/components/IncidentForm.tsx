@@ -28,6 +28,7 @@ import SystemTechnologiesStep from "./SystemTechnologiesStep";
 import TimelineStep from "./TimelineStep";
 import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
 import PreventionReviewStep from "./PreventionReviewStep";
+import PreviewStep from "./PreviewStep";
 
 const STEPS: readonly StepDefinition<IncidentFormValues>[] = [
   {
@@ -73,6 +74,16 @@ const STEPS: readonly StepDefinition<IncidentFormValues>[] = [
     description: "Concrete changes to stop it recurring",
     component: PreventionReviewStep,
     fields: ["preventionActions"],
+  },
+  {
+    // Read-only final review. It has no fields to validate of its own; it is
+    // only reachable after the data-entry steps (above) have validated. The
+    // submit button appears on this step (isLast).
+    id: "preview",
+    label: "Final preview",
+    description: "Review the complete report before submitting",
+    component: PreviewStep,
+    fields: [],
   },
 ] as const;
 
@@ -363,6 +374,8 @@ export default function IncidentForm({
               isSubmitting={isSubmitting}
               isLocked={isLocked}
               isLast={isLast}
+              backLabel={isLast ? "Back to Edit" : "Back"}
+              submitLabel="Confirm & Submit"
               onBack={back}
               onNext={next}
               onSubmit={() => {

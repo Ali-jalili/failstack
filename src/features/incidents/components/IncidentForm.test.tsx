@@ -123,6 +123,7 @@ async function advanceToFinalStep() {
   await continueToStep(/timeline/i);
   await continueToStep(/root cause & architecture/i);
   await continueToStep(/prevention & review/i);
+  await continueToStep(/final preview/i);
 }
 
 beforeEach(() => {
@@ -175,7 +176,7 @@ describe("QA-015: duplicate-title warning in the incident form", () => {
     expect(warning).toBeTruthy();
     // The submit control stays enabled despite the warning.
     const submit = screen.getByRole("button", {
-      name: /submit for review/i,
+      name: /confirm & submit/i,
     });
     expect((submit as HTMLButtonElement).disabled).toBe(false);
 
@@ -203,7 +204,7 @@ describe("QA-015: duplicate-title warning in the incident form", () => {
     expect(screen.queryByText(WARNING_TEXT)).toBeNull();
 
     const submit = screen.getByRole("button", {
-      name: /submit for review/i,
+      name: /confirm & submit/i,
     });
     expect((submit as HTMLButtonElement).disabled).toBe(false);
 
@@ -242,5 +243,143 @@ describe("QA-015: duplicate-title warning in the incident form", () => {
       expect(screen.queryByText(WARNING_TEXT)).toBeNull();
     });
     expect(mockedCheck).toHaveBeenCalledTimes(2);
+  });
+});
+
+/** Advance through all data-entry steps and land on the preview step. */
+async function advanceToPreview() {
+  await continueToStep(/system & technologies/i);
+  await continueToStep(/timeline/i);
+  await continueToStep(/root cause & architecture/i);
+  await continueToStep(/prevention & review/i);
+  await continueToStep(/final preview/i);
+}
+
+describe("Final preview step", () => {
+  it("displays representative values from all major sections", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    // Each section's representative value is visible in the preview region.
+    const preview = screen.getByRole("region", {
+      name: "Incident report preview",
+    });
+    expect(preview.textContent).toContain("Database outage");
+    expect(preview.textContent).toContain("Acme");
+    expect(preview.textContent).toContain("orders-service");
+    expect(preview.textContent).toContain("kubernetes");
+    expect(preview.textContent).toContain("Cascading Failure");
+    // A timeline event and a prevention action are surfaced too.
+    expect(preview.textContent).toContain("trigger");
+    expect(preview.textContent).toContain("add alerts");
+  });
+
+  // NOTE: "empty/optional fields render gracefully" is covered by the
+  // focused unit test in preview/PreviewSections.test.tsx. It is not repeated
+  // here because emptying the *required* array fields (technologies,
+  // preventionActions) would trip the wizard's own per-step validation and
+  // block reaching the preview.
+
+  it("is reachable only after the data-entry validations succeed", async () => {
+    const invalid: IncidentFormValues = {
+      ...initialValues(),
+      title: "short", // < 5 chars -> step 1 invalid
+    };
+
+    render(<IncidentForm initialValues={invalid} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Step 1 fails validation, so the wizard never advances: the final
+    // preview step and its region are unreachable.
+    expect(
+      screen.queryByRole("heading", { level: 2, name: /final preview/i }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "Incident report preview" }),
+    ).toBeNull();
+  });
+
+  it("Back to Edit preserves entered values and returns to the previous step", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /back to edit/i }));
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", {
+          level: 2,
+          name: /prevention & review/i,
+        }),
+      ).toBeTruthy();
+    });
+
+    // Data survives the round-trip: the Prevention & review step re-renders
+    // the entered title through its "Review incident" summary.
+    expect(screen.getByText("Database outage")).toBeTruthy();
+  });
+
+  it("reaching the preview does not invoke the server action", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    expect(mockedCreateIncident).not.toHaveBeenCalled();
+  });
+
+  it("Confirm & Submit invokes the existing submission flow exactly once", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    const submit = screen.getByRole("button", { name: /confirm & submit/i });
+    await act(async () => {
+      fireEvent.click(submit);
+    });
+
+    expect(
+      await screen.findByText(/incident submitted for review/i),
+    ).toBeTruthy();
+    expect(mockedCreateIncident).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failed submission keeps form data available and displays the error", async () => {
+    mockedCreateIncident.mockResolvedValue({
+      error: "Could not create a unique incident URL.",
+    });
+
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    const submit = screen.getByRole("button", { name: /confirm & submit/i });
+    await act(async () => {
+      fireEvent.click(submit);
+    });
+
+    // The error is shown and the author is NOT redirected / locked out.
+    expect(
+      await screen.findByText(/could not create a unique incident url/i),
+    ).toBeTruthy();
+    // Still on the preview step and the title value is intact.
+    expect(
+      screen.getByRole("region", { name: "Incident report preview" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /confirm & submit/i }),
+    ).toBeTruthy();
+  });
+
+  it("keeps the duplicate-title warning visible on the preview step", async () => {
+    mockedCheck.mockResolvedValue({ checked: true, duplicate: true });
+
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    expect(await screen.findByText(WARNING_TEXT)).toBeTruthy();
   });
 });
