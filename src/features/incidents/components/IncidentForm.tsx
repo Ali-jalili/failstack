@@ -10,6 +10,8 @@ import {
   createIncident,
   updateIncidentResubmit,
 } from "@/features/incidents/server/actions";
+import { checkDuplicateTitle } from "@/features/incidents/server/title-duplicates";
+import { useDuplicateTitleCheck } from "./use-duplicate-title-check";
 import {
   incidentFormSchema,
   type IncidentFormValues,
@@ -188,11 +190,27 @@ export default function IncidentForm({
 
   const { handleSubmit, trigger } = form;
 
+  // QA-015: non-blocking advisory shown when the title matches an existing
+  // (published) incident title. It never disables navigation or submission,
+  // and a failed check is swallowed by the hook so submission stays safe.
+  const { warning: duplicateTitleWarning, runCheck: runDuplicateTitleCheck } =
+    useDuplicateTitleCheck({
+      mode,
+      incidentId,
+      getCurrentTitle: () => form.getValues("title"),
+      check: checkDuplicateTitle,
+    });
+
   const next = async () => {
     if (isLast || isLocked) return;
     const stepFields = STEPS[step].fields;
     const isValid = await trigger(stepFields);
     if (isValid) {
+      // QA-015: check the title when leaving the basic-info step. Changing
+      // the title to a non-duplicate clears the warning on the next check.
+      if (step === 0) {
+        void runDuplicateTitleCheck(form.getValues("title"));
+      }
       setStep(step + 1);
       setSubmitError(null);
     }
@@ -337,7 +355,6 @@ export default function IncidentForm({
               </form>
             </FormProvider>
           </div>
-
           {/* Navigation */}
           <div className="mt-7">
             <StepNav
@@ -353,13 +370,27 @@ export default function IncidentForm({
               }}
             />
           </div>
-
           <StepStatusPanel
             error={submitError}
             success={hasSubmitted ? submitSuccess : null}
             successActionHref={hasSubmitted ? "/my-incidents" : undefined}
             successActionLabel={hasSubmitted ? "View your reports" : undefined}
           />
+          {/* QA-015: advisory duplicate-title warning. Never blocks the form. */}
+          {duplicateTitleWarning ? (
+            <div
+              role="alert"
+              aria-live="polite"
+              className="mt-4 border-l-2 border-[#e2a16d]/60 bg-[#e2a16d]/[0.07] px-4 py-3"
+            >
+              <p className="font-mono text-[9px] uppercase leading-[1.6] tracking-[0.12em] text-[#e2a16d]">
+                Title already in use
+              </p>
+              <p className="mt-1.5 text-[13px] leading-[1.7] text-slate-300">
+                {duplicateTitleWarning}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
