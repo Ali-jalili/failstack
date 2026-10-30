@@ -3,14 +3,8 @@
 "use client";
 
 import { rootCauseNodeTypeSchema } from "@/features/incidents/schema";
-import {
-  type IncidentFormValues,
-} from "@/features/incidents/form-schema";
-import {
-  Controller,
-  useFieldArray,
-  useFormContext,
-} from "react-hook-form";
+import { type IncidentFormValues } from "@/features/incidents/form-schema";
+import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import { FormSectionHeading } from "./form-fields";
 
 type RootCauseNode = IncidentFormValues["rootCauseTree"][number];
@@ -75,6 +69,7 @@ export default function RootCauseArchitectureStep() {
     control,
     setValue,
     register,
+    clearErrors,
     watch,
     formState: { errors },
   } = useFormContext<IncidentFormValues>();
@@ -87,6 +82,7 @@ export default function RootCauseArchitectureStep() {
     errors.rootCauseTree?.message ?? errors.rootCauseTree?.root?.message;
 
   const addNode = (parentId: string | null) => {
+    clearErrors("rootCauseTree");
     append({
       id: crypto.randomUUID(),
       parentId,
@@ -134,9 +130,7 @@ export default function RootCauseArchitectureStep() {
         />
         <button
           type="button"
-          onClick={() =>
-            nodes.length === 0 ? addNode(null) : addNodeToRoot()
-          }
+          onClick={() => (nodes.length === 0 ? addNode(null) : addNodeToRoot())}
           className="shrink-0 border border-slate-700 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-200 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
         >
           + {nodes.length === 0 ? "Add root cause" : "Add node"}
@@ -219,9 +213,7 @@ export default function RootCauseArchitectureStep() {
                       </label>
                       <select
                         id={`root-cause-${index}-type`}
-                        {...register(
-                          `rootCauseTree.${index}.type` as const,
-                        )}
+                        {...register(`rootCauseTree.${index}.type` as const)}
                         className={inputClass(Boolean(nodeErrors?.type))}
                       >
                         {rootCauseNodeTypeSchema.options.map((type) => (
@@ -266,14 +258,11 @@ export default function RootCauseArchitectureStep() {
                               { shouldDirty: true, shouldValidate: true },
                             )
                           }
-                          className={inputClass(
-                            Boolean(nodeErrors?.parentId),
-                          )}
+                          className={inputClass(Boolean(nodeErrors?.parentId))}
                         >
                           {nodes
                             .filter(
-                              (candidate) =>
-                                !descendantIds.has(candidate.id),
+                              (candidate) => !descendantIds.has(candidate.id),
                             )
                             .map((candidate) => (
                               <option
@@ -305,9 +294,11 @@ export default function RootCauseArchitectureStep() {
                     <input
                       id={`root-cause-${index}-title`}
                       type="text"
-                      {...register(
-                        `rootCauseTree.${index}.title` as const,
-                      )}
+                      {...register(`rootCauseTree.${index}.title` as const, {
+                        onChange: () => {
+                          clearErrors(`rootCauseTree.${index}.title` as const);
+                        },
+                      })}
                       placeholder="e.g. Database connection pool exhausted"
                       className={inputClass(Boolean(nodeErrors?.title))}
                     />
@@ -381,10 +372,7 @@ export default function RootCauseArchitectureStep() {
         />
 
         <div>
-          <label
-            htmlFor="architecture-before-fix"
-            className={labelClass}
-          >
+          <label htmlFor="architecture-before-fix" className={labelClass}>
             Before the fix
           </label>
           <textarea

@@ -2,9 +2,7 @@
 
 "use client";
 
-import {
-  type IncidentFormValues,
-} from "@/features/incidents/form-schema";
+import { type IncidentFormValues } from "@/features/incidents/form-schema";
 import { timelineStageSchema } from "@/features/incidents/schema";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { FormSectionHeading } from "./form-fields";
@@ -28,6 +26,7 @@ export default function TimelineStep() {
     getValues,
     register,
     setValue,
+    clearErrors,
     watch,
     formState: { errors },
   } = useFormContext<IncidentFormValues>();
@@ -39,6 +38,7 @@ export default function TimelineStep() {
     errors.timeline?.message ?? errors.timeline?.root?.message;
 
   const addEvent = () => {
+    clearErrors("timeline");
     const timeline = getValues("timeline");
     const lastOffset = timeline.at(-1)?.timestampOffsetMinutes ?? 0;
 
@@ -169,12 +169,8 @@ export default function TimelineStep() {
                       ) : (
                         <select
                           id={`timeline-${index}-stage`}
-                          {...register(
-                            `timeline.${index}.stage` as const,
-                          )}
-                          className={inputClass(
-                            Boolean(eventErrors?.stage),
-                          )}
+                          {...register(`timeline.${index}.stage` as const)}
+                          className={inputClass(Boolean(eventErrors?.stage))}
                         >
                           {timelineStageSchema.options.map((stage) => (
                             <option
@@ -205,7 +201,11 @@ export default function TimelineStep() {
                     <input
                       id={`timeline-${index}-title`}
                       type="text"
-                      {...register(`timeline.${index}.title` as const)}
+                      {...register(`timeline.${index}.title` as const, {
+                        onChange: () => {
+                          clearErrors(`timeline.${index}.title` as const);
+                        },
+                      })}
                       placeholder="e.g. Database connection errors begin"
                       className={inputClass(Boolean(eventErrors?.title))}
                     />
@@ -226,9 +226,7 @@ export default function TimelineStep() {
                     <textarea
                       id={`timeline-${index}-description`}
                       rows={3}
-                      {...register(
-                        `timeline.${index}.description` as const,
-                      )}
+                      {...register(`timeline.${index}.description` as const)}
                       placeholder="Describe what happened during this event."
                       className={`${inputClass(
                         Boolean(eventErrors?.description),
@@ -290,7 +288,9 @@ export default function TimelineStep() {
                           { shouldDirty: true, shouldValidate: true },
                         );
                       }}
-                      placeholder={"One command per line, e.g.\nkubectl get pods"}
+                      placeholder={
+                        "One command per line, e.g.\nkubectl get pods"
+                      }
                       className="block h-auto w-full resize-y rounded-md border border-slate-800 bg-[#0d1520] px-4 py-3 font-mono text-[13px] leading-[1.6] text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:border-[#c6e47c] focus:outline-none focus:ring-2 focus:ring-[#c6e47c]/25 motion-reduce:transition-none"
                     />
                   </div>

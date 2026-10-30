@@ -2,9 +2,7 @@
 
 "use client";
 
-import {
-  type IncidentFormValues,
-} from "@/features/incidents/form-schema";
+import { type IncidentFormValues } from "@/features/incidents/form-schema";
 import { useFieldArray, useFormContext } from "react-hook-form";
 import { FormSectionHeading } from "./form-fields";
 
@@ -30,6 +28,7 @@ export default function PreventionReviewStep() {
     control,
     register,
     watch,
+    clearErrors,
     formState: { errors },
   } = useFormContext<IncidentFormValues>();
   const { fields, append, remove } = useFieldArray({
@@ -50,7 +49,10 @@ export default function PreventionReviewStep() {
         />
         <button
           type="button"
-          onClick={() => append({ title: "", description: "" })}
+          onClick={() => {
+            clearErrors("preventionActions");
+            append({ title: "", description: "" });
+          }}
           className="shrink-0 border border-slate-700 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-200 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
         >
           + Add action
@@ -107,6 +109,13 @@ export default function PreventionReviewStep() {
                       type="text"
                       {...register(
                         `preventionActions.${index}.title` as const,
+                        {
+                          onChange: () => {
+                            clearErrors(
+                              `preventionActions.${index}.title` as const,
+                            );
+                          },
+                        },
                       )}
                       placeholder="e.g. Add connection pool saturation alerts"
                       className={inputClass(Boolean(actionErrors?.title))}
@@ -165,8 +174,7 @@ export default function PreventionReviewStep() {
                 {reviewValue(values.title)}
               </p>
               <p className="mt-1 text-[12px] text-slate-400">
-                {reviewValue(values.companyName)} ·{" "}
-                {reviewValue(values.system)}
+                {reviewValue(values.companyName)} · {reviewValue(values.system)}
               </p>
             </div>
             <span className="border border-slate-700/80 bg-slate-900/40 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.08em] text-slate-300">
