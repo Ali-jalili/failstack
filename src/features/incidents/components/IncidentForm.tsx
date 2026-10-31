@@ -375,7 +375,9 @@ export default function IncidentForm({
               isLocked={isLocked}
               isLast={isLast}
               backLabel={isLast ? "Back to Edit" : "Back"}
-              submitLabel="Confirm & Submit"
+              submitLabel={
+                mode === "edit" ? "Confirm & Save Changes" : "Confirm & Submit"
+              }
               onBack={back}
               onNext={next}
               onSubmit={() => {

@@ -37,12 +37,7 @@ const summaryStatuses: IncidentStatus[] = [
   "CHANGES_REQUESTED",
 ];
 
-const lifecycleStages = [
-  "Submitted",
-  "Under review",
-  "Decision",
-  "Published",
-];
+const lifecycleStages = ["Submitted", "Under review", "Decision", "Published"];
 
 function formatCreatedAt(value: string) {
   return new Date(value).toLocaleString("en", {
@@ -63,7 +58,8 @@ function EditorialSidebar({ count }: { count: number | null }) {
         Incident <em className="text-[#c6e47c]">casebook.</em>
       </h1>
       <p className="mt-5 max-w-xs text-[13px] leading-[1.75] text-slate-400">
-        A record of the incidents you have contributed and where each one stands.
+        A record of the incidents you have contributed and where each one
+        stands.
       </p>
 
       <div className="mt-8 border-y border-slate-800/80 py-4">
@@ -97,7 +93,9 @@ function StatusOverview({ reports }: { reports: MyReport[] }) {
       <dl className="mt-3 grid grid-cols-1 border-y border-slate-800/80 sm:grid-cols-3">
         {summaryStatuses.map((status, index) => {
           const details = statusDetails[status];
-          const count = reports.filter((report) => report.status === status).length;
+          const count = reports.filter(
+            (report) => report.status === status,
+          ).length;
 
           return (
             <div
@@ -157,10 +155,15 @@ function SubmissionJourney() {
 
 function ReportStatus({ report }: { report: MyReport }) {
   const status = statusDetails[report.status];
+  // Only non-published incidents are editable. PUBLISHED incidents must not
+  // expose an edit entry point to avoid accidental mutation of public data.
+  const isEditable = report.status !== "PUBLISHED";
 
   return (
     <div>
-      <p className={`flex items-center gap-2 text-xs font-medium ${status.color}`}>
+      <p
+        className={`flex items-center gap-2 text-xs font-medium ${status.color}`}
+      >
         <span aria-hidden="true" className="h-1.5 w-1.5 rotate-45 bg-current" />
         {status.label}
       </p>
@@ -168,9 +171,10 @@ function ReportStatus({ report }: { report: MyReport }) {
         {status.description}
       </p>
 
-      {report.status === "CHANGES_REQUESTED" && (
+      {isEditable && (
         <div className="mt-3 border-l border-[#e2a16d]/50 pl-3">
-          {report.latest_review_reason && (
+          {report.status === "CHANGES_REQUESTED" &&
+          report.latest_review_reason ? (
             <>
               <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#d79b75]">
                 Reviewer feedback
@@ -179,13 +183,16 @@ function ReportStatus({ report }: { report: MyReport }) {
                 {report.latest_review_reason}
               </p>
             </>
-          )}
+          ) : null}
           <Link
             href={`/incidents/${report.id}/edit`}
             className="group mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-[#e2a16d] underline decoration-[#e2a16d]/30 underline-offset-4 transition-colors hover:text-[#f0b88f] hover:decoration-[#f0b88f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e2a16d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
           >
             Edit report
-            <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1 group-focus-visible:translate-x-1 motion-reduce:transition-none" />
+            <ArrowUpRight
+              aria-hidden="true"
+              className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-1 group-focus-visible:translate-x-1 motion-reduce:transition-none"
+            />
           </Link>
         </div>
       )}
@@ -195,7 +202,8 @@ function ReportStatus({ report }: { report: MyReport }) {
 
 function ReportHistory({ reports }: { reports: MyReport[] }) {
   const sortedReports = [...reports].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
 
   if (sortedReports.length === 0) {
@@ -228,7 +236,8 @@ function ReportHistory({ reports }: { reports: MyReport[] }) {
           Report history
         </h2>
         <p className="text-xs text-slate-500">
-          {sortedReports.length} {sortedReports.length === 1 ? "entry" : "entries"}
+          {sortedReports.length}{" "}
+          {sortedReports.length === 1 ? "entry" : "entries"}
         </p>
       </div>
 
@@ -292,7 +301,11 @@ export default function MyReportsList({
             <p className="mt-2 break-words text-rose-200/80">{error}</p>
           </div>
         ) : reports === null ? (
-          <p role="status" aria-live="polite" className="py-6 text-sm text-slate-400">
+          <p
+            role="status"
+            aria-live="polite"
+            className="py-6 text-sm text-slate-400"
+          >
             Loading your reports...
           </p>
         ) : (

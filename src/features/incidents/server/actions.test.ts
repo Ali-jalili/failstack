@@ -23,12 +23,14 @@ const updateResult: { data: undefined; error: unknown; count: number } = {
 };
 let updateChain: {
   eq: MockFn;
+  in: MockFn;
   then: (onFulfilled: () => unknown) => Promise<unknown>;
 };
 
 const builder = {
   select: vi.fn(),
   eq: vi.fn(),
+  in: vi.fn(),
   maybeSingle: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
@@ -37,17 +39,19 @@ const builder = {
 function reset() {
   updateResult.count = 0;
   updateResult.error = null;
-  // A fluent thenable: `.eq()` keeps the chain, and awaiting the chain
-  // (the production code does `await ...update(...).eq().eq().eq()`) must
+  // A fluent thenable: `.eq()` and `.in()` keep the chain, and awaiting the
+  // chain (the production code does `await ...update(...).eq().eq().in()`) must
   // resolve to the `{ count, error }` payload rather than to `undefined`.
   updateChain = {
     eq: vi.fn(() => updateChain),
+    in: vi.fn(() => updateChain),
     then: (onFulfilled?: (value: unknown) => unknown) =>
       Promise.resolve(onFulfilled ? onFulfilled(updateResult) : updateResult),
   };
 
   builder.select.mockReset().mockImplementation(() => builder);
   builder.eq.mockReset().mockImplementation(() => builder);
+  builder.in = vi.fn(() => builder);
   builder.maybeSingle
     .mockReset()
     .mockResolvedValue({ data: null, error: null });
@@ -385,15 +389,19 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
 
     expect(r).toEqual({
       error:
-        "Could not update the incident. It may not exist, you may not be the owner, or it is no longer editable.",
+        "Could not update the incident. It may not exist, you may not be the owner, or its status no longer allows editing.",
     });
-    // The update was scoped by owner + status + id.
+    // The update was scoped by owner + editable statuses + id.
     expect(b.update).toHaveBeenCalledWith(expect.anything(), {
       count: "exact",
     });
     expect(updateChain.eq).toHaveBeenCalledWith("id", "incident-1");
     expect(updateChain.eq).toHaveBeenCalledWith("author_id", "u-author");
-    expect(updateChain.eq).toHaveBeenCalledWith("status", "CHANGES_REQUESTED");
+    expect(updateChain.in).toHaveBeenCalledWith("status", [
+      "DRAFT",
+      "PENDING_REVIEW",
+      "CHANGES_REQUESTED",
+    ]);
   });
 
   it("succeeds when exactly one matching row is updated", async () => {
@@ -415,7 +423,7 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
 
     expect(r).toEqual({
       error:
-        "Could not update the incident. It may not exist, you may not be the owner, or it is no longer editable.",
+        "Could not update the incident. It may not exist, you may not be the owner, or its status no longer allows editing.",
     });
   });
 
@@ -436,6 +444,37 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
 
     expect(r).toEqual({
       error: "The incident update did not affect exactly one report.",
+    });
+  });
+
+  it("accepts DRAFT status for editing", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    driveUpdate({ count: 1 });
+    const r = await updateIncidentResubmit(validPayload());
+    expect(r).toEqual({ error: null });
+  });
+
+  it("accepts PENDING_REVIEW status for editing", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    driveUpdate({ count: 1 });
+    const r = await updateIncidentResubmit(validPayload());
+    expect(r).toEqual({ error: null });
+  });
+
+  it("accepts CHANGES_REQUESTED status for editing", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    driveUpdate({ count: 1 });
+    const r = await updateIncidentResubmit(validPayload());
+    expect(r).toEqual({ error: null });
+  });
+
+  it("rejects PUBLISHED incidents from being edited", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    driveUpdate({ count: 0 });
+    const r = await updateIncidentResubmit(validPayload());
+    expect(r).toEqual({
+      error:
+        "Could not update the incident. It may not exist, you may not be the owner, or its status no longer allows editing.",
     });
   });
 });

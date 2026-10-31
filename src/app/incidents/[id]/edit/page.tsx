@@ -40,12 +40,18 @@ export default async function EditIncidentPage({ params }: Props) {
     )
     .eq("id", id)
     .eq("author_id", currentUser.userId)
-    .eq("status", "CHANGES_REQUESTED")
     .maybeSingle();
 
   if (error || !incident) {
-    // Incident not found, not the owner's, no longer in CHANGES_REQUESTED,
-    // or DB error: return to the author's report list.
+    // Incident not found, not the owner's, or DB error: return to the author's
+    // report list.
+    redirect("/my-incidents");
+  }
+
+  // Published reports are immutable. Reject direct URL access so no author can
+  // accidentally (or intentionally) mutate a published incident through the
+  // edit route.
+  if (incident.status === "PUBLISHED") {
     redirect("/my-incidents");
   }
 
@@ -54,7 +60,8 @@ export default async function EditIncidentPage({ params }: Props) {
   const myReports = await getMyReports();
   const reviewerNote =
     myReports.kind === "success"
-      ? myReports.reports.find((r) => r.id === id)?.latest_review_reason ?? null
+      ? (myReports.reports.find((r) => r.id === id)?.latest_review_reason ??
+        null)
       : null;
 
   function toLocalDateTime(iso?: string | null) {

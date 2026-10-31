@@ -237,14 +237,15 @@ export async function updateIncidentResubmit(input: unknown) {
     status: "PENDING_REVIEW",
   };
 
-  // Attempt conditional update: only allow owner to update and only when status is CHANGES_REQUESTED
+  // Attempt conditional update: only allow owner to update. Published and
+  // other unsupported statuses are rejected by the status IN clause below.
   const incidentUpdate = supabase.from("incidents");
 
   const { count: updatedCount, error: updateError } = await incidentUpdate
     .update(row, { count: "exact" })
     .eq("id", id)
     .eq("author_id", currentUser.userId)
-    .eq("status", "CHANGES_REQUESTED");
+    .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED"]);
 
   if (updateError) {
     return { error: updateError.message };
@@ -253,7 +254,7 @@ export async function updateIncidentResubmit(input: unknown) {
   if (updatedCount === 0) {
     return {
       error:
-        "Could not update the incident. It may not exist, you may not be the owner, or it is no longer editable.",
+        "Could not update the incident. It may not exist, you may not be the owner, or its status no longer allows editing.",
     };
   }
 
