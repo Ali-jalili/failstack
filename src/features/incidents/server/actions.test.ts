@@ -32,8 +32,10 @@ const builder = {
   eq: vi.fn(),
   in: vi.fn(),
   maybeSingle: vi.fn(),
+  single: vi.fn(),
   insert: vi.fn(),
   update: vi.fn(),
+  delete: vi.fn(),
 };
 
 function reset() {
@@ -52,12 +54,14 @@ function reset() {
   builder.select.mockReset().mockImplementation(() => builder);
   builder.eq.mockReset().mockImplementation(() => builder);
   builder.in = vi.fn(() => builder);
+  builder.single = vi.fn().mockReturnValue(builder);
   builder.maybeSingle
     .mockReset()
     .mockResolvedValue({ data: null, error: null });
   builder.insert
     .mockReset()
     .mockResolvedValue({ data: undefined, error: null });
+  builder.delete.mockReset().mockImplementation(() => updateChain);
   builder.update.mockReset().mockImplementation(() => updateChain);
 }
 
@@ -96,7 +100,11 @@ import {
   getCurrentUserState,
   type CurrentUserState,
 } from "@/features/auth/server/current-user";
-import { createIncident, updateIncidentResubmit } from "./actions";
+import {
+  createIncident,
+  updateIncidentResubmit,
+  deleteIncident,
+} from "./actions";
 
 const mockCurrentUser = vi.mocked(getCurrentUserState);
 
@@ -476,5 +484,162 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
       error:
         "Could not update the incident. It may not exist, you may not be the owner, or its status no longer allows editing.",
     });
+  });
+});
+
+describe("deleteIncident", () => {
+  const validId = "abc-123";
+  const publishedIncident = { id: validId, title: "Test", status: "PUBLISHED" };
+  const draftIncident = { id: validId, title: "Test", status: "DRAFT" };
+
+  beforeEach(freshBuilders);
+
+  function mockAuth(state: CurrentUserState) {
+    mockCurrentUser.mockResolvedValue(state);
+  }
+
+  function mockFetchIncident(
+    data: typeof publishedIncident | null,
+    error: unknown = null,
+  ) {
+    const b = lastBuilder();
+    b.select.mockReturnValueOnce(b);
+    b.eq.mockReturnValueOnce(b);
+    b.single.mockResolvedValueOnce({ data, error });
+  }
+
+  function mockAccessCheck(data: { id: string } | null, error: unknown = null) {
+    const b = lastBuilder();
+    b.select.mockReturnValueOnce(b);
+    b.eq.mockReturnValueOnce(b);
+    b.eq.mockReturnValueOnce(b);
+    b.single.mockResolvedValueOnce({ data, error });
+  }
+
+  it("rejects when not authenticated", async () => {
+    mockAuth({ kind: "anonymous" });
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({ error: "Not authenticated." });
+  });
+
+  it("rejects when auth state has an error", async () => {
+    mockAuth({ kind: "error", message: "session expired" });
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({ error: "session expired" });
+  });
+
+  it("rejects invalid ID", async () => {
+    mockAuth(author);
+    const r = await deleteIncident("");
+    expect(r).toEqual({ error: "Invalid incident ID." });
+  });
+
+  it("rejects when incident not found", async () => {
+    mockAuth(author);
+    mockFetchIncident(null, null);
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({
+      error: "Could not find the incident. It may have been deleted already.",
+    });
+  });
+
+  it("rejects when incident has a DB fetch error", async () => {
+    mockAuth(author);
+    mockFetchIncident(null, { message: "database down" });
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({
+      error: "Could not find the incident. It may have been deleted already.",
+    });
+  });
+
+  it("rejects PUBLISHED incidents from deletion", async () => {
+    mockAuth(author);
+    mockFetchIncident(publishedIncident);
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({
+      error:
+        "This incident cannot be deleted. Only incidents in DRAFT or CHANGES_REQUESTED status can be deleted.",
+    });
+  });
+
+  it("rejects PENDING_REVIEW incidents from deletion", async () => {
+    mockAuth(author);
+    mockFetchIncident({ ...draftIncident, status: "PENDING_REVIEW" });
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({
+      error:
+        "This incident cannot be deleted. Only incidents in DRAFT or CHANGES_REQUESTED status can be deleted.",
+    });
+  });
+
+  it("rejects when user is not the author", async () => {
+    mockAuth(author);
+    mockFetchIncident(draftIncident);
+    mockAccessCheck(null, null);
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({
+      error: "You do not have permission to delete this incident.",
+    });
+  });
+
+  it("rejects when access check returns an error", async () => {
+    mockAuth(author);
+    mockFetchIncident(draftIncident);
+    mockAccessCheck(null, { message: "permission denied" });
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({
+      error: "You do not have permission to delete this incident.",
+    });
+  });
+
+  it("deletes DRAFT incident successfully", async () => {
+    mockAuth(author);
+    mockFetchIncident(draftIncident);
+    mockAccessCheck({ id: validId });
+    const deleteChain = {
+      eq: vi.fn(() => deleteChain),
+      in: vi.fn(() => deleteChain),
+      then: vi.fn(async (cb?: (val: unknown) => unknown) => {
+        const result = { data: undefined, error: null };
+        return cb ? cb(result) : result;
+      }),
+    };
+    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({ error: null });
+  });
+
+  it("deletes CHANGES_REQUESTED incident successfully", async () => {
+    mockAuth(author);
+    mockFetchIncident({ ...draftIncident, status: "CHANGES_REQUESTED" });
+    mockAccessCheck({ id: validId });
+    const deleteChain = {
+      eq: vi.fn(() => deleteChain),
+      in: vi.fn(() => deleteChain),
+      then: vi.fn(async (cb?: (val: unknown) => unknown) => {
+        const result = { data: undefined, error: null };
+        return cb ? cb(result) : result;
+      }),
+    };
+    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({ error: null });
+  });
+
+  it("reports a DB error from the delete", async () => {
+    mockAuth(author);
+    mockFetchIncident(draftIncident);
+    mockAccessCheck({ id: validId });
+    const deleteChain = {
+      eq: vi.fn(() => deleteChain),
+      in: vi.fn(() => deleteChain),
+      then: vi.fn(async (cb?: (val: unknown) => unknown) => {
+        const result = { data: undefined, error: { message: "lock timeout" } };
+        return cb ? cb(result) : result;
+      }),
+    };
+    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({ error: "Failed to delete the incident: lock timeout" });
   });
 });

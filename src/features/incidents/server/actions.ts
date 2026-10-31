@@ -266,3 +266,83 @@ export async function updateIncidentResubmit(input: unknown) {
 
   return { error: null };
 }
+
+export async function deleteIncident(
+  id: string,
+): Promise<{ error: string | null }> {
+  const authState = await getCurrentUserState();
+  if (authState.kind === "error") {
+    return { error: authState.message };
+  }
+  if (authState.kind === "anonymous") {
+    return { error: "Not authenticated." };
+  }
+
+  const userId = authState.userId;
+  if (authState.roleError) {
+    return { error: authState.roleError };
+  }
+
+  if (!id || typeof id !== "string") {
+    return { error: "Invalid incident ID." };
+  }
+
+  const supabase = await createClient();
+  const { data: incident, error: fetchError } = await supabase
+    .from("incidents")
+    .select("id, title, status")
+    .eq("id", id)
+    .single()
+    .then(
+      (res) =>
+        res as
+          | {
+              data: { id: string; title: string; status: string } | null;
+              error: unknown;
+            }
+          | { data: null; error: { message: string } },
+    );
+
+  if (fetchError || !incident) {
+    return {
+      error: "Could not find the incident. It may have been deleted already.",
+    };
+  }
+
+  const allowedStatuses = ["DRAFT", "CHANGES_REQUESTED"] as const;
+  if (
+    !allowedStatuses.includes(
+      incident.status as (typeof allowedStatuses)[number],
+    )
+  ) {
+    return {
+      error:
+        "This incident cannot be deleted. Only incidents in DRAFT or CHANGES_REQUESTED status can be deleted.",
+    };
+  }
+
+  const { data: accessCheck, error: accessError } = await supabase
+    .from("incidents")
+    .select("id")
+    .eq("id", id)
+    .eq("author_id", userId)
+    .single()
+    .then((res) => res as { data: { id: string } | null; error: unknown });
+
+  if (accessError || !accessCheck) {
+    return { error: "You do not have permission to delete this incident." };
+  }
+
+  const { error: deleteError } = await supabase
+    .from("incidents")
+    .delete()
+    .eq("id", id)
+    .eq("author_id", userId)
+    .in("status", allowedStatuses);
+
+  if (deleteError) {
+    return { error: `Failed to delete the incident: ${deleteError.message}` };
+  }
+
+  return { error: null };
+}

@@ -1,9 +1,16 @@
 /** @format */
 
 import Link from "next/link";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { ArrowUpRight, Plus, Trash2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import type { IncidentStatus } from "@/types/incident";
 import type { MyReport } from "@/features/incidents/server/queries";
+import { deleteIncident } from "@/features/incidents/server/actions";
+import {
+  successToastOptions,
+  errorToastOptions,
+} from "@/features/auth/components/auth-toast";
 
 const statusDetails: Record<
   IncidentStatus,
@@ -153,11 +160,100 @@ function SubmissionJourney() {
   );
 }
 
-function ReportStatus({ report }: { report: MyReport }) {
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  incident,
+  onDelete,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  incident: MyReport;
+  onDelete: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+
+  if (!open) return null;
+
+  async function handleDelete() {
+    startTransition(async () => {
+      const result = await deleteIncident(incident.id);
+      if (result.error) {
+        toast.error(result.error, errorToastOptions);
+      } else {
+        toast.success(`"${incident.title}" deleted.`, successToastOptions);
+        onDelete();
+      }
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <dialog
+      open={open}
+      className="fixed inset-0 z-50 m-auto w-full max-w-sm rounded-lg border border-slate-700/60 bg-[#0c151c] p-6 shadow-2xl backdrop:bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+    >
+      <div className="flex items-start gap-3">
+        <div
+          aria-hidden="true"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-rose-500/10"
+        >
+          <Trash2 className="h-4 w-4 text-rose-400" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-rose-400">
+            Delete incident
+          </p>
+          <p className="mt-1 break-words text-sm font-medium text-[#f1f1e9]">
+            {incident.title}
+          </p>
+          <p className="mt-2 text-xs leading-6 text-slate-400">
+            This action is permanent. The incident will be removed from your
+            reports and from the public archive. This cannot be undone.
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          disabled={isPending}
+          className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-700 px-3 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-[#f1f1e9] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={isPending}
+          className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-md bg-rose-600 px-3 text-xs font-semibold text-white transition-colors hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
+        >
+          {isPending ? (
+            <>Deleting...</>
+          ) : (
+            <>
+              <Trash2 aria-hidden="true" className="h-3.5 w-3.5" />
+              Delete permanently
+            </>
+          )}
+        </button>
+      </div>
+    </dialog>
+  );
+}
+
+function ReportStatus({
+  report,
+  onDeleted,
+}: {
+  report: MyReport;
+  onDeleted: () => void;
+}) {
   const status = statusDetails[report.status];
-  // Only non-published incidents are editable. PUBLISHED incidents must not
-  // expose an edit entry point to avoid accidental mutation of public data.
   const isEditable = report.status !== "PUBLISHED";
+  const canDelete =
+    report.status === "DRAFT" || report.status === "CHANGES_REQUESTED";
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
     <div>
@@ -196,11 +292,38 @@ function ReportStatus({ report }: { report: MyReport }) {
           </Link>
         </div>
       )}
+
+      {canDelete && (
+        <button
+          type="button"
+          onClick={() => setDeleteOpen(true)}
+          className="group mt-2 inline-flex min-h-9 items-center gap-1.5 text-xs font-semibold text-rose-400 underline decoration-rose-400/30 underline-offset-4 transition-colors hover:text-rose-300 hover:decoration-rose-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"
+        >
+          <Trash2
+            aria-hidden="true"
+            className="h-3.5 w-3.5 transition-transform duration-150 group-hover:translate-x-0.5 motion-reduce:transition-none"
+          />
+          Delete report
+        </button>
+      )}
+
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        incident={report}
+        onDelete={onDeleted}
+      />
     </div>
   );
 }
 
-function ReportHistory({ reports }: { reports: MyReport[] }) {
+function ReportHistory({
+  reports,
+  onDeleted,
+}: {
+  reports: MyReport[];
+  onDeleted: (id: string) => void;
+}) {
   const sortedReports = [...reports].sort(
     (a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
@@ -269,7 +392,10 @@ function ReportHistory({ reports }: { reports: MyReport[] }) {
             </div>
 
             <div className="min-w-0 sm:pt-0.5">
-              <ReportStatus report={report} />
+              <ReportStatus
+                report={report}
+                onDeleted={() => onDeleted(report.id)}
+              />
             </div>
           </li>
         ))}
@@ -286,10 +412,20 @@ export default function MyReportsList({
   error: string | null;
 }) {
   const contributionCount = reports?.length ?? null;
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
+
+  function handleDeleted(id: string) {
+    setDeletedIds((prev) => new Set(prev).add(id));
+  }
+
+  const visibleReports =
+    reports && deletedIds.size > 0
+      ? reports.filter((r) => !deletedIds.has(r.id))
+      : reports;
 
   return (
     <div className="grid gap-10 lg:grid-cols-[minmax(13rem,0.72fr)_minmax(0,1.7fr)] lg:gap-14 xl:gap-20">
-      <EditorialSidebar count={contributionCount} />
+      <EditorialSidebar count={visibleReports?.length ?? contributionCount} />
 
       <div className="casebook-main min-w-0">
         {error ? (
@@ -300,7 +436,8 @@ export default function MyReportsList({
             <p className="font-semibold">Unable to load your reports.</p>
             <p className="mt-2 break-words text-rose-200/80">{error}</p>
           </div>
-        ) : reports === null ? (
+        ) : visibleReports === null ||
+          (visibleReports.length === 0 && reports === null) ? (
           <p
             role="status"
             aria-live="polite"
@@ -310,9 +447,12 @@ export default function MyReportsList({
           </p>
         ) : (
           <>
-            <StatusOverview reports={reports} />
+            <StatusOverview reports={visibleReports ?? []} />
             <SubmissionJourney />
-            <ReportHistory reports={reports} />
+            <ReportHistory
+              reports={visibleReports ?? []}
+              onDeleted={handleDeleted}
+            />
           </>
         )}
       </div>
