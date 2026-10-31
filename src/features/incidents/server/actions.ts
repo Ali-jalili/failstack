@@ -9,7 +9,11 @@ import {
   getCurrentUserState,
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
-import { incidentFormSchema } from "@/features/incidents/form-schema";
+import {
+  incidentDraftSchema,
+  incidentFormSchema,
+  type IncidentDraftValues,
+} from "@/features/incidents/form-schema";
 import { getMyReports } from "@/features/incidents/server/queries";
 
 const isoDateTimeSchema = z.string().datetime();
@@ -267,6 +271,266 @@ export async function updateIncidentResubmit(input: unknown) {
   return { error: null };
 }
 
+// ---------------------------------------------------------------------------
+// Draft lifecycle
+//
+//  - saveDraft: create or update a DRAFT. Incomplete data is fine — only the
+//    minimum identifying fields (incidentDraftSchema) are required. This does
+//    NOT submit the incident for review; the status stays DRAFT.
+//  - submitDraft: validate the full report (incidentFormSchema) and transition
+//    a DRAFT to PENDING_REVIEW. A failed validation does not change the
+//    status.
+// ---------------------------------------------------------------------------
+
+function toDraftRow(
+  incident: IncidentDraftValues,
+  occurredAt: string,
+  authorId: string,
+): Record<string, unknown> {
+  return {
+    title: incident.title,
+    company_name: incident.companyName,
+    occurred_at: occurredAt,
+    duration_minutes: incident.durationMinutes,
+    severity: incident.severity,
+    pattern: incident.pattern,
+    summary: incident.summary,
+    official_post_mortem_url: incident.officialPostMortemUrl || null,
+    system: incident.system,
+    technologies: incident.technologies,
+    timeline: incident.timeline,
+    root_cause_tree: incident.rootCauseTree,
+    architecture_diff: incident.architectureDiff ?? null,
+    prevention_actions: incident.preventionActions,
+    author_id: authorId,
+    status: "DRAFT",
+  };
+}
+
+export async function saveDraft(
+  input: unknown,
+  incidentId?: string | null,
+  idempotencyKey?: string | null,
+): Promise<{
+  error: string | null;
+  slug?: string | null;
+  incidentId?: string | null;
+}> {
+  const parsed = incidentDraftSchema.safeParse(input);
+
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues
+        .map((issue) => `${issue.path.join(".") || "form"}: ${issue.message}`)
+        .join("; "),
+    };
+  }
+
+  const occurredAt = isoDateTimeSchema.safeParse(parsed.data.occurredAt);
+  if (!occurredAt.success) {
+    return {
+      error: "The incident date must be submitted as an ISO timestamp.",
+    };
+  }
+
+  const currentUser = await getCurrentUserState();
+
+  if (currentUser.kind === "anonymous") {
+    return { error: "You must be signed in to save a draft." };
+  }
+  if (currentUser.kind === "error") {
+    return { error: "Could not verify your sign-in. Please sign in again." };
+  }
+  if (currentUser.roleError) {
+    return { error: "Could not verify your role. Please try again." };
+  }
+  if (!hasAuthorAccess(currentUser)) {
+    return { error: "Author access required." };
+  }
+
+  const supabase = await createClient();
+  const row = toDraftRow(parsed.data, occurredAt.data, currentUser.userId);
+
+  // Updating an existing draft (resume flow).
+  if (incidentId) {
+    const { data: incident, error: fetchError } = await supabase
+      .from("incidents")
+      .select("id, status, slug")
+      .eq("id", incidentId)
+      .eq("author_id", currentUser.userId)
+      .maybeSingle();
+
+    if (fetchError || !incident) {
+      return { error: "Could not find that draft. It may have been deleted." };
+    }
+
+    // Only DRAFTs are updatable through this path; a PENDING_REVIEW /
+    // CHANGES_REQUESTED / PUBLISHED report must use the resubmit flow.
+    if (incident.status !== "DRAFT") {
+      return {
+        error:
+          "This report can no longer be saved as a draft. Use the edit flow instead.",
+      };
+    }
+
+    // Do NOT write author_id into the update payload — that would NULL out
+    // ownership. The .eq("author_id", ...) filter below is what scopes the
+    // update; `row` already carries the correct author_id and is safe to send
+    // as-is, but ownership is enforced by the WHERE clause, not the payload.
+    const updateRow: Record<string, unknown> = { ...row };
+    const { data: updated, error: updateError } = await supabase
+      .from("incidents")
+      .update(updateRow, {
+        count: "exact",
+      })
+      .eq("id", incidentId)
+      .eq("author_id", currentUser.userId)
+      .eq("status", "DRAFT")
+      .select("slug");
+
+    if (updateError) {
+      return { error: `Failed to save the draft: ${updateError.message}` };
+    }
+
+    if (!updated || updated.length === 0) {
+      return {
+        error:
+          "The draft could not be updated. It may have been deleted or its status changed.",
+      };
+    }
+
+    return { error: null, incidentId, slug: updated[0].slug ?? null };
+  }
+
+  // Creating a new draft.
+  const slug = createSlug(parsed.data.title);
+  const createRow: Record<string, unknown> = { ...row, slug };
+
+  if (idempotencyKey) {
+    createRow.idempotency_key = idempotencyKey;
+  }
+
+  const { error: insertError } = await supabase
+    .from("incidents")
+    .insert(createRow);
+
+  if (insertError) {
+    return { error: `Failed to save the draft: ${insertError.message}` };
+  }
+
+  // The row's slug is deterministic from the title; return it so the caller
+  // can link to the draft. A freshly-created draft always has this slug.
+  return { error: null, incidentId: null, slug: slug };
+}
+
+export async function submitDraft(
+  incidentId: string,
+): Promise<{ error: string | null; slug?: string }> {
+  if (!incidentId || typeof incidentId !== "string") {
+    return { error: "Invalid incident ID." };
+  }
+
+  const currentUser = await getCurrentUserState();
+
+  if (currentUser.kind === "anonymous") {
+    return { error: "You must be signed in to submit a draft." };
+  }
+  if (currentUser.kind === "error") {
+    return { error: "Could not verify your sign-in. Please sign in again." };
+  }
+  if (currentUser.roleError) {
+    return { error: "Could not verify your role. Please try again." };
+  }
+  if (!hasAuthorAccess(currentUser)) {
+    return { error: "Author access required." };
+  }
+
+  const supabase = await createClient();
+
+  // Fetch the full draft, revalidate it against the *submission* schema, and
+  // only then transition it. A report that fails full validation is left in
+  // DRAFT so the author can keep editing.
+  const { data: incident, error: fetchError } = await supabase
+    .from("incidents")
+    .select("*")
+    .eq("id", incidentId)
+    .eq("author_id", currentUser.userId)
+    .eq("status", "DRAFT")
+    .maybeSingle();
+
+  if (fetchError) {
+    return { error: `Failed to load the draft: ${fetchError.message}` };
+  }
+
+  if (!incident) {
+    return {
+      error: "Could not find that draft. It may have been deleted.",
+    };
+  }
+
+  const submitRow = {
+    title: incident.title,
+    companyName: incident.company_name,
+    occurredAt: incident.occurred_at,
+    durationMinutes: incident.duration_minutes,
+    severity: incident.severity,
+    pattern: incident.pattern,
+    summary: incident.summary,
+    officialPostMortemUrl: incident.official_post_mortem_url ?? "",
+    system: incident.system,
+    technologies: (incident.technologies as unknown[]) ?? [],
+    timeline: (incident.timeline as unknown[]) ?? [],
+    rootCauseTree: (incident.root_cause_tree as unknown[]) ?? [],
+    architectureDiff: incident.architecture_diff ?? null,
+    preventionActions: (incident.prevention_actions as unknown[]) ?? [],
+  };
+
+  const validated = incidentFormSchema.safeParse(submitRow);
+  if (!validated.success) {
+    return {
+      error:
+        "This report is not complete yet: " +
+        validated.error.issues
+          .map((issue) => `${issue.path.join(".") || "form"}: ${issue.message}`)
+          .join("; "),
+    };
+  }
+
+  // The submission must re-check the ISO timestamp for the occurredAt value.
+  const occurredAt = isoDateTimeSchema.safeParse(
+    validated.data.occurredAt as string,
+  );
+  if (!occurredAt.success) {
+    return {
+      error: "The incident date must be submitted as an ISO timestamp.",
+    };
+  }
+
+  const { data: updated, error: updateError } = await supabase
+    .from("incidents")
+    .update({
+      status: "PENDING_REVIEW",
+      occurred_at: occurredAt.data,
+    })
+    .eq("id", incidentId)
+    .eq("author_id", currentUser.userId)
+    .eq("status", "DRAFT")
+    .select("slug");
+
+  if (updateError) {
+    return { error: `Failed to submit the draft: ${updateError.message}` };
+  }
+
+  if (!updated || updated.length === 0) {
+    return {
+      error:
+        "The draft was not submitted. It may have been deleted or its status changed.",
+    };
+  }
+
+  return { error: null, slug: updated[0].slug ?? null };
+}
+
 export async function deleteIncident(
   id: string,
 ): Promise<{ error: string | null }> {
@@ -278,10 +542,17 @@ export async function deleteIncident(
     return { error: "Not authenticated." };
   }
 
-  const userId = authState.userId;
   if (authState.roleError) {
     return { error: authState.roleError };
   }
+
+  // Reviewers/admins must not use the author deletion flow; only plain
+  // authors may delete their own reports.
+  if (!hasAuthorAccess(authState)) {
+    return { error: "Author access required." };
+  }
+
+  const userId = authState.userId;
 
   if (!id || typeof id !== "string") {
     return { error: "Invalid incident ID." };

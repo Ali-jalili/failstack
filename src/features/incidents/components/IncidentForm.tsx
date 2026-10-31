@@ -8,6 +8,8 @@ import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   createIncident,
+  saveDraft,
+  submitDraft,
   updateIncidentResubmit,
 } from "@/features/incidents/server/actions";
 import { checkDuplicateTitle } from "@/features/incidents/server/title-duplicates";
@@ -166,6 +168,7 @@ export default function IncidentForm({
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -295,6 +298,95 @@ export default function IncidentForm({
     }
   }
 
+  // Save the current (possibly incomplete) form as a DRAFT. No full form
+  // validation is applied — the server's draft schema is the gate. A draft
+  // save never submits the incident for review.
+  async function onSaveDraft() {
+    if (isLocked || isSavingDraft) return;
+    setIsSavingDraft(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const values = form.getValues() as Partial<IncidentFormValues>;
+      const occurredAt = values.occurredAt
+        ? toIsoFromLocalDateTime(values.occurredAt)
+        : null;
+      if (values.occurredAt && !occurredAt) {
+        setSubmitError(
+          "Enter a valid local date and time for when the incident occurred, or clear the field.",
+        );
+        return;
+      }
+
+      const payload = {
+        title: values.title ?? "",
+        companyName: values.companyName ?? "",
+        occurredAt: occurredAt ?? "",
+        durationMinutes: values.durationMinutes ?? 0,
+        severity: values.severity ?? "MINOR",
+        pattern: values.pattern ?? "SINGLE_POINT_OF_FAILURE",
+        summary: values.summary ?? "",
+        officialPostMortemUrl: values.officialPostMortemUrl ?? "",
+        system: values.system ?? "",
+        technologies: values.technologies ?? [],
+        timeline: values.timeline ?? [],
+        rootCauseTree: values.rootCauseTree ?? [],
+        architectureDiff: values.architectureDiff ?? null,
+        preventionActions: values.preventionActions ?? [],
+      };
+
+      const result = await saveDraft(payload, incidentId, idempotencyKeyRef);
+      if (result.error) {
+        setSubmitError(result.error);
+        return;
+      }
+      setSubmitSuccess(
+        incidentId
+          ? "Draft updated."
+          : "Draft saved. You can continue editing later from My reports.",
+      );
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred while saving the draft.",
+      );
+    } finally {
+      setIsSavingDraft(false);
+    }
+  }
+
+  // Submit a DRAFT (resume flow). The server revalidates the full report and
+  // only transitions to PENDING_REVIEW when it is complete and valid.
+  async function onResubmitDraft() {
+    if (isLocked || submitLockRef.current || !incidentId) return;
+    submitLockRef.current = true;
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    try {
+      const result = await submitDraft(incidentId);
+      if (result.error) {
+        setSubmitError(result.error);
+        return;
+      }
+      setSubmitSuccess("Draft submitted for review.");
+      setHasSubmitted(true);
+      setTimeout(() => router.push("/my-incidents"), 2500);
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred while submitting the draft.",
+      );
+    } finally {
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+    }
+  }
+
   const kickerText = mode === "edit" ? "EDIT REPORT" : "NEW REPORT";
   const headline =
     mode === "edit" ? "Edit incident report" : "New incident report";
@@ -384,6 +476,26 @@ export default function IncidentForm({
                 void handleSubmit(onSubmit)();
               }}
             />
+            <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => void onSaveDraft()}
+                disabled={isLocked || isSavingDraft}
+                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-700/80 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-300 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isSavingDraft ? "Saving…" : "Save draft"}
+              </button>
+              {mode === "edit" && incidentId ? (
+                <button
+                  type="button"
+                  onClick={() => void onResubmitDraft()}
+                  disabled={isLocked || isSubmitting}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#c6e47c]/40 bg-[#c6e47c]/10 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#d5e8a5] transition-colors hover:border-[#c6e47c]/60 hover:bg-[#c6e47c]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {isSubmitting ? "Submitting…" : "Submit draft for review"}
+                </button>
+              ) : null}
+            </div>
           </div>
           <StepStatusPanel
             error={submitError}

@@ -7,6 +7,7 @@ import {
   incidentPatternSchema,
   incidentSeveritySchema,
   preventionActionSchema,
+  rootCauseNodeSchema,
   rootCauseTreeSchema,
   timelineEventSchema,
 } from "./schema";
@@ -130,3 +131,38 @@ export const incidentFormSchema = z
   );
 
 export type IncidentFormValues = z.infer<typeof incidentFormSchema>;
+
+//?? Draft schema
+//
+// A draft only needs the minimum identifying fields so it can be listed,
+// resumed and later submitted. It must still respect format/safety
+// constraints (enum + URL shape) but does NOT require the full report body
+// (timeline, root-cause tree, prevention actions, etc.).
+//
+// This is intentionally separate from `incidentFormSchema`: submitting a
+// draft runs the full submission schema and only then does the status
+// transition to PENDING_REVIEW.
+export const incidentDraftSchema = z.object({
+  title: z.string().min(5, "Incident title must be at least 5 characters"),
+  companyName: z.string().min(2, "Company/Organization name is required"),
+  occurredAt: z.string().min(1, "Occurrence date is required"),
+  durationMinutes: z
+    .number()
+    .int("Incident duration must be a whole number of minutes"),
+  severity: incidentSeveritySchema,
+  pattern: incidentPatternSchema,
+  summary: z.string(),
+  officialPostMortemUrl: z
+    .string()
+    .url("Invalid post-mortem URL")
+    .optional()
+    .or(z.literal("")),
+  system: z.string(),
+  technologies: z.array(z.string()),
+  timeline: z.array(timelineEventSchema),
+  rootCauseTree: z.array(rootCauseNodeSchema),
+  architectureDiff: z.any(),
+  preventionActions: z.array(preventionActionSchema),
+});
+
+export type IncidentDraftValues = z.infer<typeof incidentDraftSchema>;

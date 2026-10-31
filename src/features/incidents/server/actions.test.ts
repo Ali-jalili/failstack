@@ -16,7 +16,7 @@ vi.mock("server-only", () => ({}));
 // the production code does `await incidentUpdate.update(...).eq(...).eq(...)`.
 type MockFn = ReturnType<typeof vi.fn>;
 
-const updateResult: { data: undefined; error: unknown; count: number } = {
+const updateResult: { data: unknown; error: unknown; count: number } = {
   data: undefined,
   error: null,
   count: 0,
@@ -24,6 +24,7 @@ const updateResult: { data: undefined; error: unknown; count: number } = {
 let updateChain: {
   eq: MockFn;
   in: MockFn;
+  select: MockFn;
   then: (onFulfilled: () => unknown) => Promise<unknown>;
 };
 
@@ -47,6 +48,7 @@ function reset() {
   updateChain = {
     eq: vi.fn(() => updateChain),
     in: vi.fn(() => updateChain),
+    select: vi.fn(() => updateChain),
     then: (onFulfilled?: (value: unknown) => unknown) =>
       Promise.resolve(onFulfilled ? onFulfilled(updateResult) : updateResult),
   };
@@ -104,6 +106,8 @@ import {
   createIncident,
   updateIncidentResubmit,
   deleteIncident,
+  saveDraft,
+  submitDraft,
 } from "./actions";
 
 const mockCurrentUser = vi.mocked(getCurrentUserState);
@@ -592,6 +596,20 @@ describe("deleteIncident", () => {
     });
   });
 
+  it("rejects a reviewer (reviewer has no author access)", async () => {
+    mockAuth({
+      kind: "authenticated",
+      userId: "u-reviewer",
+      email: null,
+      reviewRole: "reviewer",
+      roleError: null,
+    });
+    const r = await deleteIncident(validId);
+    expect(r).toEqual({ error: "Author access required." });
+    // No database access should happen for a reviewer.
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
   it("deletes DRAFT incident successfully", async () => {
     mockAuth(author);
     mockFetchIncident(draftIncident);
@@ -641,5 +659,229 @@ describe("deleteIncident", () => {
     vi.mocked(builder.delete).mockReturnValue(deleteChain);
     const r = await deleteIncident(validId);
     expect(r).toEqual({ error: "Failed to delete the incident: lock timeout" });
+  });
+});
+
+// Drive the awaited update chain (used by saveDraft/submitDraft, which do
+// `await from().update(...).eq().eq().eq().select()`). The chain resolves to
+// the shared `updateResult` object, so we set its fields directly.
+function driveUpdateResult(outcome: {
+  data?: unknown;
+  error?: unknown;
+  count?: number;
+}) {
+  updateResult.data = outcome.data ?? undefined;
+  updateResult.error = outcome.error ?? null;
+  updateResult.count = outcome.count ?? 0;
+}
+
+describe("saveDraft", () => {
+  beforeEach(freshBuilders);
+
+  function validDraft(overrides: Record<string, unknown> = {}) {
+    return {
+      title: "Database outage",
+      companyName: "Acme",
+      occurredAt: "2026-01-01T00:00:00Z",
+      durationMinutes: 0,
+      severity: "MAJOR",
+      pattern: "CASCADING_FAILURE",
+      summary: "",
+      officialPostMortemUrl: "",
+      system: "orders-service",
+      technologies: [],
+      timeline: [],
+      rootCauseTree: [],
+      architectureDiff: null,
+      preventionActions: [],
+      ...overrides,
+    };
+  }
+
+  it("rejects anonymous users", async () => {
+    mockCurrentUser.mockResolvedValue({ kind: "anonymous" });
+    const r = await saveDraft(validDraft());
+    expect(r).toEqual({ error: "You must be signed in to save a draft." });
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reviewer (no author access)", async () => {
+    mockCurrentUser.mockResolvedValue({
+      kind: "authenticated",
+      userId: "u-reviewer",
+      email: null,
+      reviewRole: "reviewer",
+      roleError: null,
+    });
+    const r = await saveDraft(validDraft());
+    expect(r).toEqual({ error: "Author access required." });
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("creates a new draft with status DRAFT and returns its slug", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.insert.mockResolvedValueOnce({ data: undefined, error: null });
+
+    const r = await saveDraft(validDraft());
+
+    expect(r).toEqual({
+      error: null,
+      incidentId: null,
+      slug: "database-outage",
+    });
+    expect(b.insert).toHaveBeenCalledTimes(1);
+    const insertedRow = b.insert.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(insertedRow.status).toBe("DRAFT");
+    expect(insertedRow.author_id).toBe("u-author");
+  });
+
+  it("reports a DB error from a draft insert", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.insert.mockResolvedValueOnce({
+      data: undefined,
+      error: { message: "permission denied" },
+    });
+
+    const r = await saveDraft(validDraft());
+    expect(r).toEqual({
+      error: "Failed to save the draft: permission denied",
+    });
+  });
+
+  it("updates an existing DRAFT (resume) without creating a duplicate", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.maybeSingle.mockResolvedValueOnce({
+      data: { id: "d1", status: "DRAFT", slug: "database-outage" },
+      error: null,
+    });
+    driveUpdateResult({ data: [{ slug: "database-outage" }], error: null });
+
+    const r = await saveDraft(validDraft(), "d1");
+
+    expect(r).toEqual({
+      error: null,
+      incidentId: "d1",
+      slug: "database-outage",
+    });
+    expect(b.insert).not.toHaveBeenCalled();
+    expect(b.update).toHaveBeenCalledTimes(1);
+    // The update is scoped to the owner and to DRAFT status.
+    expect(updateChain.eq).toHaveBeenCalledWith("id", "d1");
+    expect(updateChain.eq).toHaveBeenCalledWith("author_id", "u-author");
+    expect(updateChain.eq).toHaveBeenCalledWith("status", "DRAFT");
+  });
+
+  it("refuses to update a report that is no longer a DRAFT", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.maybeSingle.mockResolvedValueOnce({
+      data: { id: "d1", status: "PENDING_REVIEW", slug: "x" },
+      error: null,
+    });
+
+    const r = await saveDraft(validDraft(), "d1");
+    expect(r).toMatchObject({
+      error:
+        "This report can no longer be saved as a draft. Use the edit flow instead.",
+    });
+    expect(b.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("submitDraft", () => {
+  beforeEach(freshBuilders);
+
+  function completeDraftRow() {
+    return {
+      title: "Database outage",
+      company_name: "Acme",
+      occurred_at: "2026-01-01T00:00:00Z",
+      duration_minutes: 120,
+      severity: "MAJOR",
+      pattern: "CASCADING_FAILURE",
+      summary: "A summary that is long enough.",
+      official_post_mortem_url: null,
+      system: "orders-service",
+      technologies: ["kubernetes"],
+      timeline: validForm().timeline,
+      root_cause_tree: validForm().rootCauseTree,
+      architecture_diff: validForm().architectureDiff,
+      prevention_actions: validForm().preventionActions,
+    };
+  }
+
+  it("rejects anonymous users", async () => {
+    mockCurrentUser.mockResolvedValue({ kind: "anonymous" });
+    const r = await submitDraft("d1");
+    expect(r).toEqual({ error: "You must be signed in to submit a draft." });
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the draft is not found / not owned", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+    const r = await submitDraft("d1");
+    expect(r).toEqual({
+      error: "Could not find that draft. It may have been deleted.",
+    });
+  });
+
+  it("rejects an incomplete draft and does not transition its status", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    // An incomplete draft: empty summary and timeline.
+    b.maybeSingle.mockResolvedValueOnce({
+      data: {
+        ...completeDraftRow(),
+        summary: "",
+        timeline: [],
+        prevention_actions: [],
+      },
+      error: null,
+    });
+
+    const r = await submitDraft("d1");
+    expect(r).toMatchObject({ error: expect.stringContaining("not complete") });
+    // No status transition happened.
+    expect(b.update).not.toHaveBeenCalled();
+  });
+
+  it("transitions a complete DRAFT to PENDING_REVIEW", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.maybeSingle.mockResolvedValueOnce({
+      data: completeDraftRow(),
+      error: null,
+    });
+    driveUpdateResult({ data: [{ slug: "database-outage" }], error: null });
+
+    const r = await submitDraft("d1");
+    expect(r).toEqual({ error: null, slug: "database-outage" });
+    expect(b.update).toHaveBeenCalledTimes(1);
+    expect(b.update).toHaveBeenCalledWith(expect.anything());
+    expect(updateChain.eq).toHaveBeenCalledWith("id", "d1");
+    expect(updateChain.eq).toHaveBeenCalledWith("author_id", "u-author");
+    expect(updateChain.eq).toHaveBeenCalledWith("status", "DRAFT");
+  });
+
+  it("reports zero-rows from the transition as failure", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.maybeSingle.mockResolvedValueOnce({
+      data: completeDraftRow(),
+      error: null,
+    });
+    driveUpdateResult({ data: [], error: null });
+
+    const r = await submitDraft("d1");
+    expect(r).toMatchObject({
+      error:
+        "The draft was not submitted. It may have been deleted or its status changed.",
+    });
   });
 });
