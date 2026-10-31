@@ -1,4 +1,5 @@
 /** @format */
+"use client";
 
 import Link from "next/link";
 import { ArrowUpRight, Plus, Trash2 } from "lucide-react";
