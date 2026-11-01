@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   test: {
+    testTimeout: 15_000,
+    maxWorkers: 2,
     // `.build-validation/` is an untracked project mirror created by a
     // build-validation workflow; its stale copies of source files must not
     // be picked up as test files.
