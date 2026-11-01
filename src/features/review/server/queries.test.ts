@@ -99,7 +99,7 @@ describe("getIncidentReviewQueue authorization", () => {
 
     await expect(getIncidentReviewQueue()).resolves.toEqual({
       kind: "error",
-      message: "Could not verify your sign-in: auth down",
+      message: "Could not verify your sign-in. Please refresh and try again.",
     });
     expect(mocks.createClient).not.toHaveBeenCalled();
   });
@@ -113,7 +113,8 @@ describe("getIncidentReviewQueue authorization", () => {
 
     await expect(getIncidentReviewQueue()).resolves.toEqual({
       kind: "error",
-      message: "Could not verify reviewer access: roles unavailable",
+      message:
+        "Could not verify reviewer access. Please refresh and try again.",
     });
     expect(mocks.createClient).not.toHaveBeenCalled();
   });
@@ -192,7 +193,7 @@ describe("getIncidentReviewQueue data access", () => {
     });
   });
 
-  it("returns author_name/author_email as null when the RPC is not yet available", async () => {
+  it("returns null author identities when a successful RPC finds no identities", async () => {
     const incidents = [
       {
         id: "incident-1",
@@ -220,10 +221,9 @@ describe("getIncidentReviewQueue data access", () => {
       },
     ];
     mocks.queryResult = { data: incidents, error: null };
-    // Simulate the pre-DBA-state where the RPC does not exist yet.
     mocks.rpc.mockResolvedValue({
-      data: null,
-      error: { message: "function get_author_identities does not exist" },
+      data: [],
+      error: null,
     });
 
     const result = await getIncidentReviewQueue();
@@ -236,6 +236,65 @@ describe("getIncidentReviewQueue data access", () => {
           author_email: null,
         },
       ],
+    });
+  });
+
+  it("returns a safe error when author identity retrieval fails", async () => {
+    const incidents = [
+      {
+        id: "incident-1",
+        slug: "db-outage",
+        title: "Database outage",
+        company_name: "Acme",
+        occurred_at: "2026-01-01T00:00:00Z",
+        duration_minutes: 45,
+        severity: "MAJOR",
+        pattern: "CASCADING_FAILURE",
+        summary: "A database outage affected order processing.",
+        official_post_mortem_url: null,
+        system: "orders-service",
+        technologies: ["PostgreSQL"],
+        timeline: [],
+        root_cause_tree: [],
+        architecture_diff: {
+          beforeFix: "a",
+          afterFix: "b",
+          isFact: true,
+        },
+        prevention_actions: [],
+        created_at: "2026-01-01T00:00:00Z",
+        author_id: "auth-user-1",
+      },
+    ];
+    mocks.queryResult = { data: incidents, error: null };
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: {
+        message:
+          "permission denied for auth.users; internal-db-host; secret-token",
+      },
+    });
+
+    await expect(getIncidentReviewQueue()).resolves.toEqual({
+      kind: "error",
+      message:
+        "Could not load author identities for the review queue. Please refresh and try again.",
+    });
+  });
+
+  it("returns an error when the identity RPC rejects instead of returning a result", async () => {
+    mocks.queryResult = {
+      data: [{ id: "i1", author_id: "author-1" }],
+      error: null,
+    };
+    mocks.rpc.mockRejectedValue(
+      new Error("internal-db-host; secret-token"),
+    );
+
+    await expect(getIncidentReviewQueue()).resolves.toEqual({
+      kind: "error",
+      message:
+        "Could not load author identities for the review queue. Please refresh and try again.",
     });
   });
 
@@ -350,7 +409,8 @@ describe("getIncidentReviewQueue data access", () => {
 
     await expect(getIncidentReviewQueue()).resolves.toEqual({
       kind: "error",
-      message: "Could not load incidents pending review: database unavailable",
+      message:
+        "Could not load incidents pending review. Please refresh and try again.",
     });
     expect(mocks.from).toHaveBeenCalledTimes(1);
   });
@@ -379,7 +439,8 @@ describe("getReviewIncidentDetail authorization", () => {
 
     await expect(getReviewIncidentDetail("i-1")).resolves.toEqual({
       kind: "error",
-      message: "Could not verify reviewer access: roles unavailable",
+      message:
+        "Could not verify reviewer access. Please refresh and try again.",
     });
     expect(mocks.from).not.toHaveBeenCalled();
   });
@@ -476,7 +537,7 @@ describe("getReviewIncidentDetail data access", () => {
     });
   });
 
-  it("propagates the database error verbatim (never misrepresented as missing)", async () => {
+  it("propagates a safe database error (never misrepresented as missing)", async () => {
     mocks.queryResult = {
       data: null,
       error: { message: "database unavailable" },
@@ -485,7 +546,25 @@ describe("getReviewIncidentDetail data access", () => {
     const result = await getReviewIncidentDetail("i-1");
     expect(result).toEqual({
       kind: "error",
-      message: "Could not load incidents pending review: database unavailable",
+      message:
+        "Could not load incidents pending review. Please refresh and try again.",
+    });
+  });
+
+  it("propagates identity lookup failures as a safe detail-page error", async () => {
+    mocks.queryResult = {
+      data: [{ id: "i1", author_id: "author-1" }],
+      error: null,
+    };
+    mocks.rpc.mockResolvedValue({
+      data: null,
+      error: { message: "permission denied for auth.users; secret-token" },
+    });
+
+    await expect(getReviewIncidentDetail("i1")).resolves.toEqual({
+      kind: "error",
+      message:
+        "Could not load author identities for the review queue. Please refresh and try again.",
     });
   });
 });

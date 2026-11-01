@@ -81,13 +81,22 @@ type IncidentRowWithoutAuthor = Omit<
   "author_name" | "author_email"
 >;
 
+const REVIEW_SIGN_IN_ERROR =
+  "Could not verify your sign-in. Please refresh and try again.";
+const REVIEW_ACCESS_ERROR =
+  "Could not verify reviewer access. Please refresh and try again.";
+const REVIEW_QUEUE_ERROR =
+  "Could not load incidents pending review. Please refresh and try again.";
+const AUTHOR_IDENTITIES_ERROR =
+  "Could not load author identities for the review queue. Please refresh and try again.";
+
 export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResult> {
   const currentUser = await getCurrentUserState();
 
   if (currentUser.kind === "error") {
     return {
       kind: "error",
-      message: `Could not verify your sign-in: ${currentUser.message}`,
+      message: REVIEW_SIGN_IN_ERROR,
     };
   }
 
@@ -98,7 +107,7 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
   if (currentUser.roleError) {
     return {
       kind: "error",
-      message: `Could not verify reviewer access: ${currentUser.roleError}`,
+      message: REVIEW_ACCESS_ERROR,
     };
   }
 
@@ -118,7 +127,7 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
   if (error) {
     return {
       kind: "error",
-      message: `Could not load incidents pending review: ${error.message}`,
+      message: REVIEW_QUEUE_ERROR,
     };
   }
 
@@ -133,9 +142,9 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
   //   - `auth.users.raw_user_meta_data ->> 'name'`
   // and is callable only by the reviewer role that is already gated above.
   //
-  // If the function has not been created (or EXECUTE has not been granted
-  // to the calling role), we degrade gracefully: every incident gets
-  // `author_name: null, author_email: null` and the queue still renders.
+  // An empty successful result means identities are unavailable for these
+  // authors. An RPC failure is different: return an error rather than showing
+  // a successful queue with silently missing identity data.
   const authorIds = Array.from(
     new Set(
       incidents
@@ -146,19 +155,28 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
 
   let authorMap: Map<string, AuthorIdentity> = new Map();
   if (authorIds.length > 0) {
-    const { data: authorRows, error: authorError } = await supabase.rpc(
-      "get_author_identities",
-      { p_author_ids: authorIds },
-    );
-
-    if (!authorError && Array.isArray(authorRows)) {
-      authorMap = new Map(
-        authorRows
-          .filter(
-            (row): row is AuthorIdentity => typeof row?.author_id === "string",
-          )
-          .map((row) => [row.author_id, row] as const),
+    try {
+      const { data: authorRows, error: authorError } = await supabase.rpc(
+        "get_author_identities",
+        { p_author_ids: authorIds },
       );
+
+      if (authorError) {
+        return { kind: "error", message: AUTHOR_IDENTITIES_ERROR };
+      }
+
+      if (Array.isArray(authorRows)) {
+        authorMap = new Map(
+          authorRows
+            .filter(
+              (row): row is AuthorIdentity =>
+                typeof row?.author_id === "string",
+            )
+            .map((row) => [row.author_id, row] as const),
+        );
+      }
+    } catch {
+      return { kind: "error", message: AUTHOR_IDENTITIES_ERROR };
     }
   }
 
