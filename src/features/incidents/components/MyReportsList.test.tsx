@@ -107,6 +107,28 @@ describe("MyReportsList delete confirmation dialog", () => {
     expect(deleteIncident).not.toHaveBeenCalled();
   });
 
+  it("has an accessible name and focuses Cancel when opened", () => {
+    renderWithReports([makeReport({ status: "DRAFT" })]);
+    openDialog();
+
+    const dialog = screen.getByRole("dialog", { name: "Delete incident" });
+    expect(dialog.getAttribute("aria-labelledby")).toBe(
+      "delete-confirm-dialog-title",
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /cancel/i }),
+    );
+  });
+
+  it("closes when Escape is pressed", () => {
+    renderWithReports([makeReport({ status: "DRAFT" })]);
+    openDialog();
+
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
   it("canceling closes the dialog without deleting", () => {
     renderWithReports([makeReport({ status: "CHANGES_REQUESTED" })]);
     openDialog();

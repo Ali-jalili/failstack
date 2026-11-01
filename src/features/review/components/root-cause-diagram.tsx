@@ -187,12 +187,20 @@ export function RootCauseDiagram({ nodes }: { nodes: RootCauseNode[] }) {
             const isActive = node.id === activeId;
             const x = pos.x - NODE_W / 2;
             const y = pos.y;
+            const selectNode = () => setActiveId(node.id);
 
             return (
               <g
                 key={node.id}
-                onClick={() => setActiveId(node.id)}
-                className="cursor-pointer"
+                onClick={selectNode}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    selectNode();
+                  }
+                }}
+                tabIndex={0}
+                className="cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c6e47c]"
                 role="button"
                 aria-label={`${meta.label}: ${node.title}`}
               >

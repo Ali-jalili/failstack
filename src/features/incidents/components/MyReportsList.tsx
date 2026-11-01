@@ -3,7 +3,7 @@
 
 import Link from "next/link";
 import { ArrowUpRight, Plus, Trash2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { IncidentStatus } from "@/types/incident";
 import type { MyReport } from "@/features/incidents/server/queries";
@@ -173,6 +173,13 @@ function DeleteConfirmDialog({
   onDelete: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
+  const cancelButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      cancelButtonRef.current?.focus();
+    }
+  }, [open]);
 
   if (!open) return null;
 
@@ -192,6 +199,13 @@ function DeleteConfirmDialog({
   return (
     <dialog
       open={open}
+      aria-labelledby="delete-confirm-dialog-title"
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          onOpenChange(false);
+        }
+      }}
       className="fixed inset-0 z-50 m-auto w-full max-w-sm rounded-lg border border-slate-700/60 bg-[#0c151c] p-6 shadow-2xl backdrop:bg-black/60 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
     >
       <div className="flex items-start gap-3">
@@ -202,7 +216,10 @@ function DeleteConfirmDialog({
           <Trash2 className="h-4 w-4 text-rose-400" />
         </div>
         <div className="min-w-0">
-          <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-rose-400">
+          <p
+            id="delete-confirm-dialog-title"
+            className="font-mono text-[10px] uppercase tracking-[0.1em] text-rose-400"
+          >
             Delete incident
           </p>
           <p className="mt-1 break-words text-sm font-medium text-[#f1f1e9]">
@@ -217,6 +234,7 @@ function DeleteConfirmDialog({
       <div className="mt-5 flex justify-end gap-2">
         <button
           type="button"
+          ref={cancelButtonRef}
           onClick={() => onOpenChange(false)}
           disabled={isPending}
           className="inline-flex min-h-9 items-center justify-center rounded-md border border-slate-700 px-3 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-800 hover:text-[#f1f1e9] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16]"
