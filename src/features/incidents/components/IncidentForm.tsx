@@ -167,6 +167,7 @@ export default function IncidentForm({
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -220,6 +221,9 @@ export default function IncidentForm({
     const stepFields = STEPS[step].fields;
     const isValid = await trigger(stepFields);
     if (isValid) {
+      setCompletedSteps((completed) =>
+        completed.includes(step) ? completed : [...completed, step],
+      );
       // QA-015: check the title when leaving the basic-info step. Changing
       // the title to a non-duplicate clears the warning on the next check.
       if (step === 0) {
@@ -227,14 +231,37 @@ export default function IncidentForm({
       }
       setStep(step + 1);
       setSubmitError(null);
+    } else {
+      setCompletedSteps((completed) =>
+        completed.filter((completedStep) => completedStep !== step),
+      );
     }
   };
 
   const back = () => {
     if (!isFirst && !isLocked) {
-      setStep(step - 1);
+      const previousStep = step - 1;
+      setCompletedSteps((completed) =>
+        completed.filter((completedStep) => completedStep !== previousStep),
+      );
+      setStep(previousStep);
       setSubmitError(null);
     }
+  };
+
+  const goToCompletedStep = (targetStep: number) => {
+    if (
+      isLocked ||
+      targetStep >= step ||
+      !completedSteps.includes(targetStep)
+    ) {
+      return;
+    }
+    setCompletedSteps((completed) =>
+      completed.filter((completedStep) => completedStep !== targetStep),
+    );
+    setStep(targetStep);
+    setSubmitError(null);
   };
 
   async function onSubmit(data: IncidentFormValues) {
@@ -400,7 +427,7 @@ export default function IncidentForm({
       <div aria-hidden="true" className="incident-orb incident-orb-lime" />
       <div aria-hidden="true" className="incident-orb incident-orb-warm" />
 
-      <div className="relative mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8 lg:py-16">
+      <div className="relative mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         {/* Kicker */}
         <p className="flex items-center gap-[11px] font-mono text-[10px] uppercase leading-[1.6] tracking-[0.12em] text-[#c6e47c]">
           <span
@@ -432,7 +459,12 @@ export default function IncidentForm({
 
         {/* Step indicator */}
         <div className="mt-8">
-          <StepIndicator steps={STEPS} currentStep={step} />
+          <StepIndicator
+            steps={STEPS}
+            currentStep={step}
+            completedSteps={completedSteps}
+            onStepSelect={goToCompletedStep}
+          />
         </div>
 
         {/* Active step card */}
@@ -499,7 +531,7 @@ export default function IncidentForm({
           </div>
           <StepStatusPanel
             error={submitError}
-            success={hasSubmitted ? submitSuccess : null}
+            success={submitSuccess}
             successActionHref={hasSubmitted ? "/my-incidents" : undefined}
             successActionLabel={hasSubmitted ? "View your reports" : undefined}
           />

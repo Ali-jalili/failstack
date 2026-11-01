@@ -27,6 +27,7 @@ import type * as React from "react";
 // form, so the real wizard, zod resolver and step components all run.
 vi.mock("@/features/incidents/server/actions", () => ({
   createIncident: vi.fn(),
+  saveDraft: vi.fn(),
   updateIncidentResubmit: vi.fn(),
 }));
 
@@ -46,11 +47,15 @@ vi.mock("next/link", async () => {
 });
 
 import type { IncidentFormValues } from "@/features/incidents/form-schema";
-import { createIncident } from "@/features/incidents/server/actions";
+import {
+  createIncident,
+  saveDraft,
+} from "@/features/incidents/server/actions";
 import { checkDuplicateTitle } from "@/features/incidents/server/title-duplicates";
 import IncidentForm from "./IncidentForm";
 
 const mockedCreateIncident = vi.mocked(createIncident);
+const mockedSaveDraft = vi.mocked(saveDraft);
 const mockedCheck = vi.mocked(checkDuplicateTitle);
 
 const WARNING_TEXT = /another published incident already uses this title/i;
@@ -131,6 +136,10 @@ beforeEach(() => {
   mockedCreateIncident.mockResolvedValue({
     error: null,
     slug: "database-outage",
+  });
+  mockedSaveDraft.mockResolvedValue({
+    error: null,
+    incidentId: "draft-id",
   });
   mockedCheck.mockReset();
   mockedCheck.mockResolvedValue({ checked: true, duplicate: false });
@@ -243,6 +252,141 @@ describe("QA-015: duplicate-title warning in the incident form", () => {
       expect(screen.queryByText(WARNING_TEXT)).toBeNull();
     });
     expect(mockedCheck).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Incident workbench editing", () => {
+  it("edits one timeline event at a time and preserves edits when switching", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await continueToStep(/system & technologies/i);
+    await continueToStep(/timeline/i);
+
+    expect(screen.getAllByLabelText("Event title")).toHaveLength(1);
+    fireEvent.click(
+      screen.getByRole("button", { name: /event 2: failure/i }),
+    );
+    expect(screen.getByLabelText("Event title")).toHaveProperty(
+      "value",
+      "failure",
+    );
+    fireEvent.change(screen.getByLabelText("Event title"), {
+      target: { value: "Database pool exhausted" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /event 1: trigger/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /event 2: database pool exhausted/i }),
+    );
+    expect(screen.getByLabelText("Event title")).toHaveProperty(
+      "value",
+      "Database pool exhausted",
+    );
+    expect(screen.getAllByLabelText("Event title")).toHaveLength(1);
+  });
+
+  it("offers navigation to an event with validation errors", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await continueToStep(/system & technologies/i);
+    await continueToStep(/timeline/i);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /event 2: failure/i }),
+    );
+    fireEvent.change(screen.getByLabelText("Event title"), {
+      target: { value: "" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /go to event 2/i }),
+    );
+    expect(screen.getByLabelText("Event title")).toHaveProperty("value", "");
+    expect(
+      screen.getByRole("button", { name: /event 2: untitled, failure.*validation errors/i }),
+    ).toBeTruthy();
+  });
+
+  it("edits only the selected root-cause node", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await continueToStep(/system & technologies/i);
+    await continueToStep(/timeline/i);
+    await continueToStep(/root cause & architecture/i);
+
+    expect(screen.getAllByLabelText("Title")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: /\+ add child/i }));
+    expect(screen.getAllByLabelText("Title")).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Pool configuration" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /contributing factor: pool configuration/i,
+      }),
+    );
+    expect(screen.getByLabelText("Title")).toHaveProperty(
+      "value",
+      "Pool configuration",
+    );
+    expect(screen.getAllByLabelText("Title")).toHaveLength(1);
+  });
+
+  it("saves selected timeline and root-cause edits through the existing draft flow", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await continueToStep(/system & technologies/i);
+    await continueToStep(/timeline/i);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /event 2: failure/i }),
+    );
+    fireEvent.change(screen.getByLabelText("Event title"), {
+      target: { value: "Database pool exhausted" },
+    });
+    await continueToStep(/root cause & architecture/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /\+ add child/i }));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Pool configuration" },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /save draft/i }));
+    });
+
+    expect(await screen.findByText(/draft saved/i)).toBeTruthy();
+    expect(mockedSaveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeline: expect.arrayContaining([
+          expect.objectContaining({
+            id: "e2",
+            title: "Database pool exhausted",
+          }),
+        ]),
+        rootCauseTree: expect.arrayContaining([
+          expect.objectContaining({ title: "Pool configuration" }),
+        ]),
+      }),
+      undefined,
+      expect.any(String),
+    );
+  });
+
+  it("allows returning to a previously validated step from the step indicator", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await continueToStep(/system & technologies/i);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Basic info, completed step",
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: /basic info/i }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Incident title")).toHaveProperty(
+      "value",
+      "Database outage",
+    );
   });
 });
 

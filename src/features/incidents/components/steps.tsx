@@ -17,9 +17,13 @@ const monoLabel =
 export function StepIndicator<Values>({
   steps,
   currentStep,
+  completedSteps,
+  onStepSelect,
 }: {
   steps: readonly StepDefinition<Values>[];
   currentStep: number;
+  completedSteps: readonly number[];
+  onStepSelect: (step: number) => void;
 }) {
   return (
     <ol
@@ -28,18 +32,23 @@ export function StepIndicator<Values>({
     >
       {steps.map((step, index) => {
         const isActive = index === currentStep;
-        const isDone = index < currentStep;
+        const isDone = completedSteps.includes(index);
+        const canSelect = isActive || isDone;
         const stateClass = isActive
           ? "border-[#c6e47c]/50 bg-[#c6e47c]/10 text-[#d5e8a5]"
           : isDone
-            ? "border-slate-700 bg-slate-800/40 text-slate-300"
+            ? "border-slate-700 bg-slate-800/40 text-slate-300 hover:border-[#c6e47c]/50"
             : "border-slate-800 bg-slate-900/40 text-slate-500";
 
         return (
           <li key={step.id}>
-            <span
+            <button
+              type="button"
               aria-current={isActive ? "step" : undefined}
-              className={`flex items-center gap-2 rounded-md border px-3 py-1.5 ${stateClass}`}
+              aria-label={`${step.label}, ${isActive ? "current step" : isDone ? "completed step" : "upcoming step"}`}
+              disabled={!canSelect}
+              onClick={() => onStepSelect(index)}
+              className={`flex items-center gap-2 rounded-md border px-3 py-1.5 disabled:cursor-default ${stateClass} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c]`}
             >
               <span
                 aria-hidden="true"
@@ -56,7 +65,7 @@ export function StepIndicator<Values>({
               <span className="text-[11px] font-medium tracking-normal normal-case">
                 {step.label}
               </span>
-            </span>
+            </button>
           </li>
         );
       })}
