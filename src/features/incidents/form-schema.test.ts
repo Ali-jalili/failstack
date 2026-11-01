@@ -232,6 +232,47 @@ describe("incidentFormSchema", () => {
   });
 });
 
+describe("incidentDraftSchema architectureDiff", () => {
+  it("accepts a valid architecture diff", () => {
+    expect(
+      incidentDraftSchema.safeParse({
+        ...validForm,
+        architectureDiff: validArchitectureDiff,
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each([null, undefined])("accepts a %s architecture diff", (value) => {
+    expect(
+      incidentDraftSchema.safeParse({
+        ...validForm,
+        architectureDiff: value,
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each(["invalid", ["invalid"]])(
+    "rejects a malformed architecture diff: %j",
+    (value) => {
+      expect(
+        incidentDraftSchema.safeParse({
+          ...validForm,
+          architectureDiff: value,
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it("accepts incomplete architecture diff objects", () => {
+    expect(
+      incidentDraftSchema.safeParse({
+        ...validForm,
+        architectureDiff: { beforeFix: null, isFact: false },
+      }).success,
+    ).toBe(true);
+  });
+});
+
 describe("incidentTimelineSchema (Step 3 refinements, enforced when used directly)", () => {
   function parseTimeline(timeline: Record<string, unknown>[]) {
     return incidentTimelineSchema.safeParse({ timeline });

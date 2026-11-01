@@ -129,6 +129,24 @@ export const incidentFormSchema = z
 
 export type IncidentFormValues = z.infer<typeof incidentFormSchema>;
 
+export const architectureDiffDraftSchema = z
+  .object({
+    beforeFix: z
+      .string()
+      .min(5, "State description before fix is required")
+      .nullable()
+      .optional(),
+    afterFix: z
+      .string()
+      .min(5, "State description after fix is required")
+      .nullable()
+      .optional(),
+    isFact: z.boolean().nullable().optional(),
+    notes: z.string().nullable().optional(),
+  })
+  .nullable()
+  .optional();
+
 //?? Draft schema
 //
 // A draft only needs the minimum identifying fields so it can be listed,
@@ -154,7 +172,7 @@ export const incidentDraftSchema = z.object({
   technologies: z.array(z.string()),
   timeline: z.array(timelineEventSchema),
   rootCauseTree: z.array(rootCauseNodeSchema),
-  architectureDiff: z.any(),
+  architectureDiff: architectureDiffDraftSchema,
   preventionActions: z.array(preventionActionSchema),
 });
 
