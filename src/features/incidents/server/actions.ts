@@ -33,10 +33,14 @@ export async function fetchMyReports() {
   return getMyReports();
 }
 
+type CreateIncidentResult =
+  | { error: string; slug?: never; alreadyExists?: never }
+  | { error: null; slug: string; alreadyExists?: boolean };
+
 export async function createIncident(
   input: unknown,
   idempotencyKey?: string | null,
-) {
+): Promise<CreateIncidentResult> {
   const parsed = incidentFormSchema.safeParse(input);
 
   if (!parsed.success) {
@@ -77,22 +81,6 @@ export async function createIncident(
   const supabase = await createClient();
 
   const incident = parsed.data;
-
-  // Idempotency: if a row with this key already exists for this user,
-  // return it instead of inserting a duplicate.
-  if (idempotencyKey) {
-    const { data: existing } = await supabase
-      .from("incidents")
-      .select("slug")
-      .eq("idempotency_key", idempotencyKey)
-      .eq("author_id", currentUser.userId)
-      .maybeSingle();
-
-    if (existing?.slug) {
-      return { error: null, slug: existing.slug, alreadyExists: true };
-    }
-  }
-
   const slug = createSlug(incident.title);
   const row: Record<string, unknown> = {
     slug,
@@ -118,6 +106,91 @@ export async function createIncident(
     row.idempotency_key = idempotencyKey;
   }
 
+  const submittedStatuses = new Set([
+    "PENDING_REVIEW",
+    "CHANGES_REQUESTED",
+    "PUBLISHED",
+  ]);
+  const transitionDraft = async (
+    existing: { id: string; slug: string; status: string },
+  ): Promise<CreateIncidentResult> => {
+    const { data: updated, error: updateError } = await supabase
+      .from("incidents")
+      .update({ ...row, slug: existing.slug })
+      .eq("id", existing.id)
+      .eq("author_id", currentUser.userId)
+      .eq("status", "DRAFT")
+      .select("slug, status");
+
+    if (updateError) {
+      return { error: `Failed to submit the draft: ${updateError.message}` };
+    }
+
+    const submitted = updated?.find((item) =>
+      submittedStatuses.has(item.status),
+    );
+    if (submitted) {
+      return { error: null, slug: submitted.slug };
+    }
+
+    // Another request may have completed the same transition while this
+    // request was in flight. Confirm the stored state before reporting success.
+    const { data: latest, error: latestError } = await supabase
+      .from("incidents")
+      .select("slug, status")
+      .eq("id", existing.id)
+      .eq("author_id", currentUser.userId)
+      .maybeSingle();
+
+    if (latestError) {
+      return { error: `Could not verify the incident submission: ${latestError.message}` };
+    }
+
+    if (latest && submittedStatuses.has(latest.status)) {
+      return { error: null, slug: latest.slug, alreadyExists: true };
+    }
+
+    return {
+      error:
+        "The draft was not submitted. It may have been deleted or its status changed.",
+    };
+  };
+
+  const existingResult = (
+    existing: { id: string; slug: string; status: string },
+  ): Promise<CreateIncidentResult> | CreateIncidentResult => {
+    if (submittedStatuses.has(existing.status)) {
+      return { error: null, slug: existing.slug, alreadyExists: true };
+    }
+
+    if (existing.status !== "DRAFT") {
+      return { error: "Could not verify the incident submission status." };
+    }
+
+    return transitionDraft(existing);
+  };
+
+  // Idempotency: if a row with this key already exists for this user,
+  // transition a draft or return only an already-submitted incident.
+  if (idempotencyKey) {
+    const { data: existing, error: lookupError } = await supabase
+      .from("incidents")
+      .select("id, slug, status")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("author_id", currentUser.userId)
+      .maybeSingle();
+
+    if (lookupError) {
+      return {
+        error: `Could not verify the incident submission: ${lookupError.message}`,
+      };
+    }
+
+    if (existing) {
+      return existingResult(existing);
+    }
+  }
+
   const { error: insertError } = await supabase.from("incidents").insert(row);
 
   if (!insertError) {
@@ -125,17 +198,23 @@ export async function createIncident(
   }
 
   // A 23505 on the idempotency_key column means a concurrent request
-  // already inserted this incident — return success with the existing slug.
+  // may have created or saved this incident. Handle its lifecycle state.
   if (insertError.code === "23505" && idempotencyKey) {
-    const { data: concurrent } = await supabase
+    const { data: concurrent, error: lookupError } = await supabase
       .from("incidents")
-      .select("slug")
+      .select("id, slug, status")
       .eq("idempotency_key", idempotencyKey)
       .eq("author_id", currentUser.userId)
       .maybeSingle();
 
-    if (concurrent?.slug) {
-      return { error: null, slug: concurrent.slug, alreadyExists: true };
+    if (lookupError) {
+      return {
+        error: `Could not verify the incident submission: ${lookupError.message}`,
+      };
+    }
+
+    if (concurrent) {
+      return existingResult(concurrent);
     }
   }
 

@@ -232,7 +232,11 @@ describe("createIncident — idempotency", () => {
   it("returns the existing incident with alreadyExists when the key is known", async () => {
     const b = lastBuilder();
     b.maybeSingle.mockResolvedValue({
-      data: { slug: "existing-slug" },
+      data: {
+        id: "existing-id",
+        slug: "existing-slug",
+        status: "PENDING_REVIEW",
+      },
       error: null,
     });
 
@@ -244,10 +248,102 @@ describe("createIncident — idempotency", () => {
       alreadyExists: true,
     });
     // The lookup was scoped to this user's key.
-    expect(b.select).toHaveBeenCalledWith("slug");
+    expect(b.select).toHaveBeenCalledWith("id, slug, status");
     expect(b.eq).toHaveBeenCalledWith("idempotency_key", "key-123");
     expect(b.eq).toHaveBeenCalledWith("author_id", "u-author");
     // No insert happened on the happy idempotent path.
+    expect(b.insert).not.toHaveBeenCalled();
+  });
+
+  it("submits a saved draft using the same idempotency key", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    const key = "draft-key";
+
+    const savedDraft = await saveDraft(validForm(), null, key);
+    expect(savedDraft.error).toBeNull();
+    expect(b.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotency_key: key, status: "DRAFT" }),
+    );
+
+    b.maybeSingle.mockResolvedValueOnce({
+      data: { id: "draft-id", slug: "database-outage", status: "DRAFT" },
+      error: null,
+    });
+    driveUpdateResult({
+      data: [{ slug: "database-outage", status: "PENDING_REVIEW" }],
+      error: null,
+    });
+
+    const result = await createIncident(validForm(), key);
+
+    expect(result).toEqual({ error: null, slug: "database-outage" });
+    expect(b.insert).toHaveBeenCalledTimes(1);
+    expect(b.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "PENDING_REVIEW",
+        slug: "database-outage",
+      }),
+    );
+    expect(updateChain.eq).toHaveBeenCalledWith("id", "draft-id");
+    expect(updateChain.eq).toHaveBeenCalledWith("author_id", "u-author");
+    expect(updateChain.eq).toHaveBeenCalledWith("status", "DRAFT");
+  });
+
+  it("treats a repeated submission as successful without creating another incident", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    const key = "repeat-key";
+
+    await saveDraft(validForm(), null, key);
+    b.maybeSingle
+      .mockResolvedValueOnce({
+        data: { id: "draft-id", slug: "database-outage", status: "DRAFT" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: {
+          id: "draft-id",
+          slug: "database-outage",
+          status: "PENDING_REVIEW",
+        },
+        error: null,
+      });
+    driveUpdateResult({
+      data: [{ slug: "database-outage", status: "PENDING_REVIEW" }],
+      error: null,
+    });
+
+    const first = await createIncident(validForm(), key);
+    const retry = await createIncident(validForm(), key);
+
+    expect(first).toEqual({ error: null, slug: "database-outage" });
+    expect(retry).toEqual({
+      error: null,
+      slug: "database-outage",
+      alreadyExists: true,
+    });
+    expect(b.insert).toHaveBeenCalledTimes(1);
+    expect(b.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not report success when a saved draft cannot be transitioned", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    b.maybeSingle.mockResolvedValueOnce({
+      data: { id: "draft-id", slug: "saved-draft", status: "DRAFT" },
+      error: null,
+    });
+    driveUpdateResult({
+      data: null,
+      error: { message: "database unavailable" },
+    });
+
+    const result = await createIncident(validForm(), "failed-transition-key");
+
+    expect(result).toEqual({
+      error: "Failed to submit the draft: database unavailable",
+    });
     expect(b.insert).not.toHaveBeenCalled();
   });
 });
@@ -269,7 +365,11 @@ describe("createIncident — race and slug-collision handling", () => {
     });
     // Second lookup (the race recovery) finds the concurrent row.
     b.maybeSingle.mockResolvedValueOnce({
-      data: { slug: "concurrent-slug" },
+      data: {
+        id: "concurrent-id",
+        slug: "concurrent-slug",
+        status: "PENDING_REVIEW",
+      },
       error: null,
     });
 
