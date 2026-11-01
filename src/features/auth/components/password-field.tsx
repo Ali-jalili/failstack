@@ -154,7 +154,6 @@ export function PasswordField({
         },
       ]
     : [];
-  const requirementsMet = requirements.filter((requirement) => requirement.met).length;
   const passwordRequirementsId = `${id}-requirements`;
   const describedBy = [
     error ? `${id}-error` : null,

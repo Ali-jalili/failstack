@@ -2,6 +2,7 @@
 
 "use client";
 
+import type { FormEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -55,10 +56,7 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
   const passwordRequirements = getSignupPasswordRequirements(passwordValue);
   const isBusy = isSubmitting || isNavigating;
 
-  async function onValidSubmit(data: SignupFormValues) {
-    if (signupSubmissionLockRef.current) return;
-
-    signupSubmissionLockRef.current = true;
+  async function onValidSubmit(data: SignupFormValues): Promise<boolean> {
     setFormError(null);
 
     try {
@@ -72,14 +70,13 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
 
       if ("error" in result) {
         if (result.error) {
-          signupSubmissionLockRef.current = false;
           setIsNavigating(false);
           setFormError(result.error);
-          return;
+          return false;
         }
 
         setEmailConfirmationPending(data.email);
-        return;
+        return true;
       }
 
       setIsNavigating(true);
@@ -88,13 +85,34 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
         description: "Your account is ready. Redirecting you now.",
         ...successToastOptions,
       });
+      return true;
     } catch {
-      signupSubmissionLockRef.current = false;
       setIsNavigating(false);
       setFormError(
         "Something went wrong while creating your account. Please try again.",
       );
+      return false;
     }
+  }
+
+  function onInvalidSubmit() {
+    signupSubmissionLockRef.current = false;
+  }
+
+  function onFormSubmit(event: FormEvent<HTMLFormElement>) {
+    if (signupSubmissionLockRef.current) {
+      event.preventDefault();
+      return;
+    }
+
+    signupSubmissionLockRef.current = true;
+    void handleSubmit(
+      async (data) => {
+        const keepLocked = await onValidSubmit(data);
+        if (!keepLocked) signupSubmissionLockRef.current = false;
+      },
+      onInvalidSubmit,
+    )(event);
   }
 
   const nameField = register("name", {
@@ -173,7 +191,7 @@ export default function SignupForm({ returnTo = "" }: { returnTo?: string }) {
             </p>
 
             <form
-              onSubmit={handleSubmit(onValidSubmit)}
+              onSubmit={onFormSubmit}
               className="mt-8 space-y-4"
               noValidate
             >

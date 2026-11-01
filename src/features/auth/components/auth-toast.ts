@@ -1,6 +1,6 @@
 /** @format */
 
-import type { ExternalToast, ToastClassnames } from "sonner";
+import type { ExternalToast } from "sonner";
 
 /**
  * Shared success-toast styling so auth success messages match the rest of
