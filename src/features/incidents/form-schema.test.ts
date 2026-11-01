@@ -1,7 +1,12 @@
 /** @format */
 
 import { describe, expect, it } from "vitest";
-import { incidentFormSchema, incidentTimelineSchema } from "./form-schema";
+import {
+  incidentDraftSchema,
+  incidentFormSchema,
+  incidentTimelineSchema,
+} from "./form-schema";
+import { incidentSchema } from "./schema";
 
 /**
  * Tests lock in the behavior of the incident validation schemas.
@@ -73,6 +78,71 @@ function parse(form: Record<string, unknown>) {
 }
 
 describe("incidentFormSchema", () => {
+  describe("official post-mortem URL scheme", () => {
+    const urlSchemas = [
+      ["incident form", incidentFormSchema],
+      ["incident draft", incidentDraftSchema],
+      [
+        "incident record",
+        incidentSchema,
+      ],
+    ] as const;
+
+    function parseWithUrl(
+      schema: (typeof urlSchemas)[number][1],
+      url: string | undefined,
+    ) {
+      return schema.safeParse({
+        ...validForm,
+        ...(schema === incidentSchema ? { id: "inc-1", slug: "an-outage" } : {}),
+        officialPostMortemUrl: url,
+      });
+    }
+
+    it.each(urlSchemas)("allows HTTPS URLs in %s", (_name, schema) => {
+      expect(
+        parseWithUrl(schema, "https://status.example.com/postmortem").success,
+      ).toBe(true);
+    });
+
+    it.each(urlSchemas)("rejects HTTP URLs in %s", (_name, schema) => {
+      expect(parseWithUrl(schema, "http://status.example.com/postmortem").success)
+        .toBe(false);
+    });
+
+    it.each(urlSchemas)(
+      "rejects javascript URLs in %s",
+      (_name, schema) => {
+        expect(parseWithUrl(schema, "javascript:void(0)").success).toBe(false);
+      },
+    );
+
+    it.each(urlSchemas)("rejects data URLs in %s", (_name, schema) => {
+      expect(
+        parseWithUrl(schema, "data:text/html,<script>alert(1)</script>").success,
+      ).toBe(false);
+    });
+
+    it.each(urlSchemas)("rejects malformed URLs in %s", (_name, schema) => {
+      expect(parseWithUrl(schema, "https://").success).toBe(false);
+    });
+
+    it.each(urlSchemas)(
+      "preserves optional and empty URLs in %s",
+      (_name, schema) => {
+        expect(parseWithUrl(schema, "").success).toBe(true);
+        expect(
+          schema.safeParse({
+            ...validForm,
+            ...(schema === incidentSchema
+              ? { id: "inc-1", slug: "an-outage" }
+              : {}),
+          }).success,
+        ).toBe(true);
+      },
+    );
+  });
+
   it("accepts a fully valid form", () => {
     expect(parse(validForm).success).toBe(true);
   });

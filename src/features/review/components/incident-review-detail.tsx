@@ -24,6 +24,7 @@ import { ProgressRing } from "./progress-ring";
 import { RootCauseDiagram } from "./root-cause-diagram";
 import { SectionHeading } from "./section-heading";
 import { formatDate, severityMeta } from "./visualization-shared";
+import { getSafeHttpsUrl } from "@/features/incidents/schema";
 import type { ReviewIncident } from "@/features/review/server/queries";
 import { reviewIncident } from "@/features/review/server/actions";
 
@@ -113,6 +114,9 @@ export function IncidentInvestigation({
     useState<ReviewSectionId>("timeline");
   const [isMobileSectionMenuOpen, setIsMobileSectionMenuOpen] = useState(false);
   const sev = severityMeta[incident.severity];
+  const postMortemHref = incident.official_post_mortem_url
+    ? getSafeHttpsUrl(incident.official_post_mortem_url)
+    : null;
   const sectionCount = [
     incident.timeline.length > 0,
     incident.root_cause_tree.length > 0,
@@ -404,10 +408,10 @@ export function IncidentInvestigation({
             subtitle={`${incident.prevention_actions.length} recommended`}
           />
           <PreventionList actions={incident.prevention_actions} />
-          {incident.official_post_mortem_url && (
+          {postMortemHref && (
             <div className="mt-6 border-t border-slate-800/80 pt-4">
               <a
-                href={incident.official_post_mortem_url}
+                href={postMortemHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex min-h-9 items-center gap-2 text-xs font-medium text-slate-400 underline decoration-slate-700 underline-offset-4 transition-colors hover:text-[#c6e47c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] motion-reduce:transition-none"

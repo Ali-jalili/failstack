@@ -4,6 +4,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowUpRight, Check, Copy, GitCommit, Link2 } from "lucide-react";
+import { getSafeHttpsUrl } from "@/features/incidents/schema";
 import type { PublishedIncident } from "@/features/incidents/server/queries";
 import type { TimelineEvent } from "@/types/incident";
 import {
@@ -39,7 +40,10 @@ export function PublicIncidentEvidence({
     [events],
   );
   const hasConfigEvidence = hasConfigDiff(incident.architecture_diff);
-  const hasExternalEvidence = Boolean(incident.official_post_mortem_url);
+  const postMortemHref = incident.official_post_mortem_url
+    ? getSafeHttpsUrl(incident.official_post_mortem_url)
+    : null;
+  const hasExternalEvidence = Boolean(postMortemHref);
   const tabs: { id: EvidenceTab; name: string; has: boolean }[] = [
     { id: "config", name: "Configuration", has: hasConfigEvidence },
     { id: "cli", name: "CLI Commands", has: cliEvidence.length > 0 },
@@ -193,7 +197,7 @@ export function PublicIncidentEvidence({
           ))}
 
         {effectiveTab === "external" &&
-          (incident.official_post_mortem_url ? (
+          (postMortemHref ? (
             <div
               className="public-evidence-empty"
               style={{ borderStyle: "solid" }}
@@ -213,7 +217,7 @@ export function PublicIncidentEvidence({
               </p>
               <a
                 className="public-postmortem-link"
-                href={incident.official_post_mortem_url}
+                href={postMortemHref}
                 target="_blank"
                 rel="noopener noreferrer"
               >

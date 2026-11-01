@@ -258,6 +258,27 @@ describe("PublicIncidentEvidence", () => {
     expect(screen.getByText("pool.max: unset")).toBeTruthy();
     expect(
       screen.getByRole("tab", { name: /Configuration/i }).getAttribute("aria-selected"),
-    ).toBe("true");
+    ).toBe("true"    );
+  });
+
+  it.each([
+    "http://example.com/postmortem",
+    "javascript:void(0)",
+    "data:text/html,<script>alert(1)</script>",
+  ])("does not render unsupported stored URL %s as a link", (url) => {
+    const { container } = render(
+      <PublicIncidentEvidence
+        incident={makeIncident({ official_post_mortem_url: url })}
+        events={[]}
+        activeTab="external"
+        onTabChange={() => {}}
+      />,
+    );
+    expect(
+      screen.getByRole<HTMLButtonElement>("tab", {
+        name: /External post-mortem/i,
+      }).disabled,
+    ).toBe(true);
+    expect(container.querySelector(`a[href^="${url.split(":")[0]}:"]`)).toBeNull();
   });
 });

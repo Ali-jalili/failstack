@@ -10,7 +10,10 @@ import {
   toPreviewRootCauseTree,
   toPreviewTimeline,
 } from "./preview/preview-format";
-import { INCIDENT_PATTERN_LABELS } from "@/features/incidents/schema";
+import {
+  getSafeHttpsUrl,
+  INCIDENT_PATTERN_LABELS,
+} from "@/features/incidents/schema";
 
 const checklistSections = [
   {
@@ -43,17 +46,6 @@ const severityStyles: Record<string, string> = {
 
 function displayText(value: string | null | undefined, fallback = "Not provided") {
   return value?.trim() ? value.trim() : fallback;
-}
-
-function safeExternalHref(value: string): string | null {
-  try {
-    const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:"
-      ? url.href
-      : null;
-  } catch {
-    return null;
-  }
 }
 
 function MetaItem({ label, children }: { label: string; children: React.ReactNode }) {
@@ -107,7 +99,7 @@ export default function PreviewStep({
   const tree = toPreviewRootCauseTree(values.rootCauseTree ?? []);
   const nodesById = new Map(tree.map((node) => [node.id, node]));
   const postMortemHref = values.officialPostMortemUrl?.trim()
-    ? safeExternalHref(values.officialPostMortemUrl)
+    ? getSafeHttpsUrl(values.officialPostMortemUrl)
     : null;
   const patternLabel =
     INCIDENT_PATTERN_LABELS[values.pattern] ?? values.pattern;

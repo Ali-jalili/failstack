@@ -6,6 +6,7 @@ import {
   architectureDiffSchema,
   incidentPatternSchema,
   incidentSeveritySchema,
+  officialPostMortemUrlSchema,
   preventionActionSchema,
   rootCauseNodeSchema,
   rootCauseTreeSchema,
@@ -34,11 +35,7 @@ export const incidentBasicInfoSchema = z.object({
     .string()
     .min(10, "Incident summary must be at least 10 characters"),
 
-  officialPostMortemUrl: z
-    .string()
-    .url("Invalid post-mortem URL")
-    .optional()
-    .or(z.literal("")),
+  officialPostMortemUrl: officialPostMortemUrlSchema,
 });
 
 //?? Schema Step 2
@@ -152,11 +149,7 @@ export const incidentDraftSchema = z.object({
   severity: incidentSeveritySchema,
   pattern: incidentPatternSchema,
   summary: z.string(),
-  officialPostMortemUrl: z
-    .string()
-    .url("Invalid post-mortem URL")
-    .optional()
-    .or(z.literal("")),
+  officialPostMortemUrl: officialPostMortemUrlSchema,
   system: z.string(),
   technologies: z.array(z.string()),
   timeline: z.array(timelineEventSchema),

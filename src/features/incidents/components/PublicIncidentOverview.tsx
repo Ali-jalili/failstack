@@ -19,6 +19,7 @@ import {
   patternLabel,
 } from "./public-incident-formatters";
 import type { SeverityStyle } from "./public-incident-types";
+import { getSafeHttpsUrl } from "@/features/incidents/schema";
 
 export function PublicIncidentOverview({
   incident,
@@ -31,6 +32,9 @@ export function PublicIncidentOverview({
   eventCount: number;
   namedServices: string[];
 }) {
+  const postMortemHref = incident.official_post_mortem_url
+    ? getSafeHttpsUrl(incident.official_post_mortem_url)
+    : null;
   const heroStats = [
     {
       icon: <ClockIcon />,
@@ -151,10 +155,10 @@ export function PublicIncidentOverview({
             <dd>{namedServices.join(", ")}</dd>
           </div>
         </dl>
-        {incident.official_post_mortem_url && (
+        {postMortemHref && (
           <a
             className="public-glance-link"
-            href={incident.official_post_mortem_url}
+            href={postMortemHref}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -2,6 +2,24 @@
 
 import { z } from "zod";
 
+export function getSafeHttpsUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
+export const officialPostMortemUrlSchema = z
+  .string()
+  .url("Invalid post-mortem URL")
+  .refine((value) => getSafeHttpsUrl(value) !== null, {
+    message: "Post-mortem URL must use HTTPS",
+  })
+  .optional()
+  .or(z.literal(""));
+
 // 1. Enums & Primitive Schemas
 export const incidentSeveritySchema = z.enum(["CRITICAL", "MAJOR", "MINOR"]);
 
@@ -130,11 +148,7 @@ export const incidentSchema = z
     summary: z
       .string()
       .min(10, "Incident summary must be at least 10 characters"),
-    officialPostMortemUrl: z
-      .string()
-      .url("Invalid post-mortem URL")
-      .optional()
-      .or(z.literal("")),
+    officialPostMortemUrl: officialPostMortemUrlSchema,
     system: z.string().min(2, "System name is required"),
     technologies: z
       .array(z.string())
