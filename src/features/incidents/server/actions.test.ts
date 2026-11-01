@@ -201,11 +201,14 @@ describe("createIncident — authorization (rejects before any write)", () => {
 
   it("denies a broken sign-in state", async () => {
     mockCurrentUser.mockResolvedValue({ kind: "error", message: "boom" });
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     const r = await createIncident(validForm());
     expect(r).toEqual({
       error: "Could not verify your sign-in. Please sign in again.",
     });
+    expect(errorLog).toHaveBeenCalledWith("[createIncident.auth]", "boom");
     expect(fromMock).not.toHaveBeenCalled();
+    errorLog.mockRestore();
   });
 
   it("denies a reviewer (reviewer has no author access)", async () => {
@@ -222,6 +225,7 @@ describe("createIncident — authorization (rejects before any write)", () => {
   });
 
   it("denies when the role lookup failed", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     mockCurrentUser.mockResolvedValue({
       kind: "authenticated",
       userId: "u",
@@ -233,7 +237,12 @@ describe("createIncident — authorization (rejects before any write)", () => {
     expect(r).toEqual({
       error: "Could not verify your role. Please try again.",
     });
+    expect(errorLog).toHaveBeenCalledWith(
+      "[createIncident.role]",
+      "relation not found",
+    );
     expect(fromMock).not.toHaveBeenCalled();
+    errorLog.mockRestore();
   });
 });
 
@@ -352,13 +361,13 @@ describe("createIncident — idempotency", () => {
     });
     driveUpdateResult({
       data: null,
-      error: { message: "database unavailable" },
+      error: { message: "internal database details" },
     });
 
     const result = await createIncident(validForm(), "failed-transition-key");
 
     expect(result).toEqual({
-      error: "Failed to submit the draft: database unavailable",
+      error: "Could not submit the incident. Please try again.",
     });
     expect(b.insert).not.toHaveBeenCalled();
   });
@@ -438,7 +447,7 @@ describe("createIncident — race and slug-collision handling", () => {
     expect(b.insert).toHaveBeenCalledTimes(2);
   });
 
-  it("surfaces non-23505 insert errors as their message", async () => {
+  it("returns a generic error for non-23505 insert errors", async () => {
     const b = lastBuilder();
     b.insert.mockResolvedValueOnce({
       data: undefined,
@@ -447,7 +456,9 @@ describe("createIncident — race and slug-collision handling", () => {
 
     const r = await createIncident(validForm(), "key-123");
 
-    expect(r).toEqual({ error: "permission denied" });
+    expect(r).toEqual({
+      error: "Could not submit the incident. Please try again.",
+    });
     expect(b.insert).toHaveBeenCalledTimes(1);
   });
 });
@@ -613,13 +624,15 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
     });
   });
 
-  it("reports a DB error from the update", async () => {
+  it("returns a generic error when the update fails", async () => {
     mockCurrentUser.mockResolvedValue(author);
     driveUpdate({ count: 0, error: { message: "lock timeout" } });
 
     const r = await updateIncidentResubmit(validPayload());
 
-    expect(r).toEqual({ error: "lock timeout" });
+    expect(r).toEqual({
+      error: "Could not update the incident. Please try again.",
+    });
   });
 
   it("rejects when the update matched more than one row (unexpected count)", async () => {
@@ -703,7 +716,9 @@ describe("deleteIncident", () => {
   it("rejects when auth state has an error", async () => {
     mockAuth({ kind: "error", message: "session expired" });
     const r = await deleteIncident(validId);
-    expect(r).toEqual({ error: "session expired" });
+    expect(r).toEqual({
+      error: "Could not verify your sign-in. Please sign in again.",
+    });
   });
 
   it("rejects invalid ID", async () => {
@@ -818,7 +833,7 @@ describe("deleteIncident", () => {
     expect(r).toEqual({ error: null });
   });
 
-  it("reports a DB error from the delete", async () => {
+  it("returns a generic error when the delete fails", async () => {
     mockAuth(author);
     mockFetchIncident(draftIncident);
     mockAccessCheck({ id: validId });
@@ -826,13 +841,18 @@ describe("deleteIncident", () => {
       eq: vi.fn(() => deleteChain),
       in: vi.fn(() => deleteChain),
       then: vi.fn(async (cb?: (val: unknown) => unknown) => {
-        const result = { data: undefined, error: { message: "lock timeout" } };
+        const result = {
+          data: undefined,
+          error: { message: "internal database details" },
+        };
         return cb ? cb(result) : result;
       }),
     };
     vi.mocked(builder.delete).mockReturnValue(deleteChain);
     const r = await deleteIncident(validId);
-    expect(r).toEqual({ error: "Failed to delete the incident: lock timeout" });
+    expect(r).toEqual({
+      error: "Could not delete the incident. Please try again.",
+    });
   });
 });
 
@@ -983,18 +1003,25 @@ describe("saveDraft", () => {
     );
   });
 
-  it("reports a DB error from a draft insert", async () => {
+  it("returns a generic error when a draft insert fails", async () => {
     mockCurrentUser.mockResolvedValue(author);
     const b = lastBuilder();
+    const serviceError = { message: "permission denied" };
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     b.insert.mockResolvedValueOnce({
       data: undefined,
-      error: { message: "permission denied" },
+      error: serviceError,
     });
 
     const r = await saveDraft(validDraft());
     expect(r).toEqual({
-      error: "Failed to save the draft: permission denied",
+      error: "Could not save your draft. Please try again.",
     });
+    expect(errorLog).toHaveBeenCalledWith(
+      "[saveDraft.insert]",
+      serviceError,
+    );
+    errorLog.mockRestore();
   });
 
   it("updates an existing DRAFT (resume) without creating a duplicate", async () => {

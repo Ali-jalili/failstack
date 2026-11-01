@@ -3,6 +3,7 @@
 "use server";
 
 import { z } from "zod";
+import { logServerError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentUserState,
@@ -41,12 +42,22 @@ export async function reviewIncident(input: unknown) {
   }
 
   if (currentUser.kind === "error") {
-    return { error: "Could not verify your sign-in. Please sign in again." };
+    return {
+      error: logServerError(
+        "reviewIncident.auth",
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
   }
 
   if (currentUser.roleError) {
     return {
-      error: "Could not verify reviewer access. Please refresh and try again.",
+      error: logServerError(
+        "reviewIncident.role",
+        currentUser.roleError,
+        "Could not verify reviewer access. Please refresh and try again.",
+      ),
     };
   }
 
@@ -65,8 +76,11 @@ export async function reviewIncident(input: unknown) {
 
   if (error) {
     return {
-      error:
+      error: logServerError(
+        "reviewIncident.rpc",
+        error,
         "Could not save this decision. The incident may have already been reviewed. Refresh the queue and try again.",
+      ),
     };
   }
 

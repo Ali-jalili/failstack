@@ -199,7 +199,9 @@ describe("reviewIncident — allowed reviewer/admin paths", () => {
 
   it("maps an RPC failure to the user-facing refresh message", async () => {
     mockCurrentUser.mockResolvedValue(reviewerUser);
-    rpcMock.mockResolvedValue({ error: { message: "row lock" } });
+    const error = { message: "internal row lock details" };
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    rpcMock.mockResolvedValue({ error });
     const r = await reviewIncident({
       incidentId: VALID_ID,
       action: "APPROVED",
@@ -208,5 +210,7 @@ describe("reviewIncident — allowed reviewer/admin paths", () => {
       error:
         "Could not save this decision. The incident may have already been reviewed. Refresh the queue and try again.",
     });
+    expect(errorLog).toHaveBeenCalledWith("[reviewIncident.rpc]", error);
+    errorLog.mockRestore();
   });
 });

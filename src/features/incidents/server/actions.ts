@@ -4,6 +4,7 @@
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+import { logServerError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentUserState,
@@ -67,11 +68,23 @@ export async function createIncident(
   }
 
   if (currentUser.kind === "error") {
-    return { error: "Could not verify your sign-in. Please sign in again." };
+    return {
+      error: logServerError(
+        "createIncident.auth",
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
   }
 
   if (currentUser.roleError) {
-    return { error: "Could not verify your role. Please try again." };
+    return {
+      error: logServerError(
+        "createIncident.role",
+        currentUser.roleError,
+        "Could not verify your role. Please try again.",
+      ),
+    };
   }
 
   if (!hasAuthorAccess(currentUser)) {
@@ -123,7 +136,13 @@ export async function createIncident(
       .select("slug, status");
 
     if (updateError) {
-      return { error: `Failed to submit the draft: ${updateError.message}` };
+      return {
+        error: logServerError(
+          "createIncident.transitionDraft",
+          updateError,
+          "Could not submit the incident. Please try again.",
+        ),
+      };
     }
 
     const submitted = updated?.find((item) =>
@@ -143,7 +162,13 @@ export async function createIncident(
       .maybeSingle();
 
     if (latestError) {
-      return { error: `Could not verify the incident submission: ${latestError.message}` };
+      return {
+        error: logServerError(
+          "createIncident.verifyTransition",
+          latestError,
+          "Could not verify whether the incident was submitted. Please refresh and check your reports.",
+        ),
+      };
     }
 
     if (latest && submittedStatuses.has(latest.status)) {
@@ -182,7 +207,11 @@ export async function createIncident(
 
     if (lookupError) {
       return {
-        error: `Could not verify the incident submission: ${lookupError.message}`,
+        error: logServerError(
+          "createIncident.lookup",
+          lookupError,
+          "Could not verify the incident submission. Please try again.",
+        ),
       };
     }
 
@@ -209,7 +238,11 @@ export async function createIncident(
 
     if (lookupError) {
       return {
-        error: `Could not verify the incident submission: ${lookupError.message}`,
+        error: logServerError(
+          "createIncident.raceLookup",
+          lookupError,
+          "Could not verify the incident submission. Please try again.",
+        ),
       };
     }
 
@@ -219,7 +252,13 @@ export async function createIncident(
   }
 
   if (insertError.code !== "23505") {
-    return { error: insertError.message };
+    return {
+      error: logServerError(
+        "createIncident.insert",
+        insertError,
+        "Could not submit the incident. Please try again.",
+      ),
+    };
   }
 
   const retryRow = {
@@ -235,7 +274,11 @@ export async function createIncident(
       error:
         retryError.code === "23505"
           ? "Could not create a unique incident URL. Please try submitting again."
-          : retryError.message,
+          : logServerError(
+              "createIncident.slugRetry",
+              retryError,
+              "Could not submit the incident. Please try again.",
+            ),
     };
   }
 
@@ -273,11 +316,23 @@ export async function updateIncidentResubmit(input: unknown) {
   }
 
   if (currentUser.kind === "error") {
-    return { error: "Could not verify your sign-in. Please sign in again." };
+    return {
+      error: logServerError(
+        "updateIncidentResubmit.auth",
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
   }
 
   if (currentUser.roleError) {
-    return { error: "Could not verify your role. Please try again." };
+    return {
+      error: logServerError(
+        "updateIncidentResubmit.role",
+        currentUser.roleError,
+        "Could not verify your role. Please try again.",
+      ),
+    };
   }
 
   if (!hasAuthorAccess(currentUser)) {
@@ -317,7 +372,13 @@ export async function updateIncidentResubmit(input: unknown) {
     .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED"]);
 
   if (updateError) {
-    return { error: updateError.message };
+    return {
+      error: logServerError(
+        "updateIncidentResubmit.update",
+        updateError,
+        "Could not update the incident. Please try again.",
+      ),
+    };
   }
 
   if (updatedCount === 0) {
@@ -404,10 +465,22 @@ export async function saveDraft(
     return { error: "You must be signed in to save a draft." };
   }
   if (currentUser.kind === "error") {
-    return { error: "Could not verify your sign-in. Please sign in again." };
+    return {
+      error: logServerError(
+        "saveDraft.auth",
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
   }
   if (currentUser.roleError) {
-    return { error: "Could not verify your role. Please try again." };
+    return {
+      error: logServerError(
+        "saveDraft.role",
+        currentUser.roleError,
+        "Could not verify your role. Please try again.",
+      ),
+    };
   }
   if (!hasAuthorAccess(currentUser)) {
     return { error: "Author access required." };
@@ -426,7 +499,13 @@ export async function saveDraft(
       .select("slug");
 
     if (updateError) {
-      return { error: `Failed to save the draft: ${updateError.message}` };
+      return {
+        error: logServerError(
+          "saveDraft.update",
+          updateError,
+          "Could not save your draft. Please try again.",
+        ),
+      };
     }
 
     if (!updated || updated.length === 0) {
@@ -453,6 +532,13 @@ export async function saveDraft(
       .maybeSingle();
 
     if (fetchError || !incident) {
+      if (fetchError) {
+        logServerError(
+          "saveDraft.fetch",
+          fetchError,
+          "Could not find that draft. It may have been deleted.",
+        );
+      }
       return { error: "Could not find that draft. It may have been deleted." };
     }
 
@@ -478,7 +564,13 @@ export async function saveDraft(
       .maybeSingle();
 
     if (lookupError) {
-      return { error: `Could not find the saved draft: ${lookupError.message}` };
+      return {
+        error: logServerError(
+          "saveDraft.lookup",
+          lookupError,
+          "Could not find your saved draft. Please try again.",
+        ),
+      };
     }
 
     if (existing) {
@@ -500,7 +592,13 @@ export async function saveDraft(
       .single();
 
     if (insertError) {
-      return { error: `Failed to save the draft: ${insertError.message}` };
+      return {
+        error: logServerError(
+          "saveDraft.insertWithKey",
+          insertError,
+          "Could not save your draft. Please try again.",
+        ),
+      };
     }
 
     return {
@@ -514,7 +612,13 @@ export async function saveDraft(
       .insert(createRow);
 
     if (insertError) {
-      return { error: `Failed to save the draft: ${insertError.message}` };
+      return {
+        error: logServerError(
+          "saveDraft.insert",
+          insertError,
+          "Could not save your draft. Please try again.",
+        ),
+      };
     }
   }
 
@@ -536,10 +640,22 @@ export async function submitDraft(
     return { error: "You must be signed in to submit a draft." };
   }
   if (currentUser.kind === "error") {
-    return { error: "Could not verify your sign-in. Please sign in again." };
+    return {
+      error: logServerError(
+        "submitDraft.auth",
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
   }
   if (currentUser.roleError) {
-    return { error: "Could not verify your role. Please try again." };
+    return {
+      error: logServerError(
+        "submitDraft.role",
+        currentUser.roleError,
+        "Could not verify your role. Please try again.",
+      ),
+    };
   }
   if (!hasAuthorAccess(currentUser)) {
     return { error: "Author access required." };
@@ -559,7 +675,13 @@ export async function submitDraft(
     .maybeSingle();
 
   if (fetchError) {
-    return { error: `Failed to load the draft: ${fetchError.message}` };
+    return {
+      error: logServerError(
+        "submitDraft.fetch",
+        fetchError,
+        "Could not load the draft. Please try again.",
+      ),
+    };
   }
 
   if (!incident) {
@@ -618,7 +740,13 @@ export async function submitDraft(
     .select("slug");
 
   if (updateError) {
-    return { error: `Failed to submit the draft: ${updateError.message}` };
+    return {
+      error: logServerError(
+        "submitDraft.update",
+        updateError,
+        "Could not submit your draft. Please try again.",
+      ),
+    };
   }
 
   if (!updated || updated.length === 0) {
@@ -636,14 +764,26 @@ export async function deleteIncident(
 ): Promise<{ error: string | null }> {
   const authState = await getCurrentUserState();
   if (authState.kind === "error") {
-    return { error: authState.message };
+    return {
+      error: logServerError(
+        "deleteIncident.auth",
+        authState.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
   }
   if (authState.kind === "anonymous") {
     return { error: "Not authenticated." };
   }
 
   if (authState.roleError) {
-    return { error: authState.roleError };
+    return {
+      error: logServerError(
+        "deleteIncident.role",
+        authState.roleError,
+        "Could not verify your role. Please try again.",
+      ),
+    };
   }
 
   // Reviewers/admins must not use the author deletion flow; only plain
@@ -675,6 +815,13 @@ export async function deleteIncident(
     );
 
   if (fetchError || !incident) {
+    if (fetchError) {
+      logServerError(
+        "deleteIncident.fetch",
+        fetchError,
+        "Could not find the incident. It may have been deleted already.",
+      );
+    }
     return {
       error: "Could not find the incident. It may have been deleted already.",
     };
@@ -701,6 +848,13 @@ export async function deleteIncident(
     .then((res) => res as { data: { id: string } | null; error: unknown });
 
   if (accessError || !accessCheck) {
+    if (accessError) {
+      logServerError(
+        "deleteIncident.accessCheck",
+        accessError,
+        "You do not have permission to delete this incident.",
+      );
+    }
     return { error: "You do not have permission to delete this incident." };
   }
 
@@ -712,7 +866,13 @@ export async function deleteIncident(
     .in("status", allowedStatuses);
 
   if (deleteError) {
-    return { error: `Failed to delete the incident: ${deleteError.message}` };
+    return {
+      error: logServerError(
+        "deleteIncident.delete",
+        deleteError,
+        "Could not delete the incident. Please try again.",
+      ),
+    };
   }
 
   return { error: null };

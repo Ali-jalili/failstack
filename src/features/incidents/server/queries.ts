@@ -14,6 +14,7 @@ import type {
   TimelineStage,
   TimelineEvent,
 } from "@/types/incident";
+import { logServerError } from "@/lib/errors";
 
 const incidentStatusValues = [
   "DRAFT",
@@ -232,14 +233,22 @@ export async function getMyReports(): Promise<MyReportsResult> {
   if (currentUser.kind === "error") {
     return {
       kind: "error",
-      message: `Could not verify your sign-in: ${currentUser.message}`,
+      message: logServerError(
+        "getMyReports.auth",
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
     };
   }
 
   if (currentUser.kind === "authenticated" && currentUser.roleError) {
     return {
       kind: "error",
-      message: `Could not verify your role: ${currentUser.roleError}`,
+      message: logServerError(
+        "getMyReports.role",
+        currentUser.roleError,
+        "Could not verify your role. Please refresh and try again.",
+      ),
     };
   }
 
@@ -253,7 +262,11 @@ export async function getMyReports(): Promise<MyReportsResult> {
   if (error) {
     return {
       kind: "error",
-      message: `Could not load your reports: ${error.message}`,
+      message: logServerError(
+        "getMyReports.rpc",
+        error,
+        "Could not load your reports. Please try again.",
+      ),
     };
   }
 
@@ -306,7 +319,16 @@ export async function getPublishedIncidentSummaries(): Promise<{
     .eq("status", "PUBLISHED")
     .order("occurred_at", { ascending: false });
 
-  if (error) return { incidents: null, error: error.message };
+  if (error) {
+    return {
+      incidents: null,
+      error: logServerError(
+        "getPublishedIncidentSummaries",
+        error,
+        "Could not load the incident archive. Please try again.",
+      ),
+    };
+  }
 
   const incidents = data.map((incident) => ({
     id: incident.id,

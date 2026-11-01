@@ -73,12 +73,18 @@ describe("getMyReports authorization", () => {
 
   it("returns an auth error without touching Supabase", async () => {
     mockCurrentUser.mockResolvedValue({ kind: "error", message: "auth down" });
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(getMyReports()).resolves.toEqual({
       kind: "error",
-      message: "Could not verify your sign-in: auth down",
+      message: "Could not verify your sign-in. Please sign in again.",
     });
+    expect(errorLog).toHaveBeenCalledWith(
+      "[getMyReports.auth]",
+      "auth down",
+    );
     expect(mocks.createClient).not.toHaveBeenCalled();
+    errorLog.mockRestore();
   });
 
   it("returns a role lookup error without touching Supabase", async () => {
@@ -86,12 +92,18 @@ describe("getMyReports authorization", () => {
       ...authorUser,
       roleError: "roles unavailable",
     });
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
 
     await expect(getMyReports()).resolves.toEqual({
       kind: "error",
-      message: "Could not verify your role: roles unavailable",
+      message: "Could not verify your role. Please refresh and try again.",
     });
+    expect(errorLog).toHaveBeenCalledWith(
+      "[getMyReports.role]",
+      "roles unavailable",
+    );
     expect(mocks.createClient).not.toHaveBeenCalled();
+    errorLog.mockRestore();
   });
 
   it("forbids reviewers without calling the reports RPC", async () => {
@@ -118,15 +130,19 @@ describe("getMyReports data access", () => {
   });
 
   it("maps an RPC error", async () => {
+    const error = { message: "reports unavailable" };
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.rpc.mockResolvedValue({
       data: null,
-      error: { message: "reports unavailable" },
+      error,
     });
 
     await expect(getMyReports()).resolves.toEqual({
       kind: "error",
-      message: "Could not load your reports: reports unavailable",
+      message: "Could not load your reports. Please try again.",
     });
+    expect(errorLog).toHaveBeenCalledWith("[getMyReports.rpc]", error);
+    errorLog.mockRestore();
   });
 
   it("rejects malformed RPC data with the unexpected-response error", async () => {

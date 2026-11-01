@@ -393,6 +393,22 @@ describe("getTimelinePreview (via getPublishedIncidentSummaries)", () => {
     expect(orderCalls).toContainEqual(["occurred_at", { ascending: false }]);
   });
 
+  it("does not return raw errors for the client-facing archive query", async () => {
+    const error = { message: "internal query details" };
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    setChainResult({ data: null, error });
+
+    await expect(getPublishedIncidentSummaries()).resolves.toEqual({
+      incidents: null,
+      error: "Could not load the incident archive. Please try again.",
+    });
+    expect(errorLog).toHaveBeenCalledWith(
+      "[getPublishedIncidentSummaries]",
+      error,
+    );
+    errorLog.mockRestore();
+  });
+
   it("includes only documented prevention action titles and descriptions", async () => {
     setChainResult({
       data: [
