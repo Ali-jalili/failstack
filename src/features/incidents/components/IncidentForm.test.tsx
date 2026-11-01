@@ -517,8 +517,10 @@ describe("Final preview step", () => {
     expect(secondCall?.[2]).toBe(firstCall?.[2]);
   });
 
-  it("Confirm & Submit invokes the existing submission flow exactly once", async () => {
-    render(<IncidentForm initialValues={initialValues()} />);
+  it("clears the post-submit redirect timer when unmounted", async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
+    const { unmount } = render(<IncidentForm initialValues={initialValues()} />);
     await advanceToPreview();
 
     const submit = screen.getByRole("button", { name: /confirm & submit/i });
@@ -530,6 +532,18 @@ describe("Final preview step", () => {
       await screen.findByText(/incident submitted for review/i),
     ).toBeTruthy();
     expect(mockedCreateIncident).toHaveBeenCalledTimes(1);
+
+    const redirectTimerIndex = setTimeoutSpy.mock.calls.findIndex(
+      ([, delay]) => delay === 2500,
+    );
+    expect(redirectTimerIndex).toBeGreaterThanOrEqual(0);
+    const redirectTimer = setTimeoutSpy.mock.results[redirectTimerIndex]?.value;
+
+    unmount();
+
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(redirectTimer);
+    setTimeoutSpy.mockRestore();
+    clearTimeoutSpy.mockRestore();
   });
 
   it("a failed submission keeps form data available and displays the error", async () => {

@@ -858,12 +858,13 @@ export async function deleteIncident(
     return { error: "You do not have permission to delete this incident." };
   }
 
-  const { error: deleteError } = await supabase
+  const { data: deletedRows, error: deleteError } = await supabase
     .from("incidents")
     .delete()
     .eq("id", id)
     .eq("author_id", userId)
-    .in("status", allowedStatuses);
+    .in("status", allowedStatuses)
+    .select("id");
 
   if (deleteError) {
     return {
@@ -872,6 +873,13 @@ export async function deleteIncident(
         deleteError,
         "Could not delete the incident. Please try again.",
       ),
+    };
+  }
+
+  if (!deletedRows?.length) {
+    return {
+      error:
+        "Could not delete the incident. It may have already been deleted or is no longer eligible for deletion.",
     };
   }
 

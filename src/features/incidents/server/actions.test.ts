@@ -707,6 +707,20 @@ describe("deleteIncident", () => {
     b.single.mockResolvedValueOnce({ data, error });
   }
 
+  function mockDeleteResult(data: { id: string }[], error: unknown = null) {
+    const deleteChain = {
+      eq: vi.fn(() => deleteChain),
+      in: vi.fn(() => deleteChain),
+      select: vi.fn(() => deleteChain),
+      then: vi.fn(async (onFulfilled?: (value: unknown) => unknown) => {
+        const result = { data, error };
+        return onFulfilled ? onFulfilled(result) : result;
+      }),
+    };
+    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    return deleteChain;
+  }
+
   it("rejects when not authenticated", async () => {
     mockAuth({ kind: "anonymous" });
     const r = await deleteIncident(validId);
@@ -803,52 +817,40 @@ describe("deleteIncident", () => {
     mockAuth(author);
     mockFetchIncident(draftIncident);
     mockAccessCheck({ id: validId });
-    const deleteChain = {
-      eq: vi.fn(() => deleteChain),
-      in: vi.fn(() => deleteChain),
-      then: vi.fn(async (cb?: (val: unknown) => unknown) => {
-        const result = { data: undefined, error: null };
-        return cb ? cb(result) : result;
-      }),
-    };
-    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    const deleteChain = mockDeleteResult([{ id: validId }]);
     const r = await deleteIncident(validId);
     expect(r).toEqual({ error: null });
+    expect(deleteChain.select).toHaveBeenCalledWith("id");
   });
 
   it("deletes CHANGES_REQUESTED incident successfully", async () => {
     mockAuth(author);
     mockFetchIncident({ ...draftIncident, status: "CHANGES_REQUESTED" });
     mockAccessCheck({ id: validId });
-    const deleteChain = {
-      eq: vi.fn(() => deleteChain),
-      in: vi.fn(() => deleteChain),
-      then: vi.fn(async (cb?: (val: unknown) => unknown) => {
-        const result = { data: undefined, error: null };
-        return cb ? cb(result) : result;
-      }),
-    };
-    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    mockDeleteResult([{ id: validId }]);
     const r = await deleteIncident(validId);
     expect(r).toEqual({ error: null });
+  });
+
+  it("reports not deleted when the eligible row no longer matches", async () => {
+    mockAuth(author);
+    mockFetchIncident(draftIncident);
+    mockAccessCheck({ id: validId });
+    mockDeleteResult([]);
+
+    const r = await deleteIncident(validId);
+
+    expect(r).toEqual({
+      error:
+        "Could not delete the incident. It may have already been deleted or is no longer eligible for deletion.",
+    });
   });
 
   it("returns a generic error when the delete fails", async () => {
     mockAuth(author);
     mockFetchIncident(draftIncident);
     mockAccessCheck({ id: validId });
-    const deleteChain = {
-      eq: vi.fn(() => deleteChain),
-      in: vi.fn(() => deleteChain),
-      then: vi.fn(async (cb?: (val: unknown) => unknown) => {
-        const result = {
-          data: undefined,
-          error: { message: "internal database details" },
-        };
-        return cb ? cb(result) : result;
-      }),
-    };
-    vi.mocked(builder.delete).mockReturnValue(deleteChain);
+    mockDeleteResult([], { message: "internal database details" });
     const r = await deleteIncident(validId);
     expect(r).toEqual({
       error: "Could not delete the incident. Please try again.",

@@ -42,9 +42,11 @@ export default async function EditIncidentPage({ params }: Props) {
     .eq("author_id", currentUser.userId)
     .maybeSingle();
 
-  if (error || !incident) {
-    // Incident not found, not the owner's, or DB error: return to the author's
-    // report list.
+  if (error) {
+    throw new Error("Could not load this incident. Please try again.");
+  }
+
+  if (!incident) {
     redirect("/my-incidents");
   }
 

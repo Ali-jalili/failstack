@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -178,6 +178,16 @@ export default function IncidentForm({
   // (e.g. a double-click that slips past the isLocked state check).
   const submitLockRef = useRef(false);
   const draftIncidentIdRef = useRef<string | null | undefined>(incidentId);
+  const redirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (redirectTimeoutRef.current !== null) {
+        clearTimeout(redirectTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   // Generate a stable idempotency key for the form session (create mode only).
   // Re-submits from the same mounted form reuse the same key, so the server
@@ -327,7 +337,10 @@ export default function IncidentForm({
       setHasSubmitted(true);
       // Keep the confirmation visible briefly, then return the author to
       // their report list where the new review status is available.
-      setTimeout(() => router.push("/my-incidents"), 2500);
+      redirectTimeoutRef.current = setTimeout(
+        () => router.push("/my-incidents"),
+        2500,
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error
@@ -420,7 +433,10 @@ export default function IncidentForm({
       }
       setSubmitSuccess("Draft submitted for review.");
       setHasSubmitted(true);
-      setTimeout(() => router.push("/my-incidents"), 2500);
+      redirectTimeoutRef.current = setTimeout(
+        () => router.push("/my-incidents"),
+        2500,
+      );
     } catch (error) {
       setSubmitError(
         error instanceof Error
