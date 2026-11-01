@@ -15,7 +15,6 @@ import {
   incidentFormSchema,
   type IncidentDraftValues,
 } from "@/features/incidents/form-schema";
-import { getMyReports } from "@/features/incidents/server/queries";
 
 const isoDateTimeSchema = z.string().datetime();
 
@@ -28,10 +27,6 @@ function createSlug(title: string) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "incident"
   );
-}
-
-export async function fetchMyReports() {
-  return getMyReports();
 }
 
 type CreateIncidentResult =
