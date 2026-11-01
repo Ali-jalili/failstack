@@ -416,6 +416,33 @@ export async function saveDraft(
   const supabase = await createClient();
   const row = toDraftRow(parsed.data, occurredAt.data, currentUser.userId);
 
+  const updateExistingDraft = async (draftId: string) => {
+    const { data: updated, error: updateError } = await supabase
+      .from("incidents")
+      .update(row, { count: "exact" })
+      .eq("id", draftId)
+      .eq("author_id", currentUser.userId)
+      .eq("status", "DRAFT")
+      .select("slug");
+
+    if (updateError) {
+      return { error: `Failed to save the draft: ${updateError.message}` };
+    }
+
+    if (!updated || updated.length === 0) {
+      return {
+        error:
+          "The draft could not be updated. It may have been deleted or its status changed.",
+      };
+    }
+
+    return {
+      error: null,
+      incidentId: draftId,
+      slug: updated[0].slug ?? null,
+    };
+  };
+
   // Updating an existing draft (resume flow).
   if (incidentId) {
     const { data: incident, error: fetchError } = await supabase
@@ -438,33 +465,25 @@ export async function saveDraft(
       };
     }
 
-    // Do NOT write author_id into the update payload — that would NULL out
-    // ownership. The .eq("author_id", ...) filter below is what scopes the
-    // update; `row` already carries the correct author_id and is safe to send
-    // as-is, but ownership is enforced by the WHERE clause, not the payload.
-    const updateRow: Record<string, unknown> = { ...row };
-    const { data: updated, error: updateError } = await supabase
+    return updateExistingDraft(incidentId);
+  }
+
+  if (idempotencyKey) {
+    const { data: existing, error: lookupError } = await supabase
       .from("incidents")
-      .update(updateRow, {
-        count: "exact",
-      })
-      .eq("id", incidentId)
+      .select("id")
+      .eq("idempotency_key", idempotencyKey)
       .eq("author_id", currentUser.userId)
       .eq("status", "DRAFT")
-      .select("slug");
+      .maybeSingle();
 
-    if (updateError) {
-      return { error: `Failed to save the draft: ${updateError.message}` };
+    if (lookupError) {
+      return { error: `Could not find the saved draft: ${lookupError.message}` };
     }
 
-    if (!updated || updated.length === 0) {
-      return {
-        error:
-          "The draft could not be updated. It may have been deleted or its status changed.",
-      };
+    if (existing) {
+      return updateExistingDraft(existing.id);
     }
-
-    return { error: null, incidentId, slug: updated[0].slug ?? null };
   }
 
   // Creating a new draft.
@@ -473,14 +492,30 @@ export async function saveDraft(
 
   if (idempotencyKey) {
     createRow.idempotency_key = idempotencyKey;
-  }
 
-  const { error: insertError } = await supabase
-    .from("incidents")
-    .insert(createRow);
+    const { data: inserted, error: insertError } = await supabase
+      .from("incidents")
+      .insert(createRow)
+      .select("id, slug")
+      .single();
 
-  if (insertError) {
-    return { error: `Failed to save the draft: ${insertError.message}` };
+    if (insertError) {
+      return { error: `Failed to save the draft: ${insertError.message}` };
+    }
+
+    return {
+      error: null,
+      incidentId: inserted.id,
+      slug: inserted.slug ?? slug,
+    };
+  } else {
+    const { error: insertError } = await supabase
+      .from("incidents")
+      .insert(createRow);
+
+    if (insertError) {
+      return { error: `Failed to save the draft: ${insertError.message}` };
+    }
   }
 
   // The row's slug is deterministic from the title; return it so the caller

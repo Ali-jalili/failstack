@@ -496,6 +496,27 @@ describe("Final preview step", () => {
     expect(mockedCreateIncident).not.toHaveBeenCalled();
   });
 
+  it("reuses the created draft id when saving the same form again", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    const saveDraftButton = screen.getByRole("button", { name: /save draft/i });
+
+    await act(async () => {
+      fireEvent.click(saveDraftButton);
+    });
+    await waitFor(() => expect(mockedSaveDraft).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      fireEvent.click(saveDraftButton);
+    });
+    await waitFor(() => expect(mockedSaveDraft).toHaveBeenCalledTimes(2));
+
+    const firstCall = mockedSaveDraft.mock.calls[0];
+    const secondCall = mockedSaveDraft.mock.calls[1];
+    expect(firstCall?.[1]).toBeUndefined();
+    expect(secondCall?.[1]).toBe("draft-id");
+    expect(secondCall?.[2]).toBe(firstCall?.[2]);
+  });
+
   it("Confirm & Submit invokes the existing submission flow exactly once", async () => {
     render(<IncidentForm initialValues={initialValues()} />);
     await advanceToPreview();

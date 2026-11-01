@@ -21,10 +21,19 @@ const updateResult: { data: unknown; error: unknown; count: number } = {
   error: null,
   count: 0,
 };
+const insertResult: { data: { id: string; slug: string } | null; error: unknown } = {
+  data: { id: "new-draft-id", slug: "database-outage" },
+  error: null,
+};
 let updateChain: {
   eq: MockFn;
   in: MockFn;
   select: MockFn;
+  then: (onFulfilled: () => unknown) => Promise<unknown>;
+};
+let insertChain: {
+  select: MockFn;
+  single: MockFn;
   then: (onFulfilled: () => unknown) => Promise<unknown>;
 };
 
@@ -42,6 +51,8 @@ const builder = {
 function reset() {
   updateResult.count = 0;
   updateResult.error = null;
+  insertResult.data = { id: "new-draft-id", slug: "database-outage" };
+  insertResult.error = null;
   // A fluent thenable: `.eq()` and `.in()` keep the chain, and awaiting the
   // chain (the production code does `await ...update(...).eq().eq().in()`) must
   // resolve to the `{ count, error }` payload rather than to `undefined`.
@@ -52,6 +63,12 @@ function reset() {
     then: (onFulfilled?: (value: unknown) => unknown) =>
       Promise.resolve(onFulfilled ? onFulfilled(updateResult) : updateResult),
   };
+  insertChain = {
+    select: vi.fn(() => insertChain),
+    single: vi.fn(() => Promise.resolve(insertResult)),
+    then: (onFulfilled?: (value: unknown) => unknown) =>
+      Promise.resolve(onFulfilled ? onFulfilled(insertResult) : insertResult),
+  };
 
   builder.select.mockReset().mockImplementation(() => builder);
   builder.eq.mockReset().mockImplementation(() => builder);
@@ -60,9 +77,7 @@ function reset() {
   builder.maybeSingle
     .mockReset()
     .mockResolvedValue({ data: null, error: null });
-  builder.insert
-    .mockReset()
-    .mockResolvedValue({ data: undefined, error: null });
+  builder.insert.mockReset().mockImplementation(() => insertChain);
   builder.delete.mockReset().mockImplementation(() => updateChain);
   builder.update.mockReset().mockImplementation(() => updateChain);
 }
@@ -262,6 +277,7 @@ describe("createIncident — idempotency", () => {
 
     const savedDraft = await saveDraft(validForm(), null, key);
     expect(savedDraft.error).toBeNull();
+    expect(savedDraft.incidentId).toBe("new-draft-id");
     expect(b.insert).toHaveBeenCalledWith(
       expect.objectContaining({ idempotency_key: key, status: "DRAFT" }),
     );
@@ -892,6 +908,79 @@ describe("saveDraft", () => {
     const insertedRow = b.insert.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(insertedRow.status).toBe("DRAFT");
     expect(insertedRow.author_id).toBe("u-author");
+    expect(b.eq).not.toHaveBeenCalled();
+  });
+
+  it("updates the existing draft when saving again with the same idempotency key", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const b = lastBuilder();
+    const key = "repeat-draft-key";
+
+    b.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    insertResult.data = { id: "draft-id", slug: "database-outage" };
+    const first = await saveDraft(validDraft(), null, key);
+
+    b.maybeSingle.mockResolvedValueOnce({
+      data: { id: "draft-id" },
+      error: null,
+    });
+    driveUpdateResult({
+      data: [{ slug: "database-outage" }],
+      error: null,
+    });
+    const second = await saveDraft(validDraft({ summary: "Updated summary" }), null, key);
+
+    expect(first).toEqual({
+      error: null,
+      incidentId: "draft-id",
+      slug: "database-outage",
+    });
+    expect(second).toEqual({
+      error: null,
+      incidentId: "draft-id",
+      slug: "database-outage",
+    });
+    expect(b.insert).toHaveBeenCalledTimes(1);
+    expect(b.update).toHaveBeenCalledTimes(1);
+    expect(b.eq).toHaveBeenCalledWith("idempotency_key", key);
+    expect(b.eq).toHaveBeenCalledWith("author_id", "u-author");
+    expect(b.eq).toHaveBeenCalledWith("status", "DRAFT");
+    expect(updateChain.eq).toHaveBeenCalledWith("id", "draft-id");
+    expect(updateChain.eq).toHaveBeenCalledWith("author_id", "u-author");
+    expect(updateChain.eq).toHaveBeenCalledWith("status", "DRAFT");
+  });
+
+  it("does not update another author's draft when the same idempotency key is used", async () => {
+    const b = lastBuilder();
+    const key = "shared-draft-key";
+    mockCurrentUser.mockResolvedValue(author);
+    b.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    insertResult.data = { id: "author-one-draft", slug: "database-outage" };
+    await saveDraft(validDraft(), null, key);
+
+    mockCurrentUser.mockResolvedValue({
+      ...author,
+      userId: "u-another-author",
+    });
+    b.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    insertResult.data = { id: "author-two-draft", slug: "database-outage" };
+    const result = await saveDraft(validDraft(), null, key);
+
+    expect(result).toMatchObject({
+      error: null,
+      incidentId: "author-two-draft",
+    });
+    expect(b.eq).toHaveBeenCalledWith("idempotency_key", key);
+    expect(b.eq).toHaveBeenCalledWith("author_id", "u-another-author");
+    expect(b.update).not.toHaveBeenCalled();
+    expect(b.insert).toHaveBeenCalledTimes(2);
+    expect(b.insert).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        author_id: "u-another-author",
+        idempotency_key: key,
+        status: "DRAFT",
+      }),
+    );
   });
 
   it("reports a DB error from a draft insert", async () => {

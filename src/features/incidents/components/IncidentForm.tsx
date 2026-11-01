@@ -177,6 +177,7 @@ export default function IncidentForm({
   // Synchronous guard that prevents two concurrent onSubmit invocations
   // (e.g. a double-click that slips past the isLocked state check).
   const submitLockRef = useRef(false);
+  const draftIncidentIdRef = useRef<string | null | undefined>(incidentId);
 
   // Generate a stable idempotency key for the form session (create mode only).
   // Re-submits from the same mounted form reuse the same key, so the server
@@ -377,13 +378,17 @@ export default function IncidentForm({
         preventionActions: values.preventionActions ?? [],
       };
 
-      const result = await saveDraft(payload, incidentId, idempotencyKeyRef);
+      const existingDraftId = draftIncidentIdRef.current;
+      const result = await saveDraft(payload, existingDraftId, idempotencyKeyRef);
       if (result.error) {
         setSubmitError(result.error);
         return;
       }
+      if (result.incidentId) {
+        draftIncidentIdRef.current = result.incidentId;
+      }
       setSubmitSuccess(
-        incidentId
+        existingDraftId
           ? "Draft updated."
           : "Draft saved. You can continue editing later from My reports.",
       );
