@@ -1391,6 +1391,53 @@ body {
   animation: review-soft-enter 280ms 130ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
 }
 
+/* Queue cards: a gentle fade + rise on entrance, staggered by index via
+   inline `animation-delay`. */
+.review-card {
+  animation: review-card-enter 420ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+@keyframes review-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* CRITICAL severity rail gently pulses to draw the reviewer's eye. */
+@keyframes review-rail-pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
+}
+
+.review-rail-pulse {
+  animation: review-rail-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .review-card {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .review-rail-pulse {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
 @media (min-width: 1280px) {
   .review-incident-overview {
     display: grid;

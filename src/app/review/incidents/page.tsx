@@ -24,46 +24,38 @@ export default async function ReviewIncidentsPage() {
   }
 
   return (
-    <main className="home-page review-queue-page relative isolate min-h-[calc(100dvh-68px)] overflow-x-clip bg-[#080d16] px-5 py-9 text-slate-100 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
+    <main className="home-page review-queue-page relative isolate min-h-[calc(100dvh-68px)] overflow-x-clip bg-[#080d16] px-5 py-7 text-slate-100 sm:px-8 sm:py-9 lg:px-10 lg:py-10">
       <div aria-hidden="true" className="home-grid" />
-      <div className="relative mx-auto w-full max-w-[1240px]">
-        <header className="mb-8 grid gap-6 border-b border-slate-800/80 pb-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-10">
+      <div className="relative mx-auto w-full max-w-310">
+        <header className="relative mb-5 border-b border-slate-800/60 pb-5 sm:pb-6">
+          {/* Top-right label */}
+          <p
+            aria-hidden="true"
+            className="absolute right-0 top-1 hidden font-mono text-[9px] uppercase tracking-[0.2em] text-slate-500 sm:block"
+          >
+            Review Workspace
+          </p>
+
           <div>
-            <p className="home-kicker">
-              <span aria-hidden="true" className="home-kicker-mark" />
-              Reviewer workspace / Intake
-            </p>
-            <h1 className="mt-4 text-[clamp(2.65rem,5vw,4.4rem)] font-normal leading-[0.96] tracking-[-0.06em] text-[#f1f1e9] [font-family:Georgia,'Times_New_Roman',serif]">
-              Incident <em className="text-[#c6e47c]">review.</em>
+            <h1 className="text-[clamp(2.2rem,4.5vw,3.6rem)] font-normal leading-[0.96] tracking-tighter text-[#f1f1e9] font-[Georgia,'Times_New_Roman',serif]">
+              Incident <em className="not-italic text-[#a3e635]">Review</em>
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
-              Assess each submission against its timeline, failure analysis, and
-              remediation record. The oldest reports appear first.
+            <p className="mt-2 max-w-2xl text-[13px] leading-5 text-slate-400">
+              Review reported incidents, validate the analysis, and make a
+              decision.
             </p>
           </div>
-          {result.kind === "success" && (
-            <div className="flex items-end gap-4 border-l border-slate-800 pl-4 md:min-w-40 md:pb-1 md:pl-6">
-              <p className="font-mono text-[9px] uppercase leading-5 tracking-[0.12em] text-slate-500">
-                Awaiting
-                <br />
-                decision
-              </p>
-              <p className="font-mono text-3xl tabular-nums leading-none text-[#c6e47c]">
-                {result.incidents.length}
-              </p>
-            </div>
-          )}
         </header>
 
         {result.kind === "error" ? (
           <div
             role="alert"
-            className="border-y border-rose-500/30 bg-rose-500/[0.06] px-4 py-5 text-sm text-rose-200 sm:px-5"
+            className="border-y border-rose-500/30 bg-rose-500/6 px-4 py-5 text-sm text-rose-200 sm:px-5"
           >
             <p className="font-semibold">
               Unable to load the reviewer workspace.
             </p>
-            <p className="mt-2 break-words text-rose-200/80">
+            <p className="mt-2 wrap-break-word text-rose-200/80">
               {result.message}
             </p>
           </div>
