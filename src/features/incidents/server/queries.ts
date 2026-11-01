@@ -68,6 +68,7 @@ export type PublishedIncidentSummary = Pick<
   | "summary"
   | "system"
   | "technologies"
+  | "prevention_actions"
 > & {
   timelineCount: number;
   timelinePreview: TimelinePreviewMarker[];
@@ -147,6 +148,24 @@ function getTimelinePreview(value: unknown) {
     timelineCount: events.length,
     timelinePreview: [first, middle, last],
   };
+}
+
+function getPreventionActions(value: unknown): PreventionAction[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const action = entry as Partial<PreventionAction>;
+    if (typeof action.title !== "string" || !action.title.trim()) return [];
+    return [
+      {
+        title: action.title,
+        ...(typeof action.description === "string"
+          ? { description: action.description }
+          : {}),
+      },
+    ];
+  });
 }
 
 function mapPublishedIncident(incident: PublishedIncidentRow): PublishedIncident {
@@ -282,7 +301,7 @@ export async function getPublishedIncidentSummaries(): Promise<{
   const { data, error } = await supabase
     .from("incidents")
     .select(
-      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline",
+      "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline, prevention_actions",
     )
     .eq("status", "PUBLISHED")
     .order("occurred_at", { ascending: false });
@@ -305,6 +324,7 @@ export async function getPublishedIncidentSummaries(): Promise<{
           (technology): technology is string => typeof technology === "string",
         )
       : [],
+    prevention_actions: getPreventionActions(incident.prevention_actions),
     ...getTimelinePreview(incident.timeline),
   }));
 

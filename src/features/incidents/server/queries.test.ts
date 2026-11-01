@@ -392,4 +392,30 @@ describe("getTimelinePreview (via getPublishedIncidentSummaries)", () => {
     expect(eqCalls).toContainEqual(["status", "PUBLISHED"]);
     expect(orderCalls).toContainEqual(["occurred_at", { ascending: false }]);
   });
+
+  it("includes only documented prevention action titles and descriptions", async () => {
+    setChainResult({
+      data: [
+        baseRow({
+          prevention_actions: [
+            { title: "Add staged rollout", description: "Limit deployment risk." },
+            { title: "   ", private_note: "not public content" },
+            null,
+            { title: "Improve alerting", private_note: "not public content" },
+          ],
+        }),
+      ],
+      error: null,
+    });
+
+    const result = await getPublishedIncidentSummaries();
+
+    expect(result.incidents?.[0].prevention_actions).toEqual([
+      {
+        title: "Add staged rollout",
+        description: "Limit deployment risk.",
+      },
+      { title: "Improve alerting" },
+    ]);
+  });
 });
