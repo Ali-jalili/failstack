@@ -243,24 +243,10 @@ export async function createIncident(
 }
 
 export async function updateIncidentResubmit(input: unknown) {
-  const payloadSchema = z.object({
-    id: z.string(),
-    // reuse the incident form schema for validation of the rest of the payload
-    title: incidentFormSchema.shape.title,
-    companyName: incidentFormSchema.shape.companyName,
-    occurredAt: incidentFormSchema.shape.occurredAt,
-    durationMinutes: incidentFormSchema.shape.durationMinutes,
-    severity: incidentFormSchema.shape.severity,
-    pattern: incidentFormSchema.shape.pattern,
-    summary: incidentFormSchema.shape.summary,
-    officialPostMortemUrl: incidentFormSchema.shape.officialPostMortemUrl,
-    system: incidentFormSchema.shape.system,
-    technologies: incidentFormSchema.shape.technologies,
-    timeline: incidentFormSchema.shape.timeline,
-    rootCauseTree: incidentFormSchema.shape.rootCauseTree,
-    architectureDiff: incidentFormSchema.shape.architectureDiff,
-    preventionActions: incidentFormSchema.shape.preventionActions,
-  });
+  const payloadSchema = z.intersection(
+    z.object({ id: z.string() }),
+    incidentFormSchema,
+  );
 
   const parsed = payloadSchema.safeParse(input);
   if (!parsed.success) {

@@ -484,6 +484,64 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
     expect(fromMock).not.toHaveBeenCalled();
   });
 
+  it("rejects a first timeline event that is not TRIGGER before authorization or writes", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const r = await updateIncidentResubmit(
+      validPayload({
+        timeline: [
+          { ...validForm().timeline[0], stage: "FAILURE" },
+          validForm().timeline[1],
+        ],
+      }),
+    );
+
+    expect(r).toEqual({
+      error:
+        "timeline.0.stage: The first timeline event must have stage TRIGGER",
+    });
+    expect(mockCurrentUser).not.toHaveBeenCalled();
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a first timeline event whose offset is not zero", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const r = await updateIncidentResubmit(
+      validPayload({
+        timeline: [
+          { ...validForm().timeline[0], timestampOffsetMinutes: 5 },
+          validForm().timeline[1],
+        ],
+      }),
+    );
+
+    expect(r).toEqual({
+      error:
+        "timeline.0.timestampOffsetMinutes: The first timeline event must have a timestamp offset of 0",
+    });
+    expect(mockCurrentUser).not.toHaveBeenCalled();
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
+  it("enforces the architecture-diff notes invariant on resubmission", async () => {
+    mockCurrentUser.mockResolvedValue(author);
+    const r = await updateIncidentResubmit(
+      validPayload({
+        architectureDiff: {
+          ...validForm().architectureDiff,
+          isFact: false,
+          notes: "",
+        },
+      }),
+    );
+
+    expect(r).toEqual({
+      error:
+        "architectureDiff.notes: Notes and reasoning are required when changes are reconstructed (isFact: false)",
+    });
+    expect(mockCurrentUser).not.toHaveBeenCalled();
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
   // Drives the awaited update outcome. `update()` is a fluent thenable, so the
   // production code awaits the whole `.update().eq().eq().eq()` chain and
   // destructures `{ count, error }` from it.
@@ -516,7 +574,7 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
     ]);
   });
 
-  it("succeeds when exactly one matching row is updated", async () => {
+  it("accepts a valid resubmission when exactly one matching row is updated", async () => {
     mockCurrentUser.mockResolvedValue(author);
     const b = lastBuilder();
     driveUpdate({ count: 1 });
