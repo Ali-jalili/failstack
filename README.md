@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FailStack
 
-## Getting Started
+FailStack is an incident-reporting application. It provides routes to create and edit incident reports, view published reports, manage an author's reports, and review submitted incidents.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js: the repository does not pin a version in `package.json` or a root `.nvmrc`.
+- pnpm `10.22.0` (pinned by the `packageManager` field in `package.json`).
+
+## Installation and local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <repository-url>
+cd failstack
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a local `.env.local` file and configure the following variable names with values provided for your development environment:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Start the development server:
 
-## Learn More
+```bash
+pnpm dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Available commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+These commands are defined in `package.json`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Start the Next.js development server. |
+| `pnpm build` | Create a production build. |
+| `pnpm start` | Start the production server. |
+| `pnpm lint` | Run ESLint. |
+| `pnpm test` | Run the Vitest test suite. |
 
-## Deploy on Vercel
+The app imports fonts through `next/font/google` in `src/app/layout.tsx`. The build may need network access to retrieve those fonts and can take longer or fail in an offline environment.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Project structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `src/app/` contains the Next.js routes and page/layout entry points.
+- `src/features/` groups feature-specific components, validation, and server-side actions and queries.
+- `src/lib/` contains shared helpers and Supabase client setup.
+- `src/types/` contains shared TypeScript types.
+
+## Tests
+
+Run the suite with:
+
+```bash
+pnpm test
+```
+
+The latest recorded full-suite run passed 404 tests. Server-side tests use mocks; they do not verify integration with Supabase. The repository has no E2E test suite.
+
+## Known limitations
+
+Database behavior, including RLS policies and RPC definitions, must be verified separately; the application test mocks do not establish those database guarantees. No E2E suite is currently present.
