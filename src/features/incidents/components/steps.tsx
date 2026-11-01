@@ -7,7 +7,10 @@ export interface StepDefinition<Values> {
   id: string;
   label: string;
   description: string;
-  component: ComponentType;
+  component: ComponentType<{
+    onNavigateToStep?: (step: number) => void;
+    validateStep?: (step: number) => Promise<boolean>;
+  }>;
   fields: readonly (keyof Values)[];
 }
 
@@ -78,11 +81,13 @@ export function StepHeader<Values>({
   stepNumber,
   totalSteps,
   progressPercent,
+  hideTitle = false,
 }: {
   step: StepDefinition<Values>;
   stepNumber: number;
   totalSteps: number;
   progressPercent: number;
+  hideTitle?: boolean;
 }) {
   return (
     <div className="border-b border-slate-800/80 pb-5">
@@ -96,9 +101,11 @@ export function StepHeader<Values>({
         </span>
         <span className="text-slate-400">{step.description}</span>
       </p>
-      <h2 className="mt-2 text-[1.75rem] font-normal leading-[1.05] tracking-[-0.02em] text-[#f1f1e9]">
-        {step.label}
-      </h2>
+      {!hideTitle ? (
+        <h2 className="mt-2 text-[1.75rem] font-normal leading-[1.05] tracking-[-0.02em] text-[#f1f1e9]">
+          {step.label}
+        </h2>
+      ) : null}
 
       <div
         role="progressbar"

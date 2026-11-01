@@ -400,6 +400,25 @@ async function advanceToPreview() {
 }
 
 describe("Final preview step", () => {
+  it("shows validated sections in the checklist and links back to a section", async () => {
+    render(<IncidentForm initialValues={initialValues()} />);
+    await advanceToPreview();
+
+    expect(await screen.findByText("Required information is ready.")).toBeTruthy();
+    expect(screen.getByText("5 / 5")).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /edittimeline/i }),
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: /timeline/i }),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Event title")).toHaveProperty(
+      "value",
+      "trigger",
+    );
+  });
+
   it("displays representative values from all major sections", async () => {
     render(<IncidentForm initialValues={initialValues()} />);
     await advanceToPreview();

@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -264,6 +264,20 @@ export default function IncidentForm({
     setSubmitError(null);
   };
 
+  const goToPreviousStep = (targetStep: number) => {
+    if (isLocked || targetStep >= step || targetStep < 0) return;
+    setCompletedSteps((completed) =>
+      completed.filter((completedStep) => completedStep !== targetStep),
+    );
+    setStep(targetStep);
+    setSubmitError(null);
+  };
+
+  const validateStep = useCallback((targetStep: number) => {
+    const target = STEPS[targetStep];
+    return target ? trigger(target.fields) : Promise.resolve(false);
+  }, [trigger]);
+
   async function onSubmit(data: IncidentFormValues) {
     if (isLocked || submitLockRef.current) return;
     submitLockRef.current = true;
@@ -476,6 +490,7 @@ export default function IncidentForm({
               stepNumber={step + 1}
               totalSteps={STEPS.length}
               progressPercent={progressPercent}
+              hideTitle={isLast}
             />
 
             <FormProvider {...form}>
@@ -485,12 +500,49 @@ export default function IncidentForm({
                   disabled={isLocked}
                   className={`mt-6 ${isLocked ? "opacity-60" : ""}`}
                 >
-                  <CurrentStepComponent />
+                  <CurrentStepComponent
+                    onNavigateToStep={goToPreviousStep}
+                    validateStep={validateStep}
+                  />
                 </fieldset>
               </form>
             </FormProvider>
           </div>
           {/* Navigation */}
+          {isLast ? (
+            <div className="mt-6 border-t border-slate-800/80 pt-4">
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={back}
+                  disabled={isLocked}
+                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700/80 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-300 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <span aria-hidden="true">←</span>
+                  Back to edit
+                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => void onSaveDraft()}
+                    disabled={isLocked || isSavingDraft}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700/80 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-300 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {isSavingDraft ? "Saving…" : "Save draft"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleSubmit(onSubmit)()}
+                    disabled={isLocked}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-[#c6e47c] bg-[#c6e47c] px-5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#11190a] transition-colors hover:border-[#dcf7a0] hover:bg-[#dcf7a0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Submitting…" : "Confirm & submit"}
+                    {!isSubmitting ? <span aria-hidden="true">→</span> : null}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="mt-7">
             <StepNav
               canGoBack={!isFirst}
@@ -529,6 +581,7 @@ export default function IncidentForm({
               ) : null}
             </div>
           </div>
+          )}
           <StepStatusPanel
             error={submitError}
             success={submitSuccess}
