@@ -45,7 +45,11 @@ import {
   getCurrentUserState,
   type CurrentUserState,
 } from "@/features/auth/server/current-user";
-import { getIncidentReviewQueue } from "./queries";
+import {
+  getIncidentReviewQueue,
+  getReviewIncidentDetail,
+  type ReviewIncident,
+} from "./queries";
 
 const mockCurrentUser = vi.mocked(getCurrentUserState);
 
@@ -349,5 +353,139 @@ describe("getIncidentReviewQueue data access", () => {
       message: "Could not load incidents pending review: database unavailable",
     });
     expect(mocks.from).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* getReviewIncidentDetail                                                    */
+/* -------------------------------------------------------------------------- */
+
+describe("getReviewIncidentDetail authorization", () => {
+  it("returns unauthenticated for anonymous users without touching Supabase", async () => {
+    mockCurrentUser.mockResolvedValue({ kind: "anonymous" });
+
+    await expect(getReviewIncidentDetail("i-1")).resolves.toEqual({
+      kind: "unauthenticated",
+    });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("returns a role lookup error without touching Supabase", async () => {
+    mockCurrentUser.mockResolvedValue({
+      ...reviewerUser,
+      reviewRole: null,
+      roleError: "roles unavailable",
+    });
+
+    await expect(getReviewIncidentDetail("i-1")).resolves.toEqual({
+      kind: "error",
+      message: "Could not verify reviewer access: roles unavailable",
+    });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+
+  it("forbids authors without touching Supabase", async () => {
+    mockCurrentUser.mockResolvedValue(authorUser);
+
+    await expect(getReviewIncidentDetail("i-1")).resolves.toEqual({
+      kind: "forbidden",
+    });
+    expect(mocks.from).not.toHaveBeenCalled();
+  });
+});
+
+describe("getReviewIncidentDetail data access", () => {
+  beforeEach(() => {
+    mockCurrentUser.mockResolvedValue(reviewerUser);
+  });
+
+  it("returns the incident, its position, and its previous/next neighbours in queue order", async () => {
+    const incidents = [
+      { id: "i-1", created_at: "2026-01-01T00:00:00Z", author_id: null },
+      { id: "i-2", created_at: "2026-01-02T00:00:00Z", author_id: null },
+      { id: "i-3", created_at: "2026-01-03T00:00:00Z", author_id: null },
+    ] as unknown as ReviewIncident[];
+    mocks.queryResult = { data: incidents, error: null };
+
+    const result = await getReviewIncidentDetail("i-2");
+    expect(result).toEqual({
+      kind: "success",
+      incident: { ...incidents[1], author_name: null, author_email: null },
+      incidents: incidents.map((i) => ({
+        ...i,
+        author_name: null,
+        author_email: null,
+      })),
+      previousId: "i-1",
+      nextId: "i-3",
+    });
+  });
+
+  it("reports the first incident as having no previous neighbour", async () => {
+    mocks.queryResult = {
+      data: [
+        { id: "i-1", created_at: "2026-01-01T00:00:00Z", author_id: null },
+      ],
+      error: null,
+    };
+
+    const result = await getReviewIncidentDetail("i-1");
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") {
+      expect(result.previousId).toBeNull();
+      expect(result.nextId).toBeNull();
+    }
+  });
+
+  it("reports an unknown / no-longer-pending id as incident: null, not a DB error", async () => {
+    mocks.queryResult = {
+      data: [
+        { id: "i-1", created_at: "2026-01-01T00:00:00Z", author_id: null },
+      ],
+      error: null,
+    };
+
+    const result = await getReviewIncidentDetail("not-a-pending-id");
+    expect(result).toEqual({
+      kind: "success",
+      incident: null,
+      incidents: [
+        {
+          id: "i-1",
+          created_at: "2026-01-01T00:00:00Z",
+          author_id: null,
+          author_name: null,
+          author_email: null,
+        },
+      ],
+      previousId: null,
+      nextId: null,
+    });
+  });
+
+  it("returns an empty result when the queue itself is empty", async () => {
+    mocks.queryResult = { data: [], error: null };
+
+    const result = await getReviewIncidentDetail("i-1");
+    expect(result).toEqual({
+      kind: "success",
+      incident: null,
+      incidents: [],
+      previousId: null,
+      nextId: null,
+    });
+  });
+
+  it("propagates the database error verbatim (never misrepresented as missing)", async () => {
+    mocks.queryResult = {
+      data: null,
+      error: { message: "database unavailable" },
+    };
+
+    const result = await getReviewIncidentDetail("i-1");
+    expect(result).toEqual({
+      kind: "error",
+      message: "Could not load incidents pending review: database unavailable",
+    });
   });
 });

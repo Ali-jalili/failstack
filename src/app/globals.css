@@ -1446,6 +1446,33 @@ body {
   }
 }
 
+/* Compact the review page headers on short, wide screens so the queue
+   list / evidence stays in view. Scoped to the queue page (normal document
+   scrolling) and the dedicated detail page. */
+@media (min-width: 1024px) and (max-height: 640px) {
+  .review-queue-page,
+  .review-detail-page {
+    padding-block: 0.75rem;
+  }
+
+  .review-queue-page > div > header,
+  .review-detail-page > div > header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .review-queue-page > div > header h1,
+  .review-detail-page > div > header h1 {
+    margin-top: 0.5rem;
+    font-size: clamp(2rem, 4vw, 3rem);
+  }
+
+  .review-queue-page > div > header > div > p:last-child,
+  .review-queue-page nav[aria-label="Pending incident reports"] > p {
+    display: none;
+  }
+}
+
 @media (max-width: 1023px) {
   .review-mobile-toolbar {
     top: 68px;
@@ -1464,14 +1491,6 @@ body {
     margin-top: 0;
     border-top: 0;
     padding-top: 0;
-  }
-
-  .review-workspace-detail {
-    padding-bottom: 9rem;
-  }
-
-  .review-workspace-detail:has(.review-change-form) {
-    padding-bottom: calc(min(42dvh, 320px) + 1rem + env(safe-area-inset-bottom));
   }
 
   .review-decision-enter {
@@ -1510,10 +1529,6 @@ body {
 
   .review-decision-copy h3 {
     font-size: 9px;
-  }
-
-  .review-queue-sheet {
-    overscroll-behavior: contain;
   }
 }
 
@@ -1694,7 +1709,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .review-investigation-sections .review-mobile-active,
   .review-mobile-toolbar,
-  .review-queue-sheet,
   .review-section-picker-menu,
   .review-section-picker-trigger,
   .review-section-picker-trigger svg {

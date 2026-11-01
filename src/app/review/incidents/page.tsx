@@ -14,16 +14,19 @@ export default async function ReviewIncidentsPage() {
 
   if (result.kind === "forbidden") {
     const currentUser = await getCurrentUserState();
-    if (currentUser.kind === "authenticated" && currentUser.reviewRole === null) {
+    if (
+      currentUser.kind === "authenticated" &&
+      currentUser.reviewRole === null
+    ) {
       redirect("/my-incidents");
     }
     notFound();
   }
 
   return (
-    <main className="home-page relative isolate min-h-[calc(100dvh-68px)] overflow-x-clip bg-[#080d16] px-5 py-9 text-slate-100 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
+    <main className="home-page review-queue-page relative isolate min-h-[calc(100dvh-68px)] overflow-x-clip bg-[#080d16] px-5 py-9 text-slate-100 sm:px-8 sm:py-12 lg:px-10 lg:py-14">
       <div aria-hidden="true" className="home-grid" />
-      <div className="relative mx-auto max-w-[1240px]">
+      <div className="relative mx-auto w-full max-w-[1240px]">
         <header className="mb-8 grid gap-6 border-b border-slate-800/80 pb-7 md:grid-cols-[minmax(0,1fr)_auto] md:items-end md:gap-10">
           <div>
             <p className="home-kicker">
@@ -34,8 +37,8 @@ export default async function ReviewIncidentsPage() {
               Incident <em className="text-[#c6e47c]">review.</em>
             </h1>
             <p className="mt-4 max-w-2xl text-sm leading-6 text-slate-400">
-              Assess each submission against its timeline, failure analysis,
-              and remediation record. The oldest reports appear first.
+              Assess each submission against its timeline, failure analysis, and
+              remediation record. The oldest reports appear first.
             </p>
           </div>
           {result.kind === "success" && (

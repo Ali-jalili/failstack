@@ -11,4 +11,10 @@ export default defineConfig({
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
+  test: {
+    // `.build-validation/` is an untracked project mirror created by a
+    // build-validation workflow; its stale copies of source files must not
+    // be picked up as test files.
+    exclude: ["**/node_modules/**", "**/dist/**", ".build-validation/**"],
+  },
 });

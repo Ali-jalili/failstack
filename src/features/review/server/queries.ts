@@ -54,7 +54,32 @@ export type IncidentReviewQueueResult =
   | { kind: "error"; message: string }
   | { kind: "success"; incidents: ReviewIncident[] };
 
-type IncidentRowWithoutAuthor = Omit<ReviewIncident, "author_name" | "author_email">;
+/**
+ * Result of looking up a single incident for the dedicated review detail
+ * route. `incidents` is the full pending queue in its canonical order
+ * (`created_at` ascending) — the same query and ordering as
+ * `getIncidentReviewQueue()`, so Previous/Next navigation always matches
+ * the queue. `incident` is null when the requested id is not currently
+ * pending review (already decided, or never existed).
+ */
+export type ReviewIncidentDetailResult =
+  | { kind: "unauthenticated" }
+  | { kind: "forbidden" }
+  | { kind: "error"; message: string }
+  | {
+      kind: "success";
+      incident: ReviewIncident | null;
+      incidents: ReviewIncident[];
+      /** Id of the previous pending incident in queue order, if any. */
+      previousId: string | null;
+      /** Id of the next pending incident in queue order, if any. */
+      nextId: string | null;
+    };
+
+type IncidentRowWithoutAuthor = Omit<
+  ReviewIncident,
+  "author_name" | "author_email"
+>;
 
 export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResult> {
   const currentUser = await getCurrentUserState();
@@ -130,8 +155,7 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
       authorMap = new Map(
         authorRows
           .filter(
-            (row): row is AuthorIdentity =>
-              typeof row?.author_id === "string",
+            (row): row is AuthorIdentity => typeof row?.author_id === "string",
           )
           .map((row) => [row.author_id, row] as const),
       );
@@ -150,5 +174,54 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
         author_email: entry?.author_email ?? null,
       };
     }),
+  };
+}
+
+/**
+ * Load one incident for the dedicated detail route.
+ *
+ * Reuses `getIncidentReviewQueue()` so the pending set, ordering, and
+ * author-identity resolution are identical to the queue page. The
+ * requested incident is located within that ordered list, which also
+ * yields its previous/next neighbours for navigation.
+ *
+ * An id that is not currently pending (already decided, or unknown) is
+ * reported as `incident: null` — a state the UI can express as "this
+ * report no longer awaits review" without a 404. Database or
+ * authorization failures are surfaced as their own result kinds and are
+ * never misrepresented as a missing incident.
+ */
+export async function getReviewIncidentDetail(
+  incidentId: string,
+): Promise<ReviewIncidentDetailResult> {
+  const queueResult = await getIncidentReviewQueue();
+
+  if (
+    queueResult.kind === "unauthenticated" ||
+    queueResult.kind === "forbidden" ||
+    queueResult.kind === "error"
+  ) {
+    return queueResult;
+  }
+
+  const incidents = queueResult.incidents;
+  const index = incidents.findIndex((incident) => incident.id === incidentId);
+
+  if (index === -1) {
+    return {
+      kind: "success",
+      incident: null,
+      incidents,
+      previousId: null,
+      nextId: null,
+    };
+  }
+
+  return {
+    kind: "success",
+    incident: incidents[index],
+    incidents,
+    previousId: index > 0 ? incidents[index - 1].id : null,
+    nextId: index < incidents.length - 1 ? incidents[index + 1].id : null,
   };
 }

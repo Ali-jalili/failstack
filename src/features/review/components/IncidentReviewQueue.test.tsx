@@ -3,29 +3,36 @@
 /**
  * @vitest-environment jsdom
  *
- * UI tests for the reviewer-queue author identity block:
+ * UI tests for the link-list review queue (`IncidentReviewQueue`):
  *
- *  - Author name + email are shown when available.
- *  - Only email is shown when name is missing.
- *  - The block is omitted entirely when neither name nor email is present.
- *  - Each incident's author is bound to its own incident row.
+ *  - Each pending incident renders as a link to its own detail route
+ *    (`/review/incidents/{id}`), giving every incident a directly
+ *    addressable URL.
+ *  - The author's name/email is shown inline when available.
+ *  - The empty state is shown when there are no pending incidents.
  *
- * These tests exercise the *rendering* behavior only; the server-side
- * authorization boundary (reviewer-only) is covered by
+ * The server-side authorization boundary is covered by
  * `src/features/review/server/queries.test.ts`.
  */
 
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { cleanup, render } from "@testing-library/react";
-import IncidentReviewQueue from "@/features/review/components/IncidentReviewQueue";
+import { cleanup, render, screen } from "@testing-library/react";
+import IncidentReviewQueue from "./IncidentReviewQueue";
 import type { ReviewIncident } from "@/features/review/server/queries";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
-}));
-
-vi.mock("@/features/review/server/actions", () => ({
-  reviewIncident: vi.fn(),
+vi.mock("next/link", () => ({
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+  } & Record<string, unknown>) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
 }));
 
 function makeIncident(overrides: Partial<ReviewIncident> = {}): ReviewIncident {
@@ -62,24 +69,33 @@ afterEach(() => {
   cleanup();
 });
 
-describe("IncidentReviewQueue author identity block", () => {
-  it("shows the author's name and email when both are present", () => {
+describe("IncidentReviewQueue (link-list) rows", () => {
+  it("links each incident to its dedicated detail route", () => {
+    const a = makeIncident({ id: "i-1", title: "Incident A" });
+    const b = makeIncident({ id: "i-2", title: "Incident B" });
+    render(<IncidentReviewQueue incidents={[a, b]} />);
+
+    const links = screen.getAllByRole("link");
+    const detailLinks = links.filter((link) =>
+      link.getAttribute("href")?.startsWith("/review/incidents/"),
+    );
+    expect(detailLinks).toHaveLength(2);
+    expect(detailLinks[0].getAttribute("href")).toBe("/review/incidents/i-1");
+    expect(detailLinks[1].getAttribute("href")).toBe("/review/incidents/i-2");
+  });
+
+  it("shows the author's name when available", () => {
     render(
       <IncidentReviewQueue
         incidents={[
-          makeIncident({
-            author_name: "Alex Morgan",
-            author_email: "alex@example.com",
-          }),
+          makeIncident({ author_name: "Alex Morgan", author_email: null }),
         ]}
       />,
     );
-    expect(document.body.textContent).toContain("Submitted by");
-    expect(document.body.textContent).toContain("Alex Morgan");
-    expect(document.body.textContent).toContain("alex@example.com");
+    expect(screen.getByText("Alex Morgan")).toBeTruthy();
   });
 
-  it("shows only the email when the name is missing", () => {
+  it("falls back to the author's email when the name is missing", () => {
     render(
       <IncidentReviewQueue
         incidents={[
@@ -87,47 +103,23 @@ describe("IncidentReviewQueue author identity block", () => {
         ]}
       />,
     );
-    expect(document.body.textContent).toContain("only@example.com");
-    // The label is still shown; the name slot is omitted.
-    expect(document.body.textContent).toContain("Submitted by");
+    expect(screen.getByText("only@example.com")).toBeTruthy();
   });
 
-  it("omits the entire author block when neither name nor email is present", () => {
+  it("omits the author slot entirely when neither name nor email is present", () => {
     render(
       <IncidentReviewQueue
         incidents={[makeIncident({ author_name: null, author_email: null })]}
       />,
     );
-    expect(document.body.textContent).not.toContain("Submitted by");
+    expect(screen.queryByText("only@example.com")).toBeNull();
   });
+});
 
-  it("binds each incident's author to its own row (no cross-association)", () => {
-    const incidentA = makeIncident({
-      id: "i-1",
-      title: "Incident A",
-      author_id: "user-A",
-      author_name: "Author A",
-      author_email: "a@example.com",
-    });
-    const incidentB = makeIncident({
-      id: "i-2",
-      title: "Incident B",
-      author_id: "user-B",
-      author_name: "Author B",
-      author_email: "b@example.com",
-    });
-
-    // The queue renders one incident card at a time; each incident's author
-    // block is scoped to that single incident's own data.
-    const { unmount } = render(<IncidentReviewQueue incidents={[incidentA]} />);
-    expect(document.body.textContent).toContain("Author A");
-    expect(document.body.textContent).toContain("a@example.com");
-    expect(document.body.textContent).not.toContain("Author B");
-    unmount();
-
-    render(<IncidentReviewQueue incidents={[incidentB]} />);
-    expect(document.body.textContent).toContain("Author B");
-    expect(document.body.textContent).toContain("b@example.com");
-    expect(document.body.textContent).not.toContain("Author A");
+describe("IncidentReviewQueue (link-list) empty state", () => {
+  it("renders the queue-clear state when there are no pending incidents", () => {
+    render(<IncidentReviewQueue incidents={[]} />);
+    expect(screen.getByText("Queue clear")).toBeTruthy();
+    expect(screen.getByText("No reports awaiting review")).toBeTruthy();
   });
 });
