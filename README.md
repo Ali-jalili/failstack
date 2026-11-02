@@ -1,129 +1,129 @@
 # FailStack
 
-FailStack is an incident postmortem platform for documenting how software failures unfold, investigating their causes, and preserving the lessons in a reviewed public archive. Authors build structured reports with timelines, root-cause analysis, architecture changes, and prevention actions; reviewers assess each submission before publication.
+**A peer-reviewed incident postmortem platform for turning production failures into reusable engineering knowledge.**
 
-[Live Demo](https://failstack.vercel.app/)
+FailStack helps engineering teams document what happened, understand why it happened, and make corrective actions visible. Authors create structured postmortems; reviewers assess submissions before they become part of the public incident archive.
 
-### Demo Account
+[Open the hosted demo](https://failstack.vercel.app/)
 
-Use this account to test the deployed application:
+## Demo access
+
+Use this account to explore the hosted application:
 
 - **Email:** `adminfailstack@gmail.com`
 - **Password:** `<123456>`
 
-## Key workflows
+This is a shared demo account for trying the project.
 
-### Write and submit a structured report
+## Product workflows
 
-The six-step report flow guides authors through basic incident details, the affected system and technologies, an event timeline, a root-cause tree and architecture comparison, prevention actions, and a final preview. Timeline events can include affected components and CLI commands. When an architecture change is reconstructed rather than a verified fact, the report requires explanatory notes.
+### Create an incident report
 
-Authors can save incomplete reports as drafts, return to edit them, and submit them once complete. Submitted reports appear in the author's report list with their current status. Authors can edit non-published reports, respond to change requests, resubmit, and delete drafts or reports returned for changes.
+A six-step authoring flow captures:
+
+1. Incident summary and impact
+2. Affected systems and technologies
+3. Event timeline, including affected components and CLI commands
+4. Root-cause analysis and architecture changes
+5. Prevention actions
+6. A final report preview
+
+Authors can save incomplete reports as drafts, edit and resubmit reports that need changes, and track report status from their account.
 
 ### Review and publish
 
-Reviewers and administrators get a queue of reports awaiting a decision. They can inspect a report, move through the queue, approve it for publication, or request changes with a reason. Approved reports become available in the public archive.
+Reviewers and administrators can inspect reports in a review queue, approve them for publication, or request changes with an explanation. Published reports become available in the public archive.
 
-### Browse published incidents
+### Explore the archive
 
-The public archive supports text, severity, and system filters. Each published report has a detailed page with its timeline, impact, root-cause tree, evidence, architecture/fix details, and prevention actions. Related reports are suggested using shared system, pattern, and technologies.
+Visitors can search and filter published incidents by severity and system. Each report has a detail page with its timeline, impact, causes, evidence, architecture or fix details, and prevention actions. The archive also suggests related reports based on shared systems, patterns, and technologies.
 
-Account creation and email/password sign-in are supported. Review and author destinations are selected according to the account role; contributions require sign-in.
+## Engineering highlights
 
-## Technology stack
+- **Structured domain validation:** Zod schemas validate form steps and server-side submissions. Drafts have a separate, less restrictive schema; submitting a draft triggers full report validation.
+- **Feature-oriented organization:** Incident, authentication, and review code is grouped under `src/features/`, alongside each feature's components, schemas, and server logic.
+- **Server-side data access:** App Router pages load data on the server, with shared Supabase clients and helpers in `src/lib/`.
+- **Resilient report creation:** Create flows use an idempotency key to recognize retried submissions. Correct duplicate handling depends on a matching uniqueness constraint in the configured database.
+- **Publication and review flow:** Public queries select published reports, while review decisions are sent through a database RPC. Change requests require a reason.
+- **Automated tests:** Vitest and Testing Library cover validation, component behavior, and mocked Supabase query and action paths.
 
-| Technology                                                         | Use in FailStack                                                                    |
-| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
-| Next.js 16.3.8 App Router                                          | Route pages, server-rendered data access, layouts, and server actions.              |
-| React 19.2.8 and TypeScript 5.9.3                                  | User interface and application code; TypeScript is configured in strict mode.       |
-| Supabase JS 2.117.2 and Supabase SSR 0.12.7                        | Cookie-aware authentication and server-side queries, mutations, and RPC calls.      |
-| React Hook Form 7.89.0, Zod 4.6.5, and `@hookform/resolvers` 5.9.1 | Multi-step form state and schema-based client and server validation.                |
-| Tailwind CSS 4.3.3                                                 | Utility styling, with additional project styles in `src/app/globals.css`.           |
-| Vitest 5.0.5, Testing Library 16.3.3, and jsdom 30.1.3             | Unit and component tests for validation, UI behavior, and mocked server data paths. |
-| ESLint 9.39.5 with Next.js configs                                 | Static linting using the Next.js Core Web Vitals and TypeScript rulesets.           |
-| pnpm 10.22.0                                                       | Package manager version pinned by the project.                                      |
+## Technology
 
-Lucide React supplies interface icons, and Sonner provides toast notifications.
+| Area | Technologies |
+| --- | --- |
+| Application | Next.js 16 App Router, React 19, TypeScript |
+| Backend and authentication | Supabase JS, Supabase SSR |
+| Forms and validation | React Hook Form, Zod |
+| Styling and UI | Tailwind CSS 4, Lucide React, Sonner |
+| Testing and quality | Vitest, Testing Library, jsdom, ESLint |
+| Package manager | pnpm 10 |
 
-## Architecture and engineering decisions
+## Architecture
 
-The App Router pages in `src/app/` define route entry points and perform server-side data loading. Feature-oriented modules under `src/features/` keep incident, authentication, and review UI near their validation schemas, server actions, and queries. Shared Supabase clients and helpers live under `src/lib/`; shared incident types live under `src/types/`.
+```text
+src/
+  app/        App Router pages and route entry points
+  features/   Feature-specific UI, schemas, and server logic
+  lib/        Shared utilities and Supabase clients
+  types/      Shared application types
+```
 
-The report form validates each step in the browser with React Hook Form and Zod. Before writing, server actions validate the full payload again. Drafts use a separate, less restrictive schema; submitting a draft revalidates the complete report before moving it to review. Cross-field rules for the initial timeline event are explicitly reapplied in the composed form schema.
+The report lifecycle is `DRAFT` → `PENDING_REVIEW` → `PUBLISHED`, with `CHANGES_REQUESTED` as the reviewer feedback state. The application validates report data before writes and revalidates drafts when they are submitted for review.
 
-Create-mode forms use a stable idempotency key to recognize retried or concurrent submissions. The action handles a database unique-violation response by looking up the matching report; this behavior depends on the external database having the expected uniqueness constraint. It is not a guarantee established by this repository alone.
+## Run locally
 
-Public queries explicitly select published reports. Review actions validate the decision and require a reason for change requests before calling the database function. Several server actions log backend errors and return user-facing messages; error handling varies by action.
+### Requirements
 
-## Database Design
-
-The configured Supabase database is expected to use the following PostgreSQL model. Its schema and migrations are not included in this repository.
-
-| Table                      | Purpose                                                                                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `incidents`                | Stores report details, status and timestamps, technologies, and structured timeline, root-cause, architecture-change, and prevention data. |
-| `user_roles`               | Associates application users with their application roles.                                                                                 |
-| `incident_review_feedback` | Records review decisions, optional feedback, reviewer references, and timestamps.                                                          |
-
-Incident records use UUID identifiers and reference their authors; review-feedback records reference the incident and reviewer using UUIDs. Structured report content, including timelines, root-cause trees, architecture changes, and prevention actions, uses PostgreSQL `jsonb`. The report lifecycle uses `DRAFT`, `PENDING_REVIEW`, `CHANGES_REQUESTED`, and `PUBLISHED` statuses. The intended database constraints cover unique report slugs, author-scoped idempotency keys, valid status values, and required feedback for change requests.
-
-Review decisions are applied by a PostgreSQL function that updates the incident status and records the corresponding feedback. The function implementation and table definitions are external to this repository.
-
-## Local development
-
-### Prerequisites
-
-- Node.js (the repository does not pin a Node.js version)
+- Node.js
 - pnpm 10.22.0
-- Supabase project configuration for authentication and data access
+- A Supabase project configured with the tables and RPC functions expected by the application
 
-### Install and configure
+### Setup
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Ali-jalili/failstack.git
 cd failstack
 pnpm install
 ```
 
-Create a `.env.local` file in the project root with configuration for your Supabase project:
+Create a `.env.local` file in the project root:
 
 ```dotenv
 NEXT_PUBLIC_SUPABASE_URL=<your Supabase project URL>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your Supabase anon key>
 ```
 
-These values are used by the Supabase server and session-refresh clients. Use configuration for a project that provides the tables and RPC functions expected by the application. Their definitions are not included in this repository; see [Known limitations](#known-limitations).
-
-### Run locally
+Start the development server:
 
 ```bash
 pnpm dev
 ```
 
-The project imports Geist fonts with `next/font/google`, so a build may require network access to retrieve them.
+The project loads Geist fonts through `next/font/google`; a build may need network access to download them.
 
-### Project commands
+## Project commands
 
-| Command                  | Purpose                                             |
-| ------------------------ | --------------------------------------------------- |
-| `pnpm dev`               | Start the development server.                       |
-| `pnpm lint`              | Run ESLint.                                         |
-| `pnpm exec tsc --noEmit` | Run the TypeScript compiler without emitting files. |
-| `pnpm test`              | Run the Vitest suite.                               |
-| `pnpm build`             | Create a production build.                          |
-| `pnpm start`             | Start the production server after a build.          |
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Start the development server |
+| `pnpm lint` | Run ESLint |
+| `pnpm exec tsc --noEmit` | Type-check without emitting files |
+| `pnpm test` | Run the Vitest suite |
+| `pnpm build` | Create a production build |
+| `pnpm start` | Run the production build |
 
 ## Testing
 
-The Vitest suite includes schema and server-action validation, mocked Supabase query paths, and component behavior for the report form, public archive, authentication forms, and reviewer workflow. Run it with:
+Run the automated suite with:
 
 ```bash
 pnpm test
 ```
 
-Supabase-facing tests use mocks. They exercise application logic and expected query/RPC calls, but do not verify a live database or its functions. The repository does not include browser-based end-to-end tests. No current passing test count is claimed here.
+Supabase-facing tests use mocks. They verify application logic and expected query or RPC calls, but do not validate a live database integration. The repository does not currently include browser-based end-to-end tests.
 
-## Known limitations
+## Scope and known limitations
 
-- The repository does not include the Supabase schema, migrations, or RPC implementations. The application expects the `incidents`, `user_roles`, and `incident_review_feedback` tables and RPC functions including `get_my_reports`, `get_author_identities`, and `review_incident`. The configured database cannot be recreated from this repository alone, and its runtime behavior cannot be verified here.
-- Mocked tests do not establish live Supabase integration.
-- No deployment configuration or verified live deployment is included. Replace the demo link above when a deployment URL is available.
+- The Supabase schema, migrations, and RPC implementations are not included. The application expects the `incidents`, `user_roles`, and `incident_review_feedback` tables, along with RPC functions such as `get_my_reports`, `get_author_identities`, and `review_incident`.
+- The external database must provide the constraints expected by the application, including unique report slugs and author-scoped idempotency keys.
+- Mocked tests do not establish that the hosted demo or a separately configured Supabase project has a working end-to-end integration.
