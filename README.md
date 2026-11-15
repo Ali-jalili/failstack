@@ -22,7 +22,7 @@ Create a local `.env.local` file and configure the following variable names with
 
 ## Supabase migrations
 
-The SQL files in [supabase/migrations](supabase/migrations/) were written from the app's expected behavior, not exported from a live database. Apply them to a fresh project only. Before pushing, verify which project is linked, run `supabase db push --dry-run --remote`, and review the proposed changes. Compare the migrations with the live project before using them there.
+The SQL files in [supabase/migrations](supabase/migrations/) were written from the app's expected behavior, not exported from a live database. Apply them to a fresh project only. The inspected live `app_role` enum contains `reviewer`; the fresh-project migration also defines `admin` to match the app's access checks. Reconcile this difference before applying. Verify which project is linked, run `supabase db push --dry-run --remote`, and review the proposed changes.
 
 Start the development server:
 

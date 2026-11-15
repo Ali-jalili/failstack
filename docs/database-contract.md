@@ -1,6 +1,6 @@
 # Database contract
 
-The SQL implementation is in [supabase/migrations](../supabase/migrations/). It was written from the app's expected behavior, not exported from a live database; apply to a fresh project only and compare with the live project before using it there.
+The SQL implementation is in [supabase/migrations](../supabase/migrations/). It was written from the app's expected behavior, not exported from a live database; apply to a fresh project only and compare with the live project before using it there. The inspected live `app_role` enum contains only `reviewer`; the fresh migration adds `admin` because the app's access checks support it. The live `updated_at` column has a default but no update trigger.
 
 | App query or RPC | Database objects | Authorization |
 | --- | --- | --- |
