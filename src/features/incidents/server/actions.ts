@@ -11,6 +11,13 @@ import {
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
 import {
+  DELETABLE_STATUSES,
+  INCIDENT_STATUS,
+  RESUBMITTABLE_STATUSES,
+  SUBMITTED_STATUSES,
+  type IncidentStatus,
+} from "@/types/incident";
+import {
   incidentDraftSchema,
   incidentFormSchema,
   type IncidentDraftValues,
@@ -107,27 +114,25 @@ export async function createIncident(
     architecture_diff: incident.architectureDiff,
     prevention_actions: incident.preventionActions,
     author_id: currentUser.userId,
-    status: "PENDING_REVIEW",
+    status: INCIDENT_STATUS.PENDING_REVIEW,
   };
 
   if (idempotencyKey) {
     row.idempotency_key = idempotencyKey;
   }
 
-  const submittedStatuses = new Set([
-    "PENDING_REVIEW",
-    "CHANGES_REQUESTED",
-    "PUBLISHED",
-  ]);
-  const transitionDraft = async (
-    existing: { id: string; slug: string; status: string },
-  ): Promise<CreateIncidentResult> => {
+  const submittedStatuses = new Set(SUBMITTED_STATUSES);
+  const transitionDraft = async (existing: {
+    id: string;
+    slug: string;
+    status: string;
+  }): Promise<CreateIncidentResult> => {
     const { data: updated, error: updateError } = await supabase
       .from("incidents")
       .update({ ...row, slug: existing.slug })
       .eq("id", existing.id)
       .eq("author_id", currentUser.userId)
-      .eq("status", "DRAFT")
+      .eq("status", INCIDENT_STATUS.DRAFT)
       .select("slug, status");
 
     if (updateError) {
@@ -176,14 +181,16 @@ export async function createIncident(
     };
   };
 
-  const existingResult = (
-    existing: { id: string; slug: string; status: string },
-  ): Promise<CreateIncidentResult> | CreateIncidentResult => {
-    if (submittedStatuses.has(existing.status)) {
+  const existingResult = (existing: {
+    id: string;
+    slug: string;
+    status: string;
+  }): Promise<CreateIncidentResult> | CreateIncidentResult => {
+    if (submittedStatuses.has(existing.status as IncidentStatus)) {
       return { error: null, slug: existing.slug, alreadyExists: true };
     }
 
-    if (existing.status !== "DRAFT") {
+    if (existing.status !== INCIDENT_STATUS.DRAFT) {
       return { error: "Could not verify the incident submission status." };
     }
 
@@ -353,7 +360,7 @@ export async function updateIncidentResubmit(input: unknown) {
     root_cause_tree: parsed.data.rootCauseTree,
     architecture_diff: parsed.data.architectureDiff,
     prevention_actions: parsed.data.preventionActions,
-    status: "PENDING_REVIEW",
+    status: INCIDENT_STATUS.PENDING_REVIEW,
   };
 
   // Attempt conditional update: only allow owner to update. Published and
@@ -364,7 +371,7 @@ export async function updateIncidentResubmit(input: unknown) {
     .update(row, { count: "exact" })
     .eq("id", id)
     .eq("author_id", currentUser.userId)
-    .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED"]);
+    .in("status", [...RESUBMITTABLE_STATUSES]);
 
   if (updateError) {
     return {
@@ -424,7 +431,7 @@ function toDraftRow(
     architecture_diff: incident.architectureDiff ?? null,
     prevention_actions: incident.preventionActions,
     author_id: authorId,
-    status: "DRAFT",
+    status: INCIDENT_STATUS.DRAFT,
   };
 }
 
@@ -490,7 +497,7 @@ export async function saveDraft(
       .update(row, { count: "exact" })
       .eq("id", draftId)
       .eq("author_id", currentUser.userId)
-      .eq("status", "DRAFT")
+      .eq("status", INCIDENT_STATUS.DRAFT)
       .select("slug");
 
     if (updateError) {
@@ -539,7 +546,7 @@ export async function saveDraft(
 
     // Only DRAFTs are updatable through this path; a PENDING_REVIEW /
     // CHANGES_REQUESTED / PUBLISHED report must use the resubmit flow.
-    if (incident.status !== "DRAFT") {
+    if (incident.status !== INCIDENT_STATUS.DRAFT) {
       return {
         error:
           "This report can no longer be saved as a draft. Use the edit flow instead.",
@@ -555,7 +562,7 @@ export async function saveDraft(
       .select("id")
       .eq("idempotency_key", idempotencyKey)
       .eq("author_id", currentUser.userId)
-      .eq("status", "DRAFT")
+      .eq("status", INCIDENT_STATUS.DRAFT)
       .maybeSingle();
 
     if (lookupError) {
@@ -666,7 +673,7 @@ export async function submitDraft(
     .select("*")
     .eq("id", incidentId)
     .eq("author_id", currentUser.userId)
-    .eq("status", "DRAFT")
+    .eq("status", INCIDENT_STATUS.DRAFT)
     .maybeSingle();
 
   if (fetchError) {
@@ -726,12 +733,12 @@ export async function submitDraft(
   const { data: updated, error: updateError } = await supabase
     .from("incidents")
     .update({
-      status: "PENDING_REVIEW",
+      status: INCIDENT_STATUS.PENDING_REVIEW,
       occurred_at: occurredAt.data,
     })
     .eq("id", incidentId)
     .eq("author_id", currentUser.userId)
-    .eq("status", "DRAFT")
+    .eq("status", INCIDENT_STATUS.DRAFT)
     .select("slug");
 
   if (updateError) {
@@ -822,12 +829,7 @@ export async function deleteIncident(
     };
   }
 
-  const allowedStatuses = ["DRAFT", "CHANGES_REQUESTED"] as const;
-  if (
-    !allowedStatuses.includes(
-      incident.status as (typeof allowedStatuses)[number],
-    )
-  ) {
+  if (!DELETABLE_STATUSES.includes(incident.status as IncidentStatus)) {
     return {
       error:
         "This incident cannot be deleted. Only incidents in DRAFT or CHANGES_REQUESTED status can be deleted.",
@@ -858,7 +860,7 @@ export async function deleteIncident(
     .delete()
     .eq("id", id)
     .eq("author_id", userId)
-    .in("status", allowedStatuses)
+    .in("status", [...DELETABLE_STATUSES])
     .select("id");
 
   if (deleteError) {

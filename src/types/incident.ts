@@ -27,11 +27,33 @@ export type RootCauseNodeType =
   | "DIRECT_FAILURE"
   | "SYSTEM_IMPACT";
 
-export type IncidentStatus =
-  | "DRAFT"
-  | "PENDING_REVIEW"
-  | "CHANGES_REQUESTED"
-  | "PUBLISHED";
+export const INCIDENT_STATUS = {
+  DRAFT: "DRAFT",
+  PENDING_REVIEW: "PENDING_REVIEW",
+  CHANGES_REQUESTED: "CHANGES_REQUESTED",
+  PUBLISHED: "PUBLISHED",
+} as const;
+
+export type IncidentStatus = (typeof INCIDENT_STATUS)[keyof typeof INCIDENT_STATUS];
+
+export const SUBMITTED_STATUSES: readonly IncidentStatus[] = [
+  INCIDENT_STATUS.PENDING_REVIEW,
+  INCIDENT_STATUS.CHANGES_REQUESTED,
+  INCIDENT_STATUS.PUBLISHED,
+];
+
+// Statuses in which the author may still resubmit the report.
+export const RESUBMITTABLE_STATUSES: readonly IncidentStatus[] = [
+  INCIDENT_STATUS.DRAFT,
+  INCIDENT_STATUS.PENDING_REVIEW,
+  INCIDENT_STATUS.CHANGES_REQUESTED,
+];
+
+// Statuses in which the author may delete the report.
+export const DELETABLE_STATUSES: readonly IncidentStatus[] = [
+  INCIDENT_STATUS.DRAFT,
+  INCIDENT_STATUS.CHANGES_REQUESTED,
+];
 export interface TimelineEvent {
   id: string;
   timestampOffsetMinutes: number;

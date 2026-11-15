@@ -4,9 +4,10 @@ import {
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
 import { z } from "zod";
-import type { IncidentStatus } from "@/types/incident";
+import { INCIDENT_STATUS } from "@/types/incident";
 import type {
   ArchitectureDiff,
+  IncidentStatus,
   IncidentSeverity,
   IncidentPattern,
   PreventionAction,
@@ -17,10 +18,10 @@ import type {
 import { logServerError } from "@/lib/errors";
 
 const incidentStatusValues = [
-  "DRAFT",
-  "PENDING_REVIEW",
-  "CHANGES_REQUESTED",
-  "PUBLISHED",
+  INCIDENT_STATUS.DRAFT,
+  INCIDENT_STATUS.PENDING_REVIEW,
+  INCIDENT_STATUS.CHANGES_REQUESTED,
+  INCIDENT_STATUS.PUBLISHED,
 ] as const satisfies readonly IncidentStatus[];
 
 const myReportSchema = z.object({
@@ -293,7 +294,7 @@ export async function getPublishedIncidentBySlug(slug: string): Promise<{
   const { data, error } = await supabase
     .from("incidents")
     .select(publishedIncidentColumns)
-    .eq("status", "PUBLISHED")
+    .eq("status", INCIDENT_STATUS.PUBLISHED)
     .eq("slug", slug)
     .maybeSingle();
 
@@ -316,7 +317,7 @@ export async function getPublishedIncidentSummaries(): Promise<{
     .select(
       "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, system, technologies, timeline, prevention_actions",
     )
-    .eq("status", "PUBLISHED")
+    .eq("status", INCIDENT_STATUS.PUBLISHED)
     .order("occurred_at", { ascending: false });
 
   if (error) {

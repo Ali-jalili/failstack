@@ -12,6 +12,7 @@ import {
   hasReviewerAccess,
 } from "@/features/auth/server/current-user";
 import { createClient } from "@/lib/supabase/server";
+import { INCIDENT_STATUS } from "@/types/incident";
 
 /**
  * An author's resolvable identity. `author_name` comes from Supabase Auth
@@ -121,7 +122,7 @@ export async function getIncidentReviewQueue(): Promise<IncidentReviewQueueResul
     .select(
       "id, slug, title, company_name, occurred_at, duration_minutes, severity, pattern, summary, official_post_mortem_url, system, technologies, timeline, root_cause_tree, architecture_diff, prevention_actions, created_at, author_id",
     )
-    .eq("status", "PENDING_REVIEW")
+    .eq("status", INCIDENT_STATUS.PENDING_REVIEW)
     .order("created_at", { ascending: true });
 
   if (error) {
