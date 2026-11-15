@@ -316,7 +316,7 @@ export async function createIncident(
 
 export async function updateIncidentResubmit(input: unknown) {
   const payloadSchema = z.intersection(
-    z.object({ id: z.string() }),
+    z.object({ id: z.string().uuid() }),
     incidentFormSchema,
   );
 
@@ -325,9 +325,7 @@ export async function updateIncidentResubmit(input: unknown) {
     return { error: formatZodError(parsed.error) };
   }
 
-  const occurredAt = isoDateTimeSchema.safeParse(
-    parsed.data.occurredAt as string,
-  );
+  const occurredAt = isoDateTimeSchema.safeParse(parsed.data.occurredAt);
   if (!occurredAt.success) {
     return {
       error: "The incident date must be submitted as an ISO timestamp.",
@@ -532,50 +530,99 @@ export async function saveDraft(
   // Creating a new draft.
   const slug = createSlug(parsed.data.title);
   const createRow: Record<string, unknown> = { ...row, slug };
+  if (idempotencyKey) createRow.idempotency_key = idempotencyKey;
 
-  if (idempotencyKey) {
-    createRow.idempotency_key = idempotencyKey;
-
-    const { data: inserted, error: insertError } = await supabase
+  const insertDraft = (candidate: Record<string, unknown>) =>
+    supabase
       .from("incidents")
-      .insert(createRow)
+      .insert(candidate)
       .select("id, slug")
       .single();
 
-    if (insertError) {
-      return {
-        error: logServerError(
-          "saveDraft.insertWithKey",
-          insertError,
-          "Could not save your draft. Please try again.",
-        ),
-      };
-    }
-
+  const { data: inserted, error: insertError } = await insertDraft(createRow);
+  if (!insertError && inserted) {
     return {
       error: null,
       incidentId: inserted.id,
       slug: inserted.slug ?? slug,
     };
-  } else {
-    const { error: insertError } = await supabase
-      .from("incidents")
-      .insert(createRow);
+  }
 
-    if (insertError) {
+  if (insertError?.code === "23505" && idempotencyKey) {
+    // A simultaneous save may have inserted this key after the lookup above.
+    const { data: existing, error: lookupError } = await supabase
+      .from("incidents")
+      .select("id, status")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("author_id", access.userId)
+      .maybeSingle();
+
+    if (lookupError) {
       return {
         error: logServerError(
-          "saveDraft.insert",
-          insertError,
-          "Could not save your draft. Please try again.",
+          "saveDraft.insertWithKeyRaceLookup",
+          lookupError,
+          "Could not verify your saved draft. Please try again.",
         ),
       };
     }
+
+    if (existing) {
+      if (existing.status !== INCIDENT_STATUS.DRAFT) {
+        return {
+          error:
+            "This report can no longer be saved as a draft. Use the edit flow instead.",
+        };
+      }
+      return updateExistingDraft(existing.id);
+    }
   }
 
-  // The row's slug is deterministic from the title; return it so the caller
-  // can link to the draft. A freshly-created draft always has this slug.
-  return { error: null, incidentId: null, slug: slug };
+  if (!insertError && !inserted) {
+    return {
+      error: logServerError(
+        "saveDraft.insert",
+        new Error("Draft insert returned no row."),
+        "Could not save your draft. Please try again.",
+      ),
+    };
+  }
+
+  if (insertError?.code !== "23505") {
+    return {
+      error: logServerError(
+        idempotencyKey ? "saveDraft.insertWithKey" : "saveDraft.insert",
+        insertError,
+        "Could not save your draft. Please try again.",
+      ),
+    };
+  }
+
+  // A slug collision is rare but recoverable: retry once with a unique suffix.
+  const retrySlug = `${slug}-${randomUUID().slice(0, 8)}`;
+  const { data: retried, error: retryError } = await insertDraft({
+    ...createRow,
+    slug: retrySlug,
+  });
+
+  if (retryError || !retried) {
+    return {
+      error:
+        retryError?.code === "23505"
+          ? "Could not create a unique incident URL. Please try saving again."
+          : logServerError(
+              "saveDraft.slugRetry",
+              retryError ?? new Error("Draft retry returned no row."),
+              "Could not save your draft. Please try again.",
+            ),
+    };
+  }
+
+  return {
+    error: null,
+    incidentId: retried.id,
+    slug: retried.slug ?? retrySlug,
+  };
 }
 
 export async function submitDraft(
