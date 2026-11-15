@@ -2,6 +2,9 @@
 
 > Engineering knowledge, recovered from failure.
 
+[![CI](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml)
+[Live Demo](https://failstack.vercel.app/)
+
 FailStack is a peer-reviewed incident archive for documenting production failures and preserving the lessons behind them. It guides contributors from evidence and timelines to root-cause analysis and prevention actions, then routes reports through human review before publication.
 
 ## Project at a glance
@@ -128,3 +131,11 @@ docs/
 The last recorded full test run passed **408 tests**. Unit and component tests use mocks where server/database behavior is involved; they do not replace integration tests against Supabase. The repository currently has no end-to-end suite, and the migrations have not been applied to or validated against a live database.
 
 For the app-to-database access map, see [docs/database-contract.md](docs/database-contract.md). For the implementation, see the [incident](src/features/incidents/) and [review](src/features/review/) features.
+
+## 👨‍💻 Author
+
+**Ali Jalili** — Frontend Developer
+
+- **Portfolio:** [ali-jalili-dev.vercel.app](https://ali-jalili-dev.vercel.app/)
+- **LinkedIn:** [Ali Jalili](https://www.linkedin.com/in/ali--jalili/)
+- **Email:** [ali.jalili.dev@gmail.com](mailto:ali.jalili.dev@gmail.com)
