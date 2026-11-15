@@ -1,6 +1,6 @@
 -- Written from the app's expected behavior, not exported from a live database. Apply to a FRESH project only; compare with the live project before using it there.
--- Function behavior follows the inspected live definitions, with admin access
--- added because the app and migration requirements explicitly support admins.
+-- The exposed RPC behavior follows the live function definitions supplied for
+-- this project, with explicit author/reviewer role checks and admin support.
 
 begin;
 
@@ -110,7 +110,7 @@ begin
     raise exception 'Reviewer access required';
   end if;
 
-  if p_action not in ('APPROVED', 'CHANGES_REQUESTED') then
+  if p_action is null or p_action not in ('APPROVED', 'CHANGES_REQUESTED') then
     raise exception 'Invalid review action';
   end if;
 

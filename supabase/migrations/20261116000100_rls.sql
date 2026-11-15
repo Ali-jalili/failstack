@@ -1,6 +1,6 @@
 -- Written from the app's expected behavior, not exported from a live database. Apply to a FRESH project only; compare with the live project before using it there.
--- The inspected live policies use reviewer-only roles. Admin is included here
--- per the app contract; both roles receive reviewer capabilities.
+-- Policy definitions were checked against the live policy expressions supplied
+-- for this project; reviewer and admin share the review capabilities.
 
 begin;
 
@@ -8,16 +8,16 @@ alter table public.incidents enable row level security;
 alter table public.user_roles enable row level security;
 alter table public.incident_review_feedback enable row level security;
 
-revoke all on table public.incidents from public, anon, authenticated, service_role;
-revoke all on table public.user_roles from public, anon, authenticated, service_role;
-revoke all on table public.incident_review_feedback from public, anon, authenticated, service_role;
+-- Preserve service_role's existing table grants. Revoke client grants and add
+-- back only the privileges used by the authenticated application.
+revoke all on table public.incidents from public, anon, authenticated;
+revoke all on table public.user_roles from public, anon, authenticated;
+revoke all on table public.incident_review_feedback from public, anon, authenticated;
 
 grant select on table public.incidents to anon, authenticated;
 grant insert, update, delete on table public.incidents to authenticated;
 grant select on table public.user_roles to authenticated;
 
--- Remove both the policy names observed in the live project and the names
--- used by the initial inferred draft, so reruns do not leave permissive extras.
 drop policy if exists incidents_public_published_read on public.incidents;
 drop policy if exists incidents_author_read_own on public.incidents;
 drop policy if exists incidents_reviewer_read_all on public.incidents;

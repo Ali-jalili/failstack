@@ -102,7 +102,7 @@ pnpm dev
 
 ## Supabase migrations
 
-The SQL files in [supabase/migrations](supabase/migrations/) define the base schema, RLS policies, and review RPCs. They were written from the application's expected behavior, not exported from a live database, and are intended for a **fresh project**. Compare them with the target project's schema, policies, functions, and role setup before applying them to an existing project. In particular, the inspected live `app_role` enum contains `reviewer`, while the fresh-project migration also defines `admin` to match application access checks.
+The SQL files in [supabase/migrations](supabase/migrations/) define the observed base schema, then add admin support, RLS policies, and review RPCs. They were written from the application's expected behavior and the schema details shared for this project; they are not a database dump. Use them for a **fresh project**. The existing project has no `supabase_migrations.schema_migrations` history table, which means the CLI has no record of applied migrations; it does not mean the database is empty. Do not push these files to an existing project until you have reviewed the pending changes and confirmed the linked project.
 
 Before pushing, verify the linked Supabase project and inspect the proposed changes:
 
@@ -110,7 +110,7 @@ Before pushing, verify the linked Supabase project and inspect the proposed chan
 supabase db push --dry-run --remote
 ```
 
-Review the dry-run output and dashboard configuration before any actual push. The app's automated tests use mocks and do not establish that a remote database matches these migrations.
+Review the dry-run output and dashboard configuration before any actual push. The intended follow-up changes include adding `admin` to `app_role`, adding a severity constraint and lookup indexes, rebuilding the existing incident policies with admin support, removing the `anon` grant on `user_roles`, and replacing the review RPC definitions. Existing service-role table grants are preserved. The app's automated tests use mocks and do not establish that a remote database matches these migrations.
 
 ## Useful commands
 
