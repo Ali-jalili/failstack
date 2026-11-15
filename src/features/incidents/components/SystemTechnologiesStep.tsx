@@ -10,7 +10,7 @@ import {
 import {
   FormSectionHeading,
   FormTextField,
-} from "./form-fields";
+} from "./FormFields";
 
 const tagInputClass =
   "block w-full rounded-md border border-slate-800 bg-[#0d1520] px-4 py-3 text-[14px] leading-5 text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:border-[#c6e47c]/70 focus:bg-[#0e1622] focus:outline-none focus:ring-2 focus:ring-[#c6e47c]/25 motion-reduce:transition-none";

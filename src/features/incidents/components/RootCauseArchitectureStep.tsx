@@ -6,7 +6,7 @@ import { useState } from "react";
 import { rootCauseNodeTypeSchema } from "@/features/incidents/schema";
 import { type IncidentFormValues } from "@/features/incidents/form-schema";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
-import { FormSectionHeading } from "./form-fields";
+import { FormSectionHeading } from "./FormFields";
 
 type RootCauseNode = IncidentFormValues["rootCauseTree"][number];
 

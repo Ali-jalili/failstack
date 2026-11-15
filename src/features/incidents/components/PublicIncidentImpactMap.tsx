@@ -3,7 +3,7 @@ import type { PublishedIncident } from "@/features/incidents/server/queries";
 import {
   AlertTriangleIcon,
   CheckCircleIcon,
-} from "./public-incident-icons";
+} from "./PublicIncidentIcons";
 import { short, wrapSvgLabel } from "./public-incident-formatters";
 
 export function PublicIncidentImpactMap({

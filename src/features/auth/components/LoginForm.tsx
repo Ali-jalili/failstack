@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { loginSchema, type LoginFormValues } from "@/features/auth/schema";
 import { handleLogin } from "@/features/auth/server/actions";
-import { PasswordField, TextField } from "./password-field";
+import { PasswordField, TextField } from "./PasswordField";
 import { successToastOptions } from "./auth-toast";
 
 const serifClass = "[font-family:Georgia,'Times_New_Roman',serif]";

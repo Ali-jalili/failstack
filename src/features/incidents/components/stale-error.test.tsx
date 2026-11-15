@@ -5,7 +5,7 @@
  * QA-013 regression: validation error messages must not remain visible
  * after the user corrects a previously empty/invalid required field.
  *
- * The incident form's simple text fields (form-fields.tsx) already clear
+ * The incident form's simple text fields (FormFields.tsx) already clear
  * their error on change. The array-based steps (Prevention, Timeline,
  * Root-cause) register their leaf inputs directly, so without explicit
  * `clearErrors` calls the array-level "at least one" / "at least two"

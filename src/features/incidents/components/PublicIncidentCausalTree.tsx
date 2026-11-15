@@ -5,7 +5,7 @@ import {
   ArrowDownIcon,
   GitBranchIcon,
   ZapIcon,
-} from "./public-incident-icons";
+} from "./PublicIncidentIcons";
 import { label } from "./public-incident-formatters";
 
 const causeTypeColors: Record<string, { color: string; bg: string; border: string }> = {

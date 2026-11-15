@@ -24,7 +24,7 @@ import {
   StepNav,
   StepStatusPanel,
   type StepDefinition,
-} from "./steps";
+} from "./Steps";
 import BasicInfoStep from "./BasicInfoStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";
 import TimelineStep from "./TimelineStep";

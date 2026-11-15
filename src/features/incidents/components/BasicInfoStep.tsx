@@ -18,7 +18,7 @@ import {
   FormSelectField,
   FormTextAreaField,
   FormTextField,
-} from "./form-fields";
+} from "./FormFields";
 
 const SEVERITY_OPTIONS = incidentSeveritySchema.options.map((value) => ({
   value,

@@ -17,7 +17,7 @@ import {
   Code2Icon,
   GitCommitIcon,
   ScrollTextIcon,
-} from "./public-incident-icons";
+} from "./PublicIncidentIcons";
 import type { EvidenceTab } from "./public-incident-types";
 
 export function PublicIncidentEvidence({
