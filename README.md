@@ -1,11 +1,24 @@
 # FailStack
 
+[![CI](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml)
+
 > Engineering knowledge, recovered from failure.
 
-[![CI](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml)
-[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_FailStack-0ea5e9?style=for-the-badge&logo=vercel&logoColor=white)](https://failstack.vercel.app/)
+A peer-reviewed incident archive for documenting production failures and preserving the lessons behind them. FailStack guides contributors from evidence and timelines to root-cause analysis and prevention actions, then routes reports through human review before publication.
 
-FailStack is a peer-reviewed incident archive for documenting production failures and preserving the lessons behind them. It guides contributors from evidence and timelines to root-cause analysis and prevention actions, then routes reports through human review before publication.
+---
+
+## 🌐 Live Demo
+
+🔗 [Open the FailStack live demo](https://failstack.vercel.app/)
+
+### 🔑 Demo Account Credentials
+
+| Role | Email | Password | Access |
+| --- | --- | --- | --- |
+| Admin | `adminfailstack@gmail.com` | `123456` | Admin and incident review workflows |
+
+---
 
 ## Project at a glance
 
@@ -98,13 +111,6 @@ supabase db push --dry-run --remote
 ```
 
 Review the dry-run output and dashboard configuration before any actual push. The app's automated tests use mocks and do not establish that a remote database matches these migrations.
-
-## Demo admin account
-
-Use these credentials to explore the admin experience in the [live demo](https://failstack.vercel.app/):
-
-- **Email:** `adminfailstack@gmail.com`
-- **Password:** `123456`
 
 ## Useful commands
 
