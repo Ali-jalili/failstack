@@ -3,7 +3,7 @@
 > Engineering knowledge, recovered from failure.
 
 [![CI](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml/badge.svg)](https://github.com/Ali-jalili/failstack/actions/workflows/ci.yml)
-[Live Demo](https://failstack.vercel.app/)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Open_FailStack-0ea5e9?style=for-the-badge&logo=vercel&logoColor=white)](https://failstack.vercel.app/)
 
 FailStack is a peer-reviewed incident archive for documenting production failures and preserving the lessons behind them. It guides contributors from evidence and timelines to root-cause analysis and prevention actions, then routes reports through human review before publication.
 
@@ -98,6 +98,13 @@ supabase db push --dry-run --remote
 ```
 
 Review the dry-run output and dashboard configuration before any actual push. The app's automated tests use mocks and do not establish that a remote database matches these migrations.
+
+## Demo admin account
+
+Use these credentials to explore the admin experience in the [live demo](https://failstack.vercel.app/):
+
+- **Email:** `adminfailstack@gmail.com`
+- **Password:** `123456`
 
 ## Useful commands
 
