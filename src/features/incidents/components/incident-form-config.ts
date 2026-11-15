@@ -1,4 +1,4 @@
-import type { StepDefinition } from "./Steps";
+import type { StepDefinition } from "./IncidentFormSteps";
 import type { IncidentFormValues } from "@/features/incidents/form-schema";
 import BasicInfoStep from "./BasicInfoStep";
 import SystemTechnologiesStep from "./SystemTechnologiesStep";

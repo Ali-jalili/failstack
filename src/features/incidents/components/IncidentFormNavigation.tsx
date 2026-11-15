@@ -1,4 +1,4 @@
-import { StepNav } from "./Steps";
+import { StepNav } from "./IncidentFormSteps";
 
 type IncidentFormNavigationProps = {
   isLast: boolean;

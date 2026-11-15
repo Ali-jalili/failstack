@@ -28,7 +28,7 @@ import {
   StepIndicator,
   StepHeader,
   StepStatusPanel,
-} from "./Steps";
+} from "./IncidentFormSteps";
 
 export default function IncidentForm({
   initialValues,
