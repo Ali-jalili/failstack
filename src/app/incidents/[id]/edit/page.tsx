@@ -8,6 +8,7 @@ import {
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
 import { getMyReports } from "@/features/incidents/server/queries";
+import { INCIDENT_STATUS } from "@/types/incident";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -53,7 +54,7 @@ export default async function EditIncidentPage({ params }: Props) {
   // Published reports are immutable. Reject direct URL access so no author can
   // accidentally (or intentionally) mutate a published incident through the
   // edit route.
-  if (incident.status === "PUBLISHED") {
+  if (incident.status === INCIDENT_STATUS.PUBLISHED) {
     redirect("/my-incidents");
   }
 

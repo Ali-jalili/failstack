@@ -11,7 +11,7 @@ import {
   TimerIcon,
   WaypointsIcon,
   ZapIcon,
-} from "./public-incident-icons";
+} from "./PublicIncidentIcons";
 import {
   dateLabel,
   dateTimeLabel,

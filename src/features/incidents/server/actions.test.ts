@@ -471,7 +471,7 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
 
   function validPayload(overrides: Record<string, unknown> = {}) {
     return {
-      id: "incident-1",
+      id: "00000000-0000-4000-8000-000000000001",
       title: "Database outage",
       companyName: "Acme",
       occurredAt: "2026-01-01T00:00:00Z",
@@ -592,7 +592,10 @@ describe("updateIncidentResubmit — authorization and conditional update", () =
     expect(b.update).toHaveBeenCalledWith(expect.anything(), {
       count: "exact",
     });
-    expect(updateChain.eq).toHaveBeenCalledWith("id", "incident-1");
+    expect(updateChain.eq).toHaveBeenCalledWith(
+      "id",
+      "00000000-0000-4000-8000-000000000001",
+    );
     expect(updateChain.eq).toHaveBeenCalledWith("author_id", "u-author");
     expect(updateChain.in).toHaveBeenCalledWith("status", [
       "DRAFT",
@@ -914,16 +917,15 @@ describe("saveDraft", () => {
     expect(fromMock).not.toHaveBeenCalled();
   });
 
-  it("creates a new draft with status DRAFT and returns its slug", async () => {
+  it("creates a new draft with status DRAFT and returns its ID and slug", async () => {
     mockCurrentUser.mockResolvedValue(author);
     const b = lastBuilder();
-    b.insert.mockResolvedValueOnce({ data: undefined, error: null });
 
     const r = await saveDraft(validDraft());
 
     expect(r).toEqual({
       error: null,
-      incidentId: null,
+      incidentId: "new-draft-id",
       slug: "database-outage",
     });
     expect(b.insert).toHaveBeenCalledTimes(1);
@@ -1010,10 +1012,7 @@ describe("saveDraft", () => {
     const b = lastBuilder();
     const serviceError = { message: "permission denied" };
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
-    b.insert.mockResolvedValueOnce({
-      data: undefined,
-      error: serviceError,
-    });
+    insertResult.error = serviceError;
 
     const r = await saveDraft(validDraft());
     expect(r).toEqual({

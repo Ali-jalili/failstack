@@ -1,112 +1,15 @@
 "use client";
 
-import Link from "next/link";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ArrowRight, Layers2, Search } from "lucide-react";
+import { Layers2, Search } from "lucide-react";
 import type { IncidentSeverity } from "@/types/incident";
+import IncidentArchiveRadar from "./IncidentArchiveRadar";
+import { IncidentArchiveRow, severityOptions } from "./IncidentArchiveRow";
 import type { PublishedIncidentSummary } from "@/features/incidents/server/queries";
 
 type SeverityFilter = "ALL" | IncidentSeverity;
 type RadarSize = { width: number; height: number };
-const RADAR_SWEEP_SECONDS = 5;
-
-const radarBlips = [
-  { angle: 18, radius: 0.78 },
-  { angle: 47, radius: 0.62 },
-  { angle: 76, radius: 0.86 },
-  { angle: 112, radius: 0.7 },
-  { angle: 139, radius: 0.92 },
-  { angle: 167, radius: 0.58 },
-  { angle: 202, radius: 0.82 },
-  { angle: 229, radius: 0.67 },
-  { angle: 258, radius: 0.9 },
-  { angle: 291, radius: 0.73 },
-  { angle: 323, radius: 0.88 },
-  { angle: 345, radius: 0.6 },
-];
-
-const severityClass: Record<IncidentSeverity, string> = {
-  CRITICAL: "is-critical",
-  MAJOR: "is-major",
-  MINOR: "is-minor",
-};
-
-const severityOptions: { value: SeverityFilter; label: string }[] = [
-  { value: "ALL", label: "All severities" },
-  { value: "CRITICAL", label: "Critical" },
-  { value: "MAJOR", label: "Major" },
-  { value: "MINOR", label: "Minor" },
-];
-
-function formatDate(value: string) {
-  return new Date(value).toLocaleDateString("en", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-
-function formatDuration(minutes: number) {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const remaining = minutes % 60;
-  return remaining ? `${hours} hr ${remaining} min` : `${hours} hr`;
-}
-
-function IncidentRow({
-  incident,
-  active,
-  onFocus,
-  onRowElement,
-}: {
-  incident: PublishedIncidentSummary;
-  active: boolean;
-  onFocus: (id: string) => void;
-  onRowElement: (id: string, element: HTMLLIElement | null) => void;
-}) {
-  return (
-    <li
-      className={`archive-incident-row ${severityClass[incident.severity]}${active ? " is-active" : ""}`}
-      data-incident-id={incident.id}
-      ref={(element) => onRowElement(incident.id, element)}
-    >
-      <Link
-        href={`/incidents/report/${incident.slug}`}
-        className="archive-incident-link"
-        onFocus={() => onFocus(incident.id)}
-        onMouseEnter={() => onFocus(incident.id)}
-      >
-        <span className={`archive-row-severity ${severityClass[incident.severity]}`}>
-          <span aria-hidden="true" />
-          {incident.severity}
-        </span>
-        <span className="archive-row-copy">
-          <span className="archive-row-title">{incident.title}</span>
-          <span className="archive-row-metadata">
-            <span>
-              <Layers2 aria-hidden="true" size={13} />
-              {incident.system}
-            </span>
-            <time dateTime={incident.occurred_at}>
-              {formatDate(incident.occurred_at)}
-            </time>
-            <span>{formatDuration(incident.duration_minutes)}</span>
-            <span>
-              <Activity aria-hidden="true" size={13} />
-              {incident.timelineCount}{" "}
-              {incident.timelineCount === 1 ? "event" : "events"}
-            </span>
-          </span>
-        </span>
-        <span className="archive-row-open" aria-hidden="true">
-          <ArrowRight size={16} />
-        </span>
-      </Link>
-    </li>
-  );
-}
-
 export default function IncidentArchive({
   incidents,
   error,
@@ -314,10 +217,6 @@ export default function IncidentArchive({
     };
   }, [visibleIncidents]);
 
-  const centerX = radarSize.width * 0.205;
-  const centerY = radarSize.height / 2;
-  const radius = Math.min(radarSize.width * 0.205, radarSize.height * 0.465);
-  const radarPath = `M ${centerX} ${centerY - radius} A ${radius} ${radius} 0 0 1 ${centerX} ${centerY + radius}`;
 
   return (
     <main className="archive-page">
@@ -421,130 +320,13 @@ export default function IncidentArchive({
 
             <div className="archive-explorer" ref={explorerRef}>
               <div className="archive-radar-layer" aria-hidden="true">
-                <svg
-                  className="archive-radar-svg"
-                  ref={radarRef}
-                  viewBox={`0 0 ${radarSize.width} ${radarSize.height}`}
-                  preserveAspectRatio="none"
-                >
-                  <defs>
-                    <clipPath id="archive-radar-viewport">
-                      <rect
-                        x="0"
-                        y="0"
-                        width={radarSize.width}
-                        height={radarSize.height}
-                      />
-                    </clipPath>
-                    <linearGradient id="archive-radar-sweep" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0%" stopColor="#c6e47c" stopOpacity="0.22" />
-                      <stop offset="100%" stopColor="#c6e47c" stopOpacity="0.01" />
-                    </linearGradient>
-                  </defs>
-                  <g
-                    className="archive-radar-instrument"
-                    clipPath="url(#archive-radar-viewport)"
-                  >
-                    {[0.32, 0.54, 0.76, 1].map((scale) => (
-                      <circle
-                        key={scale}
-                        className="archive-radar-ring"
-                        cx={centerX}
-                        cy={centerY}
-                        r={radius * scale}
-                      />
-                    ))}
-                    <path
-                      className="archive-radar-crosshair"
-                      d={`M ${centerX - radius} ${centerY} H ${centerX + radius} M ${centerX} ${centerY - radius} V ${centerY + radius}`}
-                    />
-                    <path className="archive-radar-orbit" d={radarPath} />
-                    {radarBlips.map((blip) => {
-                      const radians = (blip.angle * Math.PI) / 180;
-                      const x = Number(
-                        (centerX + Math.sin(radians) * radius * blip.radius).toFixed(2),
-                      );
-                      const y = Number(
-                        (centerY - Math.cos(radians) * radius * blip.radius).toFixed(2),
-                      );
-                      return (
-                        <circle
-                          key={blip.angle}
-                          className="archive-radar-blip"
-                          cx={x}
-                          cy={y}
-                          r="2"
-                          style={{
-                            animationDelay: `${-(blip.angle / 360) * RADAR_SWEEP_SECONDS}s`,
-                          }}
-                        />
-                      );
-                    })}
-                    <g
-                      className="archive-radar-sweep"
-                      style={{
-                        transformBox: "view-box",
-                        transformOrigin: `${centerX}px ${centerY}px`,
-                      }}
-                    >
-                      <path
-                        d={`M ${centerX} ${centerY} L ${centerX} ${centerY - radius} A ${radius} ${radius} 0 0 1 ${centerX + radius} ${centerY} Z`}
-                        fill="url(#archive-radar-sweep)"
-                      />
-                    </g>
-                    {visibleIncidents.map((incident, index) => (
-                      <g
-                        key={incident.id}
-                        className={`archive-orbit-point ${severityClass[incident.severity]}${activeId === incident.id ? " is-active" : ""}`}
-                        data-point-id={incident.id}
-                        transform={`translate(${centerX} ${centerY})`}
-                        opacity="0"
-                      >
-                        <circle
-                          className="archive-orbit-echo"
-                          r="8"
-                          style={{ animationDelay: `${index * 0.18}s` }}
-                        />
-                        <circle r={activeId === incident.id ? 6 : 4} />
-                      </g>
-                    ))}
-                    {visibleIncidents.map((incident) => (
-                      <path
-                        key={`link-${incident.id}`}
-                        className={`archive-radar-connection ${severityClass[incident.severity]}${activeId === incident.id ? " is-active" : ""}`}
-                        data-link-id={incident.id}
-                        d=""
-                      />
-                    ))}
-                    <circle
-                      className="archive-radar-core"
-                      cx={centerX}
-                      cy={centerY}
-                      r={radius * 0.32}
-                    />
-                    <text
-                      className="archive-radar-title"
-                      x={centerX}
-                      y={centerY - 5}
-                    >
-                      Incident
-                    </text>
-                    <text
-                      className="archive-radar-title"
-                      x={centerX}
-                      y={centerY + 17}
-                    >
-                      Explorer
-                    </text>
-                    <text
-                      className="archive-radar-count"
-                      x={centerX}
-                      y={centerY + 40}
-                    >
-                      {filteredIncidents.length} CASES
-                    </text>
-                  </g>
-                </svg>
+                <IncidentArchiveRadar
+                  radarSize={radarSize}
+                  radarRef={radarRef}
+                  visibleIncidents={visibleIncidents}
+                  filteredCount={filteredIncidents.length}
+                  activeId={activeId}
+                />
               </div>
 
               <section
@@ -555,7 +337,7 @@ export default function IncidentArchive({
               >
                 <ol>
                   {visibleIncidents.map((incident) => (
-                    <IncidentRow
+                    <IncidentArchiveRow
                       key={incident.id}
                       incident={incident}
                       active={activeId === incident.id}

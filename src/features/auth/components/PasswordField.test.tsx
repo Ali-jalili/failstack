@@ -5,7 +5,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
-import { PasswordField } from "./password-field";
+import { PasswordField } from "./PasswordField";
 
 afterEach(cleanup);
 

@@ -1,5 +1,5 @@
 /** @format */
-import SignupForm from "@/features/auth/components/Signup-form";
+import SignupForm from "@/features/auth/components/SignupForm";
 import { getSafeRedirectPath } from "@/lib/auth/redirect";
 
 export default async function SignupPage({

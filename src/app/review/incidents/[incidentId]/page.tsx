@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, Inbox } from "lucide-react";
-import { IncidentReviewDetail } from "@/features/review/components/incident-review-detail";
+import { IncidentReviewDetail } from "@/features/review/components/IncidentReviewDetail";
 import { getReviewIncidentDetail } from "@/features/review/server/queries";
 import { getCurrentUserState } from "@/features/auth/server/current-user";
 

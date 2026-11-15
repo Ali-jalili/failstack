@@ -7,6 +7,7 @@ import {
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
 import { createClient } from "@/lib/supabase/server";
+import { INCIDENT_STATUS } from "@/types/incident";
 import { z } from "zod";
 
 /**
@@ -61,7 +62,7 @@ export async function checkDuplicateTitle(
   const { data, error } = await supabase
     .from("incidents")
     .select("id, title")
-    .eq("status", "PUBLISHED")
+    .eq("status", INCIDENT_STATUS.PUBLISHED)
     .limit(500);
 
   if (error || data === null || data === undefined) {

@@ -4,19 +4,92 @@
 
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import { logServerError } from "@/lib/errors";
+import { formatZodError, logServerError } from "@/lib/errors";
 import { createClient } from "@/lib/supabase/server";
 import {
   getCurrentUserState,
   hasAuthorAccess,
 } from "@/features/auth/server/current-user";
 import {
+  DELETABLE_STATUSES,
+  INCIDENT_STATUS,
+  RESUBMITTABLE_STATUSES,
+  SUBMITTED_STATUSES,
+  type IncidentStatus,
+} from "@/types/incident";
+import {
   incidentDraftSchema,
   incidentFormSchema,
   type IncidentDraftValues,
+  type IncidentFormValues,
 } from "@/features/incidents/form-schema";
 
 const isoDateTimeSchema = z.string().datetime();
+
+type AuthorAccessResult =
+  | { ok: true; userId: string }
+  | { ok: false; error: string };
+
+async function requireAuthorAccess(
+  context: string,
+  anonymousMessage: string,
+): Promise<AuthorAccessResult> {
+  const currentUser = await getCurrentUserState();
+
+  if (currentUser.kind === "anonymous") {
+    return { ok: false, error: anonymousMessage };
+  }
+
+  if (currentUser.kind === "error") {
+    return {
+      ok: false,
+      error: logServerError(
+        `${context}.auth`,
+        currentUser.message,
+        "Could not verify your sign-in. Please sign in again.",
+      ),
+    };
+  }
+
+  if (currentUser.roleError) {
+    return {
+      ok: false,
+      error: logServerError(
+        `${context}.role`,
+        currentUser.roleError,
+        "Could not verify your role. Please try again.",
+      ),
+    };
+  }
+
+  if (!hasAuthorAccess(currentUser)) {
+    return { ok: false, error: "Author access required." };
+  }
+
+  return { ok: true, userId: currentUser.userId };
+}
+
+function toIncidentRowFields(
+  incident: IncidentDraftValues | IncidentFormValues,
+  occurredAt: string,
+) {
+  return {
+    title: incident.title,
+    company_name: incident.companyName,
+    occurred_at: occurredAt,
+    duration_minutes: incident.durationMinutes,
+    severity: incident.severity,
+    pattern: incident.pattern,
+    summary: incident.summary,
+    official_post_mortem_url: incident.officialPostMortemUrl || null,
+    system: incident.system,
+    technologies: incident.technologies,
+    timeline: incident.timeline,
+    root_cause_tree: incident.rootCauseTree,
+    architecture_diff: incident.architectureDiff,
+    prevention_actions: incident.preventionActions,
+  };
+}
 
 function createSlug(title: string) {
   return (
@@ -33,6 +106,86 @@ type CreateIncidentResult =
   | { error: string; slug?: never; alreadyExists?: never }
   | { error: null; slug: string; alreadyExists?: boolean };
 
+type ExistingIncident = { id: string; slug: string; status: string };
+type IncidentSupabaseClient = Awaited<ReturnType<typeof createClient>>;
+
+const submittedStatusSet = new Set<string>(SUBMITTED_STATUSES);
+
+async function transitionDraft(
+  supabase: IncidentSupabaseClient,
+  row: Record<string, unknown>,
+  userId: string,
+  existing: ExistingIncident,
+): Promise<CreateIncidentResult> {
+  const { data: updated, error: updateError } = await supabase
+    .from("incidents")
+    .update({ ...row, slug: existing.slug })
+    .eq("id", existing.id)
+    .eq("author_id", userId)
+    .eq("status", INCIDENT_STATUS.DRAFT)
+    .select("slug, status");
+
+  if (updateError) {
+    return {
+      error: logServerError(
+        "createIncident.transitionDraft",
+        updateError,
+        "Could not submit the incident. Please try again.",
+      ),
+    };
+  }
+
+  const submitted = updated?.find((item) => submittedStatusSet.has(item.status));
+  if (submitted) {
+    return { error: null, slug: submitted.slug };
+  }
+
+  // Another request may have completed the same transition while this
+  // request was in flight. Confirm the stored state before reporting success.
+  const { data: latest, error: latestError } = await supabase
+    .from("incidents")
+    .select("slug, status")
+    .eq("id", existing.id)
+    .eq("author_id", userId)
+    .maybeSingle();
+
+  if (latestError) {
+    return {
+      error: logServerError(
+        "createIncident.verifyTransition",
+        latestError,
+        "Could not verify whether the incident was submitted. Please refresh and check your reports.",
+      ),
+    };
+  }
+
+  if (latest && submittedStatusSet.has(latest.status)) {
+    return { error: null, slug: latest.slug, alreadyExists: true };
+  }
+
+  return {
+    error:
+      "The draft was not submitted. It may have been deleted or its status changed.",
+  };
+}
+
+async function existingIncidentResult(
+  supabase: IncidentSupabaseClient,
+  row: Record<string, unknown>,
+  userId: string,
+  existing: ExistingIncident,
+): Promise<CreateIncidentResult> {
+  if (submittedStatusSet.has(existing.status)) {
+    return { error: null, slug: existing.slug, alreadyExists: true };
+  }
+
+  if (existing.status !== INCIDENT_STATUS.DRAFT) {
+    return { error: "Could not verify the incident submission status." };
+  }
+
+  return transitionDraft(supabase, row, userId, existing);
+}
+
 export async function createIncident(
   input: unknown,
   idempotencyKey?: string | null,
@@ -40,11 +193,7 @@ export async function createIncident(
   const parsed = incidentFormSchema.safeParse(input);
 
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues
-        .map((issue) => `${issue.path.join(".") || "form"}: ${issue.message}`)
-        .join("; "),
-    };
+    return { error: formatZodError(parsed.error) };
   }
 
   const occurredAt = isoDateTimeSchema.safeParse(parsed.data.occurredAt);
@@ -54,37 +203,11 @@ export async function createIncident(
     };
   }
 
-  const currentUser = await getCurrentUserState();
-
-  if (currentUser.kind === "anonymous") {
-    return {
-      error: "You must be signed in to submit an incident.",
-    };
-  }
-
-  if (currentUser.kind === "error") {
-    return {
-      error: logServerError(
-        "createIncident.auth",
-        currentUser.message,
-        "Could not verify your sign-in. Please sign in again.",
-      ),
-    };
-  }
-
-  if (currentUser.roleError) {
-    return {
-      error: logServerError(
-        "createIncident.role",
-        currentUser.roleError,
-        "Could not verify your role. Please try again.",
-      ),
-    };
-  }
-
-  if (!hasAuthorAccess(currentUser)) {
-    return { error: "Author access required." };
-  }
+  const access = await requireAuthorAccess(
+    "createIncident",
+    "You must be signed in to submit an incident.",
+  );
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
 
@@ -92,103 +215,14 @@ export async function createIncident(
   const slug = createSlug(incident.title);
   const row: Record<string, unknown> = {
     slug,
-    title: incident.title,
-    company_name: incident.companyName,
-    occurred_at: occurredAt.data,
-    duration_minutes: incident.durationMinutes,
-    severity: incident.severity,
-    pattern: incident.pattern,
-    summary: incident.summary,
-    official_post_mortem_url: incident.officialPostMortemUrl || null,
-    system: incident.system,
-    technologies: incident.technologies,
-    timeline: incident.timeline,
-    root_cause_tree: incident.rootCauseTree,
-    architecture_diff: incident.architectureDiff,
-    prevention_actions: incident.preventionActions,
-    author_id: currentUser.userId,
-    status: "PENDING_REVIEW",
+    ...toIncidentRowFields(incident, occurredAt.data),
+    author_id: access.userId,
+    status: INCIDENT_STATUS.PENDING_REVIEW,
   };
 
   if (idempotencyKey) {
     row.idempotency_key = idempotencyKey;
   }
-
-  const submittedStatuses = new Set([
-    "PENDING_REVIEW",
-    "CHANGES_REQUESTED",
-    "PUBLISHED",
-  ]);
-  const transitionDraft = async (
-    existing: { id: string; slug: string; status: string },
-  ): Promise<CreateIncidentResult> => {
-    const { data: updated, error: updateError } = await supabase
-      .from("incidents")
-      .update({ ...row, slug: existing.slug })
-      .eq("id", existing.id)
-      .eq("author_id", currentUser.userId)
-      .eq("status", "DRAFT")
-      .select("slug, status");
-
-    if (updateError) {
-      return {
-        error: logServerError(
-          "createIncident.transitionDraft",
-          updateError,
-          "Could not submit the incident. Please try again.",
-        ),
-      };
-    }
-
-    const submitted = updated?.find((item) =>
-      submittedStatuses.has(item.status),
-    );
-    if (submitted) {
-      return { error: null, slug: submitted.slug };
-    }
-
-    // Another request may have completed the same transition while this
-    // request was in flight. Confirm the stored state before reporting success.
-    const { data: latest, error: latestError } = await supabase
-      .from("incidents")
-      .select("slug, status")
-      .eq("id", existing.id)
-      .eq("author_id", currentUser.userId)
-      .maybeSingle();
-
-    if (latestError) {
-      return {
-        error: logServerError(
-          "createIncident.verifyTransition",
-          latestError,
-          "Could not verify whether the incident was submitted. Please refresh and check your reports.",
-        ),
-      };
-    }
-
-    if (latest && submittedStatuses.has(latest.status)) {
-      return { error: null, slug: latest.slug, alreadyExists: true };
-    }
-
-    return {
-      error:
-        "The draft was not submitted. It may have been deleted or its status changed.",
-    };
-  };
-
-  const existingResult = (
-    existing: { id: string; slug: string; status: string },
-  ): Promise<CreateIncidentResult> | CreateIncidentResult => {
-    if (submittedStatuses.has(existing.status)) {
-      return { error: null, slug: existing.slug, alreadyExists: true };
-    }
-
-    if (existing.status !== "DRAFT") {
-      return { error: "Could not verify the incident submission status." };
-    }
-
-    return transitionDraft(existing);
-  };
 
   // Idempotency: if a row with this key already exists for this user,
   // transition a draft or return only an already-submitted incident.
@@ -197,7 +231,7 @@ export async function createIncident(
       .from("incidents")
       .select("id, slug, status")
       .eq("idempotency_key", idempotencyKey)
-      .eq("author_id", currentUser.userId)
+      .eq("author_id", access.userId)
       .maybeSingle();
 
     if (lookupError) {
@@ -211,7 +245,7 @@ export async function createIncident(
     }
 
     if (existing) {
-      return existingResult(existing);
+      return existingIncidentResult(supabase, row, access.userId, existing);
     }
   }
 
@@ -228,7 +262,7 @@ export async function createIncident(
       .from("incidents")
       .select("id, slug, status")
       .eq("idempotency_key", idempotencyKey)
-      .eq("author_id", currentUser.userId)
+      .eq("author_id", access.userId)
       .maybeSingle();
 
     if (lookupError) {
@@ -242,7 +276,7 @@ export async function createIncident(
     }
 
     if (concurrent) {
-      return existingResult(concurrent);
+      return existingIncidentResult(supabase, row, access.userId, concurrent);
     }
   }
 
@@ -282,78 +316,35 @@ export async function createIncident(
 
 export async function updateIncidentResubmit(input: unknown) {
   const payloadSchema = z.intersection(
-    z.object({ id: z.string() }),
+    z.object({ id: z.string().uuid() }),
     incidentFormSchema,
   );
 
   const parsed = payloadSchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues
-        .map((issue) => `${issue.path.join(".") || "form"}: ${issue.message}`)
-        .join("; "),
-    };
+    return { error: formatZodError(parsed.error) };
   }
 
-  const occurredAt = isoDateTimeSchema.safeParse(
-    parsed.data.occurredAt as string,
-  );
+  const occurredAt = isoDateTimeSchema.safeParse(parsed.data.occurredAt);
   if (!occurredAt.success) {
     return {
       error: "The incident date must be submitted as an ISO timestamp.",
     };
   }
 
-  const currentUser = await getCurrentUserState();
-
-  if (currentUser.kind === "anonymous") {
-    return { error: "You must be signed in to resubmit an incident." };
-  }
-
-  if (currentUser.kind === "error") {
-    return {
-      error: logServerError(
-        "updateIncidentResubmit.auth",
-        currentUser.message,
-        "Could not verify your sign-in. Please sign in again.",
-      ),
-    };
-  }
-
-  if (currentUser.roleError) {
-    return {
-      error: logServerError(
-        "updateIncidentResubmit.role",
-        currentUser.roleError,
-        "Could not verify your role. Please try again.",
-      ),
-    };
-  }
-
-  if (!hasAuthorAccess(currentUser)) {
-    return { error: "Author access required." };
-  }
+  const access = await requireAuthorAccess(
+    "updateIncidentResubmit",
+    "You must be signed in to resubmit an incident.",
+  );
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
 
   const id = parsed.data.id;
 
   const row = {
-    title: parsed.data.title,
-    company_name: parsed.data.companyName,
-    occurred_at: occurredAt.data,
-    duration_minutes: parsed.data.durationMinutes,
-    severity: parsed.data.severity,
-    pattern: parsed.data.pattern,
-    summary: parsed.data.summary,
-    official_post_mortem_url: parsed.data.officialPostMortemUrl || null,
-    system: parsed.data.system,
-    technologies: parsed.data.technologies,
-    timeline: parsed.data.timeline,
-    root_cause_tree: parsed.data.rootCauseTree,
-    architecture_diff: parsed.data.architectureDiff,
-    prevention_actions: parsed.data.preventionActions,
-    status: "PENDING_REVIEW",
+    ...toIncidentRowFields(parsed.data, occurredAt.data),
+    status: INCIDENT_STATUS.PENDING_REVIEW,
   };
 
   // Attempt conditional update: only allow owner to update. Published and
@@ -363,8 +354,8 @@ export async function updateIncidentResubmit(input: unknown) {
   const { count: updatedCount, error: updateError } = await incidentUpdate
     .update(row, { count: "exact" })
     .eq("id", id)
-    .eq("author_id", currentUser.userId)
-    .in("status", ["DRAFT", "PENDING_REVIEW", "CHANGES_REQUESTED"]);
+    .eq("author_id", access.userId)
+    .in("status", [...RESUBMITTABLE_STATUSES]);
 
   if (updateError) {
     return {
@@ -409,22 +400,10 @@ function toDraftRow(
   authorId: string,
 ): Record<string, unknown> {
   return {
-    title: incident.title,
-    company_name: incident.companyName,
-    occurred_at: occurredAt,
-    duration_minutes: incident.durationMinutes,
-    severity: incident.severity,
-    pattern: incident.pattern,
-    summary: incident.summary,
-    official_post_mortem_url: incident.officialPostMortemUrl || null,
-    system: incident.system,
-    technologies: incident.technologies,
-    timeline: incident.timeline,
-    root_cause_tree: incident.rootCauseTree,
+    ...toIncidentRowFields(incident, occurredAt),
     architecture_diff: incident.architectureDiff ?? null,
-    prevention_actions: incident.preventionActions,
     author_id: authorId,
-    status: "DRAFT",
+    status: INCIDENT_STATUS.DRAFT,
   };
 }
 
@@ -440,11 +419,7 @@ export async function saveDraft(
   const parsed = incidentDraftSchema.safeParse(input);
 
   if (!parsed.success) {
-    return {
-      error: parsed.error.issues
-        .map((issue) => `${issue.path.join(".") || "form"}: ${issue.message}`)
-        .join("; "),
-    };
+    return { error: formatZodError(parsed.error) };
   }
 
   const occurredAt = isoDateTimeSchema.safeParse(parsed.data.occurredAt);
@@ -454,43 +429,22 @@ export async function saveDraft(
     };
   }
 
-  const currentUser = await getCurrentUserState();
-
-  if (currentUser.kind === "anonymous") {
-    return { error: "You must be signed in to save a draft." };
-  }
-  if (currentUser.kind === "error") {
-    return {
-      error: logServerError(
-        "saveDraft.auth",
-        currentUser.message,
-        "Could not verify your sign-in. Please sign in again.",
-      ),
-    };
-  }
-  if (currentUser.roleError) {
-    return {
-      error: logServerError(
-        "saveDraft.role",
-        currentUser.roleError,
-        "Could not verify your role. Please try again.",
-      ),
-    };
-  }
-  if (!hasAuthorAccess(currentUser)) {
-    return { error: "Author access required." };
-  }
+  const access = await requireAuthorAccess(
+    "saveDraft",
+    "You must be signed in to save a draft.",
+  );
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
-  const row = toDraftRow(parsed.data, occurredAt.data, currentUser.userId);
+  const row = toDraftRow(parsed.data, occurredAt.data, access.userId);
 
   const updateExistingDraft = async (draftId: string) => {
     const { data: updated, error: updateError } = await supabase
       .from("incidents")
       .update(row, { count: "exact" })
       .eq("id", draftId)
-      .eq("author_id", currentUser.userId)
-      .eq("status", "DRAFT")
+      .eq("author_id", access.userId)
+      .eq("status", INCIDENT_STATUS.DRAFT)
       .select("slug");
 
     if (updateError) {
@@ -523,7 +477,7 @@ export async function saveDraft(
       .from("incidents")
       .select("id, status, slug")
       .eq("id", incidentId)
-      .eq("author_id", currentUser.userId)
+      .eq("author_id", access.userId)
       .maybeSingle();
 
     if (fetchError || !incident) {
@@ -539,7 +493,7 @@ export async function saveDraft(
 
     // Only DRAFTs are updatable through this path; a PENDING_REVIEW /
     // CHANGES_REQUESTED / PUBLISHED report must use the resubmit flow.
-    if (incident.status !== "DRAFT") {
+    if (incident.status !== INCIDENT_STATUS.DRAFT) {
       return {
         error:
           "This report can no longer be saved as a draft. Use the edit flow instead.",
@@ -554,8 +508,8 @@ export async function saveDraft(
       .from("incidents")
       .select("id")
       .eq("idempotency_key", idempotencyKey)
-      .eq("author_id", currentUser.userId)
-      .eq("status", "DRAFT")
+      .eq("author_id", access.userId)
+      .eq("status", INCIDENT_STATUS.DRAFT)
       .maybeSingle();
 
     if (lookupError) {
@@ -576,50 +530,99 @@ export async function saveDraft(
   // Creating a new draft.
   const slug = createSlug(parsed.data.title);
   const createRow: Record<string, unknown> = { ...row, slug };
+  if (idempotencyKey) createRow.idempotency_key = idempotencyKey;
 
-  if (idempotencyKey) {
-    createRow.idempotency_key = idempotencyKey;
-
-    const { data: inserted, error: insertError } = await supabase
+  const insertDraft = (candidate: Record<string, unknown>) =>
+    supabase
       .from("incidents")
-      .insert(createRow)
+      .insert(candidate)
       .select("id, slug")
       .single();
 
-    if (insertError) {
-      return {
-        error: logServerError(
-          "saveDraft.insertWithKey",
-          insertError,
-          "Could not save your draft. Please try again.",
-        ),
-      };
-    }
-
+  const { data: inserted, error: insertError } = await insertDraft(createRow);
+  if (!insertError && inserted) {
     return {
       error: null,
       incidentId: inserted.id,
       slug: inserted.slug ?? slug,
     };
-  } else {
-    const { error: insertError } = await supabase
-      .from("incidents")
-      .insert(createRow);
+  }
 
-    if (insertError) {
+  if (insertError?.code === "23505" && idempotencyKey) {
+    // A simultaneous save may have inserted this key after the lookup above.
+    const { data: existing, error: lookupError } = await supabase
+      .from("incidents")
+      .select("id, status")
+      .eq("idempotency_key", idempotencyKey)
+      .eq("author_id", access.userId)
+      .maybeSingle();
+
+    if (lookupError) {
       return {
         error: logServerError(
-          "saveDraft.insert",
-          insertError,
-          "Could not save your draft. Please try again.",
+          "saveDraft.insertWithKeyRaceLookup",
+          lookupError,
+          "Could not verify your saved draft. Please try again.",
         ),
       };
     }
+
+    if (existing) {
+      if (existing.status !== INCIDENT_STATUS.DRAFT) {
+        return {
+          error:
+            "This report can no longer be saved as a draft. Use the edit flow instead.",
+        };
+      }
+      return updateExistingDraft(existing.id);
+    }
   }
 
-  // The row's slug is deterministic from the title; return it so the caller
-  // can link to the draft. A freshly-created draft always has this slug.
-  return { error: null, incidentId: null, slug: slug };
+  if (!insertError && !inserted) {
+    return {
+      error: logServerError(
+        "saveDraft.insert",
+        new Error("Draft insert returned no row."),
+        "Could not save your draft. Please try again.",
+      ),
+    };
+  }
+
+  if (insertError?.code !== "23505") {
+    return {
+      error: logServerError(
+        idempotencyKey ? "saveDraft.insertWithKey" : "saveDraft.insert",
+        insertError,
+        "Could not save your draft. Please try again.",
+      ),
+    };
+  }
+
+  // A slug collision is rare but recoverable: retry once with a unique suffix.
+  const retrySlug = `${slug}-${randomUUID().slice(0, 8)}`;
+  const { data: retried, error: retryError } = await insertDraft({
+    ...createRow,
+    slug: retrySlug,
+  });
+
+  if (retryError || !retried) {
+    return {
+      error:
+        retryError?.code === "23505"
+          ? "Could not create a unique incident URL. Please try saving again."
+          : logServerError(
+              "saveDraft.slugRetry",
+              retryError ?? new Error("Draft retry returned no row."),
+              "Could not save your draft. Please try again.",
+            ),
+    };
+  }
+
+  return {
+    error: null,
+    incidentId: retried.id,
+    slug: retried.slug ?? retrySlug,
+  };
 }
 
 export async function submitDraft(
@@ -629,32 +632,11 @@ export async function submitDraft(
     return { error: "Invalid incident ID." };
   }
 
-  const currentUser = await getCurrentUserState();
-
-  if (currentUser.kind === "anonymous") {
-    return { error: "You must be signed in to submit a draft." };
-  }
-  if (currentUser.kind === "error") {
-    return {
-      error: logServerError(
-        "submitDraft.auth",
-        currentUser.message,
-        "Could not verify your sign-in. Please sign in again.",
-      ),
-    };
-  }
-  if (currentUser.roleError) {
-    return {
-      error: logServerError(
-        "submitDraft.role",
-        currentUser.roleError,
-        "Could not verify your role. Please try again.",
-      ),
-    };
-  }
-  if (!hasAuthorAccess(currentUser)) {
-    return { error: "Author access required." };
-  }
+  const access = await requireAuthorAccess(
+    "submitDraft",
+    "You must be signed in to submit a draft.",
+  );
+  if (!access.ok) return { error: access.error };
 
   const supabase = await createClient();
 
@@ -665,8 +647,8 @@ export async function submitDraft(
     .from("incidents")
     .select("*")
     .eq("id", incidentId)
-    .eq("author_id", currentUser.userId)
-    .eq("status", "DRAFT")
+    .eq("author_id", access.userId)
+    .eq("status", INCIDENT_STATUS.DRAFT)
     .maybeSingle();
 
   if (fetchError) {
@@ -705,11 +687,7 @@ export async function submitDraft(
   const validated = incidentFormSchema.safeParse(submitRow);
   if (!validated.success) {
     return {
-      error:
-        "This report is not complete yet: " +
-        validated.error.issues
-          .map((issue) => `${issue.path.join(".") || "form"}: ${issue.message}`)
-          .join("; "),
+      error: `This report is not complete yet: ${formatZodError(validated.error)}`,
     };
   }
 
@@ -726,12 +704,12 @@ export async function submitDraft(
   const { data: updated, error: updateError } = await supabase
     .from("incidents")
     .update({
-      status: "PENDING_REVIEW",
+      status: INCIDENT_STATUS.PENDING_REVIEW,
       occurred_at: occurredAt.data,
     })
     .eq("id", incidentId)
-    .eq("author_id", currentUser.userId)
-    .eq("status", "DRAFT")
+    .eq("author_id", access.userId)
+    .eq("status", INCIDENT_STATUS.DRAFT)
     .select("slug");
 
   if (updateError) {
@@ -757,37 +735,12 @@ export async function submitDraft(
 export async function deleteIncident(
   id: string,
 ): Promise<{ error: string | null }> {
-  const authState = await getCurrentUserState();
-  if (authState.kind === "error") {
-    return {
-      error: logServerError(
-        "deleteIncident.auth",
-        authState.message,
-        "Could not verify your sign-in. Please sign in again.",
-      ),
-    };
-  }
-  if (authState.kind === "anonymous") {
-    return { error: "Not authenticated." };
-  }
-
-  if (authState.roleError) {
-    return {
-      error: logServerError(
-        "deleteIncident.role",
-        authState.roleError,
-        "Could not verify your role. Please try again.",
-      ),
-    };
-  }
+  const access = await requireAuthorAccess("deleteIncident", "Not authenticated.");
+  if (!access.ok) return { error: access.error };
 
   // Reviewers/admins must not use the author deletion flow; only plain
   // authors may delete their own reports.
-  if (!hasAuthorAccess(authState)) {
-    return { error: "Author access required." };
-  }
-
-  const userId = authState.userId;
+  const userId = access.userId;
 
   if (!id || typeof id !== "string") {
     return { error: "Invalid incident ID." };
@@ -822,12 +775,7 @@ export async function deleteIncident(
     };
   }
 
-  const allowedStatuses = ["DRAFT", "CHANGES_REQUESTED"] as const;
-  if (
-    !allowedStatuses.includes(
-      incident.status as (typeof allowedStatuses)[number],
-    )
-  ) {
+  if (!DELETABLE_STATUSES.includes(incident.status as IncidentStatus)) {
     return {
       error:
         "This incident cannot be deleted. Only incidents in DRAFT or CHANGES_REQUESTED status can be deleted.",
@@ -858,7 +806,7 @@ export async function deleteIncident(
     .delete()
     .eq("id", id)
     .eq("author_id", userId)
-    .in("status", allowedStatuses)
+    .in("status", [...DELETABLE_STATUSES])
     .select("id");
 
   if (deleteError) {

@@ -20,8 +20,8 @@ import {
   ConfirmPasswordField,
   PasswordField,
   TextField,
-} from "./password-field";
-import EmailConfirmation from "./Email-confirmation";
+} from "./PasswordField";
+import EmailConfirmation from "./EmailConfirmation";
 import ReviewWorkflowAside from "./ReviewWorkflowAside";
 import { successToastOptions } from "./auth-toast";
 

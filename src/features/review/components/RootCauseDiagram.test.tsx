@@ -5,7 +5,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { RootCauseNode } from "@/types/incident";
-import { RootCauseDiagram } from "./root-cause-diagram";
+import { RootCauseDiagram } from "./RootCauseDiagram";
 
 const nodes: RootCauseNode[] = [
   {

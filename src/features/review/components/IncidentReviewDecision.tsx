@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
 import type { ReviewIncident } from "@/features/review/server/queries";
 import { reviewIncident } from "@/features/review/server/actions";
+import { INCIDENT_STATUS } from "@/types/incident";
 
 export default function IncidentReviewDecision({
   id,
@@ -35,7 +36,7 @@ export default function IncidentReviewDecision({
   ) {
     event?.preventDefault();
     const trimmedReason = reason.trim();
-    if (action === "CHANGES_REQUESTED" && !trimmedReason) {
+    if (action === INCIDENT_STATUS.CHANGES_REQUESTED && !trimmedReason) {
       setFeedback({
         kind: "error",
         message: "Enter a reason before requesting changes.",
@@ -159,7 +160,9 @@ export default function IncidentReviewDecision({
       {isChangeRequestOpen && (
         <form
           id={`change-request-${incident.id}`}
-          onSubmit={(event) => submitDecision("CHANGES_REQUESTED", event)}
+          onSubmit={(event) =>
+            submitDecision(INCIDENT_STATUS.CHANGES_REQUESTED, event)
+          }
           className="review-change-form mt-5 max-w-2xl border-l-2 border-amber-300/60 pl-4 sm:pl-5"
         >
           <label

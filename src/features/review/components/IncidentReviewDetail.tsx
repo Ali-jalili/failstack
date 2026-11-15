@@ -12,14 +12,14 @@ import {
   UserRound,
 } from "lucide-react";
 import { useState } from "react";
-import { ArchitectureDiffDiagram } from "./architecture-diff-diagram";
-import IncidentReviewDecision from "./incident-review-decision";
-import { IncidentFactsBar } from "./incident-facts-bar";
-import { IncidentTimeline } from "./incident-timeline";
-import { PreventionList } from "./prevention-list";
-import { ProgressRing } from "./progress-ring";
-import { RootCauseDiagram } from "./root-cause-diagram";
-import { SectionHeading } from "./section-heading";
+import { ArchitectureDiffDiagram } from "./ArchitectureDiffDiagram";
+import IncidentReviewDecision from "./IncidentReviewDecision";
+import { IncidentFactsBar } from "./IncidentFactsBar";
+import { IncidentTimeline } from "./IncidentTimeline";
+import { PreventionList } from "./PreventionList";
+import { ProgressRing } from "./ProgressRing";
+import { RootCauseDiagram } from "./RootCauseDiagram";
+import { SectionHeading } from "./SectionHeading";
 import { formatDate, severityMeta } from "./visualization-shared";
 import { getSafeHttpsUrl } from "@/features/incidents/schema";
 import type { ReviewIncident } from "@/features/review/server/queries";

@@ -13,7 +13,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import SignupForm from "./Signup-form";
+import SignupForm from "./SignupForm";
 
 const mocks = vi.hoisted(() => ({
   handleSignUp: vi.fn(),

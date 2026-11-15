@@ -4,7 +4,7 @@
  * @vitest-environment jsdom
  *
  * UI tests for the dedicated incident detail's decision flow
- * (`incident-review-detail.tsx`):
+ * (`IncidentReviewDetail.tsx`):
  *
  *  - Approve success + a next pending incident → auto-advance to it.
  *  - Approve success + no next incident → navigate to the queue, which
@@ -25,7 +25,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { IncidentReviewDetail } from "./incident-review-detail";
+import { IncidentReviewDetail } from "./IncidentReviewDetail";
 import { reviewIncident } from "@/features/review/server/actions";
 import type { ReviewIncident } from "@/features/review/server/queries";
 

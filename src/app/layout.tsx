@@ -1,11 +1,12 @@
 /** @format */
 
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
-import Footer from "@/components/footer";
-import Navbar from "@/components/navbar";
+import Footer from "@/components/FooterComponent";
+import Navbar from "@/components/NavbarComponent";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,12 +19,36 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://failstack.vercel.app"),
   title: "FailStack",
   description:
     "Learn from real-world software failures through structured incident analysis",
+  openGraph: {
+    type: "website",
+    url: "https://failstack.vercel.app",
+    siteName: "FailStack",
+    title: "FailStack — Engineering knowledge, recovered from failure.",
+    description:
+      "A peer-reviewed incident archive for documenting production failures and preserving the lessons behind them.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1731,
+        height: 908,
+        alt: "FailStack — Engineering knowledge, recovered from failure.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FailStack — Engineering knowledge, recovered from failure.",
+    description:
+      "A peer-reviewed incident archive for documenting production failures and preserving the lessons behind them.",
+    images: ["/og-image.png"],
+  },
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body

@@ -23,7 +23,7 @@ import {
   durationLabel,
   hasConfigDiff,
 } from "./public-incident-formatters";
-import { ServerIcon } from "./public-incident-icons";
+import { ServerIcon } from "./PublicIncidentIcons";
 
 /* ---------- helpers ---------- */
 

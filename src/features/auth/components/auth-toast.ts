@@ -5,7 +5,7 @@ import type { ExternalToast } from "sonner";
 /**
  * Shared success-toast styling so auth success messages match the rest of
  * the site: lime accent (#c6e47c), tinted dark card, mono label, light text.
- * Mirrors the success card used by the incident form (`steps.tsx`).
+ * Mirrors the success card used by the incident form (`Steps.tsx`).
  */
 const SUCCESS_TOAST_CLASS =
   "border border-[#c6e47c]/40 bg-[#0c151c] font-[var(--font-geist-sans)]";

@@ -6,6 +6,10 @@ import { ArrowUpRight, Plus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import type { IncidentStatus } from "@/types/incident";
+import {
+  DELETABLE_STATUSES,
+  INCIDENT_STATUS,
+} from "@/types/incident";
 import type { MyReport } from "@/features/incidents/server/queries";
 import { deleteIncident } from "@/features/incidents/server/actions";
 import {
@@ -40,9 +44,9 @@ const statusDetails: Record<
 };
 
 const summaryStatuses: IncidentStatus[] = [
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "CHANGES_REQUESTED",
+  INCIDENT_STATUS.PENDING_REVIEW,
+  INCIDENT_STATUS.PUBLISHED,
+  INCIDENT_STATUS.CHANGES_REQUESTED,
 ];
 
 const lifecycleStages = ["Submitted", "Under review", "Decision", "Published"];
@@ -269,9 +273,8 @@ function ReportStatus({
   onDeleted: () => void;
 }) {
   const status = statusDetails[report.status];
-  const isEditable = report.status !== "PUBLISHED";
-  const canDelete =
-    report.status === "DRAFT" || report.status === "CHANGES_REQUESTED";
+  const isEditable = report.status !== INCIDENT_STATUS.PUBLISHED;
+  const canDelete = DELETABLE_STATUSES.includes(report.status);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   return (
@@ -288,7 +291,7 @@ function ReportStatus({
 
       {isEditable && (
         <div className="mt-3 border-l border-[#e2a16d]/50 pl-3">
-          {report.status === "CHANGES_REQUESTED" &&
+          {report.status === INCIDENT_STATUS.CHANGES_REQUESTED &&
           report.latest_review_reason ? (
             <>
               <p className="font-mono text-[9px] uppercase tracking-[0.1em] text-[#d79b75]">

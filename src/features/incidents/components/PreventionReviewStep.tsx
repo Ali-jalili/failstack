@@ -4,7 +4,7 @@
 
 import { type IncidentFormValues } from "@/features/incidents/form-schema";
 import { useFieldArray, useFormContext } from "react-hook-form";
-import { FormSectionHeading } from "./form-fields";
+import { FormSectionHeading } from "./FormFields";
 
 const inputClass = (hasError: boolean) =>
   `block w-full rounded-md border bg-[#0d1520] px-4 py-3 text-[14px] leading-5 text-slate-100 placeholder:text-slate-600 transition-[border-color,box-shadow,background-color] duration-200 focus:outline-none focus:ring-2 motion-reduce:transition-none ${

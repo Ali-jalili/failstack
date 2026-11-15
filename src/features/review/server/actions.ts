@@ -9,6 +9,7 @@ import {
   getCurrentUserState,
   hasReviewerAccess,
 } from "@/features/auth/server/current-user";
+import { INCIDENT_STATUS } from "@/types/incident";
 
 const reviewSchema = z.discriminatedUnion("action", [
   z.object({
@@ -17,7 +18,7 @@ const reviewSchema = z.discriminatedUnion("action", [
   }),
   z.object({
     incidentId: z.string().uuid(),
-    action: z.literal("CHANGES_REQUESTED"),
+    action: z.literal(INCIDENT_STATUS.CHANGES_REQUESTED),
     reason: z.string().trim().min(1, "Reason is required"),
   }),
 ]);
@@ -71,7 +72,9 @@ export async function reviewIncident(input: unknown) {
     p_incident_id: parsed.data.incidentId,
     p_action: parsed.data.action,
     p_reason:
-      parsed.data.action === "CHANGES_REQUESTED" ? parsed.data.reason : null,
+      parsed.data.action === INCIDENT_STATUS.CHANGES_REQUESTED
+        ? parsed.data.reason
+        : null,
   });
 
   if (error) {

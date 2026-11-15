@@ -14,6 +14,12 @@ import {
 } from "@/features/incidents/server/actions";
 import { checkDuplicateTitle } from "@/features/incidents/server/title-duplicates";
 import { useDuplicateTitleCheck } from "./use-duplicate-title-check";
+import IncidentFormNavigation from "./IncidentFormNavigation";
+import {
+  DEFAULT_VALUES,
+  STEPS,
+  toIsoFromLocalDateTime,
+} from "./incident-form-config";
 import {
   incidentFormSchema,
   type IncidentFormValues,
@@ -21,138 +27,8 @@ import {
 import {
   StepIndicator,
   StepHeader,
-  StepNav,
   StepStatusPanel,
-  type StepDefinition,
-} from "./steps";
-import BasicInfoStep from "./BasicInfoStep";
-import SystemTechnologiesStep from "./SystemTechnologiesStep";
-import TimelineStep from "./TimelineStep";
-import RootCauseArchitectureStep from "./RootCauseArchitectureStep";
-import PreventionReviewStep from "./PreventionReviewStep";
-import PreviewStep from "./PreviewStep";
-
-const STEPS: readonly StepDefinition<IncidentFormValues>[] = [
-  {
-    id: "basic-info",
-    label: "Basic info",
-    description: "Essential metadata and initial impact",
-    component: BasicInfoStep,
-    fields: [
-      "title",
-      "companyName",
-      "occurredAt",
-      "durationMinutes",
-      "severity",
-      "pattern",
-      "summary",
-      "officialPostMortemUrl",
-    ],
-  },
-  {
-    id: "system-technologies",
-    label: "System & technologies",
-    description: "The system and stack involved",
-    component: SystemTechnologiesStep,
-    fields: ["system", "technologies"],
-  },
-  {
-    id: "timeline",
-    label: "Timeline",
-    description: "Sequence of events from trigger to mitigation",
-    component: TimelineStep,
-    fields: ["timeline"],
-  },
-  {
-    id: "root-cause",
-    label: "Root cause & architecture",
-    description: "Why it happened and what changed",
-    component: RootCauseArchitectureStep,
-    fields: ["rootCauseTree", "architectureDiff"],
-  },
-  {
-    id: "prevention",
-    label: "Prevention & review",
-    description: "Concrete changes to stop it recurring",
-    component: PreventionReviewStep,
-    fields: ["preventionActions"],
-  },
-  {
-    // Read-only final review. It has no fields to validate of its own; it is
-    // only reachable after the data-entry steps (above) have validated. The
-    // submit button appears on this step (isLast).
-    id: "preview",
-    label: "Final preview",
-    description: "Review the complete report before submitting",
-    component: PreviewStep,
-    fields: [],
-  },
-] as const;
-
-const DEFAULT_VALUES: IncidentFormValues = {
-  title: "",
-  companyName: "",
-  occurredAt: "",
-  durationMinutes: 0,
-  severity: "MINOR",
-  pattern: "SINGLE_POINT_OF_FAILURE",
-  summary: "",
-  officialPostMortemUrl: "",
-  system: "",
-  technologies: [],
-  timeline: [],
-  rootCauseTree: [],
-  architectureDiff: {
-    beforeFix: "",
-    afterFix: "",
-    isFact: true,
-    notes: "",
-  },
-  preventionActions: [],
-};
-
-function toIsoFromLocalDateTime(value: string): string | null {
-  const match =
-    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/.exec(
-      value,
-    );
-  if (!match) return null;
-
-  const [, year, month, day, hour, minute, second = "0", fraction = "0"] =
-    match;
-  const parts = {
-    year: Number(year),
-    month: Number(month),
-    day: Number(day),
-    hour: Number(hour),
-    minute: Number(minute),
-    second: Number(second),
-    millisecond: Number(fraction.padEnd(3, "0")),
-  };
-  const localDate = new Date(
-    parts.year,
-    parts.month - 1,
-    parts.day,
-    parts.hour,
-    parts.minute,
-    parts.second,
-    parts.millisecond,
-  );
-
-  if (
-    localDate.getFullYear() !== parts.year ||
-    localDate.getMonth() !== parts.month - 1 ||
-    localDate.getDate() !== parts.day ||
-    localDate.getHours() !== parts.hour ||
-    localDate.getMinutes() !== parts.minute ||
-    localDate.getSeconds() !== parts.second ||
-    localDate.getMilliseconds() !== parts.millisecond
-  ) {
-    return null;
-  }
-
-  return localDate.toISOString();
-}
+} from "./IncidentFormSteps";
 
 export default function IncidentForm({
   initialValues,
@@ -529,80 +405,20 @@ export default function IncidentForm({
               </form>
             </FormProvider>
           </div>
-          {/* Navigation */}
-          {isLast ? (
-            <div className="mt-6 border-t border-slate-800/80 pt-4">
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <button
-                  type="button"
-                  onClick={back}
-                  disabled={isLocked}
-                  className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700/80 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-300 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <span aria-hidden="true">←</span>
-                  Back to edit
-                </button>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <button
-                    type="button"
-                    onClick={() => void onSaveDraft()}
-                    disabled={isLocked || isSavingDraft}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-700/80 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-300 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    {isSavingDraft ? "Saving…" : "Save draft"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleSubmit(onSubmit)()}
-                    disabled={isLocked}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-[#c6e47c] bg-[#c6e47c] px-5 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#11190a] transition-colors hover:border-[#dcf7a0] hover:bg-[#dcf7a0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isSubmitting ? "Submitting…" : "Confirm & submit"}
-                    {!isSubmitting ? <span aria-hidden="true">→</span> : null}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-          <div className="mt-7">
-            <StepNav
-              canGoBack={!isFirst}
-              canProceed={!isLocked}
-              isSubmitting={isSubmitting}
-              isLocked={isLocked}
-              isLast={isLast}
-              backLabel={isLast ? "Back to Edit" : "Back"}
-              submitLabel={
-                mode === "edit" ? "Confirm & Save Changes" : "Confirm & Submit"
-              }
-              onBack={back}
-              onNext={next}
-              onSubmit={() => {
-                void handleSubmit(onSubmit)();
-              }}
-            />
-            <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => void onSaveDraft()}
-                disabled={isLocked || isSavingDraft}
-                className="inline-flex min-h-10 items-center gap-2 rounded-md border border-slate-700/80 bg-slate-900/40 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-slate-300 transition-colors hover:border-slate-600 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {isSavingDraft ? "Saving…" : "Save draft"}
-              </button>
-              {mode === "edit" && incidentId ? (
-                <button
-                  type="button"
-                  onClick={() => void onResubmitDraft()}
-                  disabled={isLocked || isSubmitting}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#c6e47c]/40 bg-[#c6e47c]/10 px-4 py-2 font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-[#d5e8a5] transition-colors hover:border-[#c6e47c]/60 hover:bg-[#c6e47c]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c6e47c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#080d16] disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  {isSubmitting ? "Submitting…" : "Submit draft for review"}
-                </button>
-              ) : null}
-            </div>
-          </div>
-          )}
+          <IncidentFormNavigation
+            isLast={isLast}
+            isFirst={isFirst}
+            isLocked={isLocked}
+            isSubmitting={isSubmitting}
+            isSavingDraft={isSavingDraft}
+            mode={mode}
+            incidentId={incidentId}
+            back={back}
+            next={next}
+            onSaveDraft={() => void onSaveDraft()}
+            onResubmitDraft={() => void onResubmitDraft()}
+            onSubmit={() => void handleSubmit(onSubmit)()}
+          />
           <StepStatusPanel
             error={submitError}
             success={submitSuccess}
