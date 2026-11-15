@@ -20,6 +20,10 @@ Create a local `.env.local` file and configure the following variable names with
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 
+## Supabase migrations
+
+The SQL files in [supabase/migrations](supabase/migrations/) were written from the app's expected behavior, not exported from a live database. Apply them to a fresh project only. Before pushing, verify which project is linked, run `supabase db push --dry-run --remote`, and review the proposed changes. Compare the migrations with the live project before using them there.
+
 Start the development server:
 
 ```bash
@@ -55,8 +59,8 @@ Run the suite with:
 pnpm test
 ```
 
-The latest recorded full-suite run passed 404 tests. Server-side tests use mocks; they do not verify integration with Supabase. The repository has no E2E test suite.
+The latest full-suite run passed 408 tests. Server-side tests use mocks; they do not verify integration with Supabase. The repository has no E2E test suite.
 
-## Known limitations
+## Scope and known limitations
 
-Database behavior, including RLS policies and RPC definitions, must be verified separately; the application test mocks do not establish those database guarantees. No E2E suite is currently present.
+The migrations in [supabase/migrations](supabase/migrations/) describe the schema, RLS policies, and RPC behavior inferred from the app. They are not a live database export, and the application test mocks do not prove that a deployed project matches them. Compare with and verify the target Supabase project before applying. No E2E suite is currently present.
