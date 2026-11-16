@@ -33,8 +33,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 1731,
-        height: 908,
+        width: 1200,
+        height: 630,
         alt: "FailStack — Engineering knowledge, recovered from failure.",
       },
     ],
